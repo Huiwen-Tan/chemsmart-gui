@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chemsmart.local/schema/molecule-document.schema.json",
+  "title": "MoleculeDocument",
+  "type": "object",
+  "required": ["id", "name", "atoms", "bonds"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "atoms": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["index", "element", "x", "y", "z"],
+        "properties": {
+          "index": { "type": "integer", "minimum": 0 },
+          "element": { "type": "string", "minLength": 1 },
+          "x": { "type": "number" },
+          "y": { "type": "number" },
+          "z": { "type": "number" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "bonds": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["atom1", "atom2"],
+        "properties": {
+          "atom1": { "type": "integer", "minimum": 0 },
+          "atom2": { "type": "integer", "minimum": 0 }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

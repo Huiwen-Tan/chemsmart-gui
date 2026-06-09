@@ -1,0 +1,14 @@
+{
+  "name": "chemsmart-gui",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/frontend",
+    "apps/desktop"
+  ],
+  "scripts": {
+    "frontend:typecheck": "npm run --workspace apps/frontend typecheck",
+    "frontend:build": "npm run --workspace apps/frontend build",
+    "desktop:typecheck": "npm run --workspace apps/desktop typecheck"
+  }
+}

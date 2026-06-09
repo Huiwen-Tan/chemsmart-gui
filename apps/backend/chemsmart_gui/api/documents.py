@@ -1,0 +1,35 @@
+from fastapi import APIRouter, Depends, HTTPException, status
+
+from chemsmart_gui.domain.document import MoleculeDocument, OpenDocumentRequest
+from chemsmart_gui.services.document_service import DocumentService
+from chemsmart_gui.services.mock_document_service import MockDocumentService
+
+router = APIRouter(prefix="/api/documents", tags=["documents"])
+
+_document_service: DocumentService = MockDocumentService()
+
+
+def get_document_service() -> DocumentService:
+    return _document_service
+
+
+@router.post("/open", response_model=MoleculeDocument)
+def open_document(
+    request: OpenDocumentRequest,
+    document_service: DocumentService = Depends(get_document_service),
+) -> MoleculeDocument:
+    return document_service.open_document(request)
+
+
+@router.get("/{document_id}", response_model=MoleculeDocument)
+def get_document(
+    document_id: str,
+    document_service: DocumentService = Depends(get_document_service),
+) -> MoleculeDocument:
+    document = document_service.get_document(document_id)
+    if document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Document '{document_id}' not found.",
+        )
+    return document

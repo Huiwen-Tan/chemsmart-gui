@@ -1,0 +1,1 @@
+"""CHEMSMART GUI backend package."""
