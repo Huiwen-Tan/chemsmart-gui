@@ -11,7 +11,8 @@
 - **Frontend (React + Three.js):** UI state, molecular viewer, and user interaction.
 - **Backend (FastAPI):** API routing, document/service orchestration, and plugin contracts.
 - **Adapter layer:** isolates future direct CHEMSMART integration so UI code never imports CHEMSMART internals.
-- **Shared schemas:** JSON schema contract for molecule documents.
+- **Shared schemas:** JSON schema contracts for payloads exchanged between the
+  backend and frontend.
 
 ## Extensibility
 

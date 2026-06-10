@@ -1,5 +1,7 @@
 # shared-schema
 
-Contains shared JSON schemas for molecule/document payloads.
+Contains shared JSON schemas for molecule and document payloads exchanged
+between CHEMSMART GUI components.
 
-Long-term goal: generate TypeScript types directly from backend OpenAPI/Pydantic models to keep frontend and backend contracts synchronized.
+When changing a schema, update the corresponding backend model, frontend type,
+and API tests in the same pull request.
