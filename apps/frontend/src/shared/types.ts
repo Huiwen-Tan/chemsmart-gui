@@ -14,6 +14,9 @@ export interface Bond {
 export interface MoleculeDocument {
   id: string;
   name: string;
+  coordinate_unit: 'angstrom';
+  charge: number | null;
+  multiplicity: number | null;
   atoms: Atom[];
   bonds: Bond[];
 }

@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 
 
 class Atom(BaseModel):
-    index: int = Field(ge=0)
+    index: int = Field(ge=1)
     element: str = Field(min_length=1)
     x: float
     y: float
@@ -10,5 +10,5 @@ class Atom(BaseModel):
 
 
 class Bond(BaseModel):
-    atom1: int = Field(ge=0)
-    atom2: int = Field(ge=0)
+    atom1: int = Field(ge=1)
+    atom2: int = Field(ge=1)

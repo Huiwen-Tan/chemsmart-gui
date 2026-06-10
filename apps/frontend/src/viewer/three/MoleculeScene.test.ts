@@ -5,8 +5,11 @@ import type { MoleculeDocument } from '../../shared/types';
 import { MoleculeScene } from './MoleculeScene';
 
 const WATER: MoleculeDocument = {
-  id: 'water',
-  name: 'Water',
+  id: '102b86d024728b9b902fb38c1b108f09e06311db6154a021419913cc2be81082',
+  name: 'str-H2O-102b86d02472',
+  coordinate_unit: 'angstrom',
+  charge: null,
+  multiplicity: null,
   atoms: [
     { index: 1, element: 'O', x: 0, y: 0, z: 0 },
     { index: 2, element: 'H', x: 0.8, y: 0.6, z: 0 },
@@ -19,8 +22,11 @@ const WATER: MoleculeDocument = {
 };
 
 const HELIUM: MoleculeDocument = {
-  id: 'helium',
-  name: 'Helium',
+  id: '4054373538ed8c659cd165de0c57822be13073206e4305ddc5dc6937fb2cd65b',
+  name: 'str-He-4054373538ed',
+  coordinate_unit: 'angstrom',
+  charge: 0,
+  multiplicity: 1,
   atoms: [{ index: 1, element: 'He', x: 0, y: 0, z: 0 }],
   bonds: [],
 };

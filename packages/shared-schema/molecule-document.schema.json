@@ -3,17 +3,38 @@
   "$id": "https://chemsmart.local/schema/molecule-document.schema.json",
   "title": "MoleculeDocument",
   "type": "object",
-  "required": ["id", "name", "atoms", "bonds"],
+  "required": [
+    "id",
+    "name",
+    "coordinate_unit",
+    "charge",
+    "multiplicity",
+    "atoms",
+    "bonds"
+  ],
   "properties": {
     "id": { "type": "string", "minLength": 1 },
     "name": { "type": "string", "minLength": 1 },
+    "coordinate_unit": {
+      "type": "string",
+      "const": "angstrom",
+      "description": "Unit used by all Cartesian atom coordinates."
+    },
+    "charge": {
+      "type": ["integer", "null"],
+      "description": "Total molecular charge, or null when unknown."
+    },
+    "multiplicity": {
+      "type": ["integer", "null"],
+      "description": "Spin multiplicity, or null when unknown."
+    },
     "atoms": {
       "type": "array",
       "items": {
         "type": "object",
         "required": ["index", "element", "x", "y", "z"],
         "properties": {
-          "index": { "type": "integer", "minimum": 0 },
+          "index": { "type": "integer", "minimum": 1 },
           "element": { "type": "string", "minLength": 1 },
           "x": { "type": "number" },
           "y": { "type": "number" },
@@ -28,8 +49,8 @@
         "type": "object",
         "required": ["atom1", "atom2"],
         "properties": {
-          "atom1": { "type": "integer", "minimum": 0 },
-          "atom2": { "type": "integer", "minimum": 0 }
+          "atom1": { "type": "integer", "minimum": 1 },
+          "atom2": { "type": "integer", "minimum": 1 }
         },
         "additionalProperties": false
       }
