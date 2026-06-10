@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - Node.js 20+
-- Python 3.11+
+- Python 3.10
 
 ## Install frontend + desktop dependencies
 
@@ -14,7 +14,7 @@ npm install
 ## Install backend dependencies
 
 ```bash
-python3.11 -m venv .venv
+python3.10 -m venv .venv
 source .venv/bin/activate
 pip install -e "apps/backend[dev]"
 ```
@@ -35,6 +35,13 @@ npm run --workspace apps/frontend dev
 
 For MVP, backend runs separately. Electron can load the dev frontend via `VITE_DEV_SERVER_URL` or frontend build output in production.
 
-## Frontend tests
+## Verify the repository
 
-TODO: add frontend component/integration tests once the project testing harness (for example Vitest + React Testing Library) is selected.
+Run the complete current verification baseline from the repository root:
+
+```bash
+npm run verify
+```
+
+This runs backend tests, frontend tests, frontend typecheck and build, and
+desktop typecheck. Run it before completing a development task.

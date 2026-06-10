@@ -7,6 +7,7 @@
     "apps/desktop"
   ],
   "scripts": {
+    "verify": "python -m pytest -q apps/backend/tests && npm run frontend:test && npm run frontend:typecheck && npm run frontend:build && npm run desktop:typecheck",
     "frontend:test": "npm run --workspace apps/frontend test",
     "frontend:typecheck": "npm run --workspace apps/frontend typecheck",
     "frontend:build": "npm run --workspace apps/frontend build",
