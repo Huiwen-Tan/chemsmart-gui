@@ -39,3 +39,5 @@ jobs:
         run: npm run frontend:test
       - name: Build frontend
         run: npm run frontend:build
+      - name: Type check desktop
+        run: npm run desktop:typecheck
