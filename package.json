@@ -7,6 +7,7 @@
     "apps/desktop"
   ],
   "scripts": {
+    "frontend:test": "npm run --workspace apps/frontend test",
     "frontend:typecheck": "npm run --workspace apps/frontend typecheck",
     "frontend:build": "npm run --workspace apps/frontend build",
     "desktop:typecheck": "npm run --workspace apps/desktop typecheck"

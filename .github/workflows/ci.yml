@@ -35,5 +35,7 @@ jobs:
         run: npm install
       - name: Type check frontend
         run: npm run frontend:typecheck
+      - name: Test frontend
+        run: npm run frontend:test
       - name: Build frontend
         run: npm run frontend:build
