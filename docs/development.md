@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Node.js 20+
+- Node.js 22.12+
 - Python 3.10
 
 ## Install frontend + desktop dependencies
