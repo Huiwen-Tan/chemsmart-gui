@@ -1,12 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from chemsmart_gui.domain.document import MoleculeDocument, OpenDocumentRequest
+from chemsmart_gui.services.chemsmart_document_service import (
+    ChemsmartDocumentService,
+)
 from chemsmart_gui.services.document_service import DocumentService
-from chemsmart_gui.services.mock_document_service import MockDocumentService
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
-_document_service: DocumentService = MockDocumentService()
+_document_service: DocumentService = ChemsmartDocumentService()
 
 
 def get_document_service() -> DocumentService:
