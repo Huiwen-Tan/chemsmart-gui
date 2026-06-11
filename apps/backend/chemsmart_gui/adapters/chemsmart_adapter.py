@@ -1,3 +1,4 @@
+from ase.io.formats import UnknownFileTypeError
 from chemsmart.io.molecules.structure import Molecule
 
 from chemsmart_gui.domain.document import MoleculeDocument
@@ -38,5 +39,18 @@ class ChemsmartAdapter:
 
     def open_molecule_from_path(self, path: str) -> MoleculeDocument:
         """Open one structure through CHEMSMART and normalize it."""
-        molecule = Molecule.from_filepath(path)
+        try:
+            molecule = Molecule.from_filepath(path)
+        except UnknownFileTypeError as exc:
+            raise ValueError(
+                f"Unsupported molecular file format: {exc}."
+            ) from exc
+        except ValueError as exc:
+            raise ValueError(
+                f"Could not open molecular file '{path}': {exc}"
+            ) from exc
+
+        if molecule is None:
+            raise ValueError(f"No molecular structure found in '{path}'.")
+
         return self.to_document(molecule)

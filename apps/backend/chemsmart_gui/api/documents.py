@@ -20,7 +20,18 @@ def open_document(
     request: OpenDocumentRequest,
     document_service: DocumentService = Depends(get_document_service),
 ) -> MoleculeDocument:
-    return document_service.open_document(request)
+    try:
+        return document_service.open_document(request)
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
 
 
 @router.get("/{document_id}", response_model=MoleculeDocument)

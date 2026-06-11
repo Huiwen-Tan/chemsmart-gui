@@ -1,8 +1,11 @@
 from pathlib import Path
+from unittest.mock import Mock
 
+import pytest
 from fastapi.testclient import TestClient
 
-from chemsmart_gui.api.documents import get_document_service
+from chemsmart_gui.api.documents import get_document_service, open_document
+from chemsmart_gui.domain.document import OpenDocumentRequest
 from chemsmart_gui.main import app
 from chemsmart_gui.services.chemsmart_document_service import (
     ChemsmartDocumentService,
@@ -62,3 +65,59 @@ def test_open_document_parses_requested_xyz(tmp_path: Path) -> None:
         {"index": 1, "element": "He", "x": 1.5, "y": 0.0, "z": 0.0}
     ]
     assert body["bonds"] == []
+
+
+def test_open_document_reports_missing_request_path() -> None:
+    response = client.post("/api/documents/open", json={})
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "A document path is required."
+
+
+def test_open_document_reports_missing_file(tmp_path: Path) -> None:
+    missing_path = tmp_path / "missing.xyz"
+
+    response = client.post(
+        "/api/documents/open",
+        json={"path": str(missing_path)},
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"].endswith("could not be found!")
+
+
+@pytest.mark.parametrize(
+    ("filename", "contents", "detail_fragment"),
+    [
+        ("corrupt.xyz", "Invalid file content", "Could not open molecular file"),
+        ("empty.xyz", "", "No molecular structure found"),
+        ("unknown.foo", "Unknown format", "Unsupported molecular file format"),
+    ],
+)
+def test_open_document_reports_invalid_file(
+    tmp_path: Path,
+    filename: str,
+    contents: str,
+    detail_fragment: str,
+) -> None:
+    invalid_path = tmp_path / filename
+    invalid_path.write_text(contents, encoding="utf-8")
+
+    response = client.post(
+        "/api/documents/open",
+        json={"path": str(invalid_path)},
+    )
+
+    assert response.status_code == 400
+    assert detail_fragment in response.json()["detail"]
+
+
+def test_open_document_does_not_hide_unexpected_errors() -> None:
+    document_service = Mock()
+    document_service.open_document.side_effect = RuntimeError("unexpected")
+
+    with pytest.raises(RuntimeError, match="unexpected"):
+        open_document(
+            OpenDocumentRequest(path="molecule.xyz"),
+            document_service=document_service,
+        )
