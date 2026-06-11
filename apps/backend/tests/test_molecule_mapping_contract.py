@@ -3,8 +3,7 @@ from pathlib import Path
 
 from chemsmart.io.molecules.structure import Molecule
 
-from chemsmart_gui.domain.document import MoleculeDocument
-from chemsmart_gui.domain.molecule import Atom, Bond
+from chemsmart_gui.adapters.chemsmart_adapter import ChemsmartAdapter
 
 
 REPOSITORY_ROOT = Path(__file__).parents[3]
@@ -19,26 +18,7 @@ SCHEMA_PATH = (
 
 def test_water_mapping_contract() -> None:
     molecule = Molecule.from_filepath(WATER_PATH)
-    graph = molecule.to_graph()
-
-    document = MoleculeDocument(
-        id=molecule.structure_id,
-        name=molecule.structure_label,
-        coordinate_unit="angstrom",
-        charge=molecule.charge,
-        multiplicity=molecule.multiplicity,
-        atoms=[
-            Atom(index=index, element=element, x=x, y=y, z=z)
-            for index, (element, (x, y, z)) in enumerate(
-                zip(molecule.chemical_symbols, molecule.positions),
-                start=1,
-            )
-        ],
-        bonds=[
-            Bond(atom1=atom1 + 1, atom2=atom2 + 1)
-            for atom1, atom2 in sorted(graph.edges())
-        ],
-    )
+    document = ChemsmartAdapter().to_document(molecule)
 
     assert document.model_dump() == {
         "id": "102b86d024728b9b902fb38c1b108f09e06311db6154a021419913cc2be81082",
@@ -56,6 +36,20 @@ def test_water_mapping_contract() -> None:
             {"atom1": 1, "atom2": 3},
         ],
     }
+
+
+def test_mapping_preserves_explicit_electronic_state() -> None:
+    molecule = Molecule(
+        symbols=["He"],
+        positions=[[0.0, 0.0, 0.0]],
+        charge=1,
+        multiplicity=2,
+    )
+
+    document = ChemsmartAdapter().to_document(molecule)
+
+    assert document.charge == 1
+    assert document.multiplicity == 2
 
 
 def test_shared_schema_expresses_mapping_contract() -> None:
