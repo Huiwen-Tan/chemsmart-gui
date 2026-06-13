@@ -41,6 +41,14 @@ function atomObjects(scene: THREE.Scene): THREE.Object3D[] {
   );
 }
 
+function createCamera(): THREE.PerspectiveCamera {
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
+  camera.position.set(0, 0, 5);
+  camera.lookAt(0, 0, 0);
+  camera.updateProjectionMatrix();
+  return camera;
+}
+
 function spyOnDisposal(object: THREE.Object3D) {
   if (!(object instanceof THREE.Mesh || object instanceof THREE.Line)) {
     throw new Error('Expected a disposable molecule object');
@@ -103,5 +111,32 @@ describe('MoleculeScene', () => {
         expect(material).toHaveBeenCalledOnce();
       }
     }
+  });
+
+  it('picks atom identity from normalized pointer input', () => {
+    const moleculeScene = new MoleculeScene();
+    moleculeScene.setMolecule(WATER);
+
+    expect(moleculeScene.pickAtom(new THREE.Vector2(0, 0), createCamera())).toBe(
+      1,
+    );
+    expect(
+      moleculeScene.pickAtom(new THREE.Vector2(0.95, 0.95), createCamera()),
+    ).toBeNull();
+  });
+
+  it('does not pick non-atom scene objects', () => {
+    const moleculeScene = new MoleculeScene();
+    const geometry = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(-1, 0, 0),
+      new THREE.Vector3(1, 0, 0),
+    ]);
+    const line = new THREE.Line(geometry, new THREE.LineBasicMaterial());
+    line.userData.moleculeObject = true;
+    moleculeScene.getScene().add(line);
+
+    expect(moleculeScene.pickAtom(new THREE.Vector2(0, 0), createCamera())).toBe(
+      null,
+    );
   });
 });

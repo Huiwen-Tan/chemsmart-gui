@@ -7,6 +7,7 @@ const ATOM_RADIUS = 0.2;
 
 export class MoleculeScene {
   private readonly scene = new THREE.Scene();
+  private readonly raycaster = new THREE.Raycaster();
 
   constructor() {
     this.scene.background = new THREE.Color(0x141922);
@@ -63,6 +64,20 @@ export class MoleculeScene {
       box.union(new THREE.Box3().setFromObject(object));
     }
     return box;
+  }
+
+  public pickAtom(pointer: THREE.Vector2, camera: THREE.Camera): number | null {
+    const atomObjects = this.scene.children.filter(
+      (object) => typeof object.userData.atomIndex === 'number',
+    );
+
+    this.scene.updateMatrixWorld(true);
+    camera.updateMatrixWorld(true);
+    this.raycaster.setFromCamera(pointer, camera);
+
+    const [intersection] = this.raycaster.intersectObjects(atomObjects, false);
+    const atomIndex = intersection?.object.userData.atomIndex;
+    return typeof atomIndex === 'number' ? atomIndex : null;
   }
 
   private clearMoleculeObjects(): void {
