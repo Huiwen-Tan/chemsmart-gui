@@ -35,6 +35,7 @@ export class MoleculeScene {
       const sphere = new THREE.Mesh(geometry, material);
       sphere.position.copy(position);
       sphere.userData.moleculeObject = true;
+      sphere.userData.atomIndex = atom.index;
       this.scene.add(sphere);
     }
 

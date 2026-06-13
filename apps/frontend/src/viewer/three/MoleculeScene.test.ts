@@ -35,6 +35,12 @@ function moleculeObjects(scene: THREE.Scene): THREE.Object3D[] {
   return scene.children.filter((child) => child.userData.moleculeObject);
 }
 
+function atomObjects(scene: THREE.Scene): THREE.Object3D[] {
+  return moleculeObjects(scene).filter(
+    (object) => typeof object.userData.atomIndex === 'number',
+  );
+}
+
 function spyOnDisposal(object: THREE.Object3D) {
   if (!(object instanceof THREE.Mesh || object instanceof THREE.Line)) {
     throw new Error('Expected a disposable molecule object');
@@ -62,6 +68,16 @@ describe('MoleculeScene', () => {
     const waterObjects = moleculeObjects(scene);
     const waterDisposal = waterObjects.map(spyOnDisposal);
     expect(waterObjects).toHaveLength(5);
+    expect(
+      atomObjects(scene).map((object) => object.userData.atomIndex),
+    ).toEqual([1, 2, 3]);
+    const bondObjects = waterObjects.filter(
+      (object) => object instanceof THREE.Line,
+    );
+    expect(bondObjects).toHaveLength(2);
+    expect(
+      bondObjects.every((object) => object.userData.atomIndex === undefined),
+    ).toBe(true);
     expect(moleculeScene.computeBoundingBox()).not.toBeNull();
 
     moleculeScene.setMolecule(HELIUM);
