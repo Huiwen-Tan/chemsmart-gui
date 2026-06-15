@@ -4,6 +4,7 @@ import { healthCheck, openDocument } from './api/client';
 import { AppShell } from './app/AppShell';
 import { useDocumentStore } from './state/useDocumentStore';
 import { MolecularViewer } from './viewer/MolecularViewer';
+import { SelectedAtomPanel } from './viewer/SelectedAtomPanel';
 
 export function App(): JSX.Element {
   const { currentDocument, setCurrentDocument } = useDocumentStore();
@@ -37,6 +38,7 @@ export function App(): JSX.Element {
       </button>
       {error ? <p style={{ color: '#ff8080' }}>Error: {error}</p> : null}
       <MolecularViewer document={currentDocument} />
+      <SelectedAtomPanel document={currentDocument} />
     </AppShell>
   );
 }
