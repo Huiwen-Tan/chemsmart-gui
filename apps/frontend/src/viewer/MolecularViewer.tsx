@@ -14,6 +14,24 @@ interface AtomPicker {
   pickAtom(pointer: THREE.Vector2, camera: THREE.Camera): number | null;
 }
 
+interface AtomHighlighter {
+  setSelectedAtomIndices(selectedAtomIndices: readonly number[]): void;
+}
+
+function applyAtomHighlights(
+  scene: AtomHighlighter,
+  selectedAtomIndices: readonly number[],
+): void {
+  scene.setSelectedAtomIndices(selectedAtomIndices);
+}
+
+export function connectAtomHighlights(scene: AtomHighlighter): () => void {
+  applyAtomHighlights(scene, useViewerStore.getState().selectedAtomIndices);
+  return useViewerStore.subscribe((state) => {
+    applyAtomHighlights(scene, state.selectedAtomIndices);
+  });
+}
+
 export function connectAtomPicking(
   target: HTMLElement,
   scene: AtomPicker,
@@ -79,6 +97,7 @@ export function MolecularViewer({ document }: MolecularViewerProps): JSX.Element
       camera,
       useViewerStore.getState().toggleAtomSelection,
     );
+    const disconnectAtomHighlights = connectAtomHighlights(sceneWrapper);
 
     const ambient = new THREE.AmbientLight(0xffffff, 0.8);
     scene.add(ambient);
@@ -108,6 +127,7 @@ export function MolecularViewer({ document }: MolecularViewerProps): JSX.Element
       window.removeEventListener('resize', onResize);
       cancelAnimationFrame(animationFrameId);
       disconnectAtomPicking();
+      disconnectAtomHighlights();
       controls.dispose();
       renderer.dispose();
       renderer.domElement.remove();
@@ -126,6 +146,10 @@ export function MolecularViewer({ document }: MolecularViewerProps): JSX.Element
     }
 
     sceneWrapper.setMolecule(document);
+    applyAtomHighlights(
+      sceneWrapper,
+      useViewerStore.getState().selectedAtomIndices,
+    );
 
     const camera = cameraRef.current;
     const controls = controlsRef.current;

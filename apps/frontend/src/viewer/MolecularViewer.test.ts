@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useViewerStore } from '../state/useViewerStore';
-import { connectAtomPicking } from './MolecularViewer';
+import { connectAtomHighlights, connectAtomPicking } from './MolecularViewer';
 
 function createTarget(): HTMLElement {
   const target = document.createElement('canvas');
@@ -65,5 +65,23 @@ describe('connectAtomPicking', () => {
     );
     expect(toggleAtomSelection).not.toHaveBeenCalled();
     disconnect();
+  });
+});
+
+describe('connectAtomHighlights', () => {
+  it('synchronizes viewer selection changes until disconnected', () => {
+    const setSelectedAtomIndices = vi.fn();
+    useViewerStore.setState({ selectedAtomIndices: [1] });
+
+    const disconnect = connectAtomHighlights({ setSelectedAtomIndices });
+
+    expect(setSelectedAtomIndices).toHaveBeenLastCalledWith([1]);
+
+    useViewerStore.getState().toggleAtomSelection(3);
+    expect(setSelectedAtomIndices).toHaveBeenLastCalledWith([1, 3]);
+
+    disconnect();
+    useViewerStore.getState().toggleAtomSelection(2);
+    expect(setSelectedAtomIndices).toHaveBeenCalledTimes(2);
   });
 });

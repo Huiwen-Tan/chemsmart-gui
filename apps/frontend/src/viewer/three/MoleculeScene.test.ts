@@ -41,6 +41,18 @@ function atomObjects(scene: THREE.Scene): THREE.Object3D[] {
   );
 }
 
+function atomMaterials(scene: THREE.Scene): THREE.MeshStandardMaterial[] {
+  return atomObjects(scene).map((object) => {
+    if (
+      !(object instanceof THREE.Mesh) ||
+      !(object.material instanceof THREE.MeshStandardMaterial)
+    ) {
+      throw new Error('Expected an atom mesh with a standard material');
+    }
+    return object.material;
+  });
+}
+
 function createCamera(): THREE.PerspectiveCamera {
   const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
   camera.position.set(0, 0, 5);
@@ -138,5 +150,38 @@ describe('MoleculeScene', () => {
     expect(moleculeScene.pickAtom(new THREE.Vector2(0, 0), createCamera())).toBe(
       null,
     );
+  });
+
+  it('highlights selected atoms while preserving elemental colors', () => {
+    const moleculeScene = new MoleculeScene();
+    moleculeScene.setMolecule(WATER);
+    const bondMaterials = moleculeObjects(moleculeScene.getScene())
+      .filter((object) => object instanceof THREE.Line)
+      .map((object) => object.material as THREE.LineBasicMaterial);
+    const materials = atomMaterials(moleculeScene.getScene());
+    const baseColors = materials.map((material) => material.color.getHex());
+    const bondColors = bondMaterials.map((material) => material.color.getHex());
+
+    moleculeScene.setSelectedAtomIndices([1, 3]);
+
+    expect(materials.map((material) => material.emissive.getHex())).toEqual([
+      0xffb300,
+      0x000000,
+      0xffb300,
+    ]);
+    expect(materials.map((material) => material.color.getHex())).toEqual(
+      baseColors,
+    );
+    expect(bondMaterials.map((material) => material.color.getHex())).toEqual(
+      bondColors,
+    );
+
+    moleculeScene.setSelectedAtomIndices([2]);
+
+    expect(materials.map((material) => material.emissive.getHex())).toEqual([
+      0x000000,
+      0xffb300,
+      0x000000,
+    ]);
   });
 });

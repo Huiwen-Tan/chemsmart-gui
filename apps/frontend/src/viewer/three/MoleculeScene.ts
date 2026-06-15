@@ -4,6 +4,8 @@ import type { MoleculeDocument } from '../../shared/types';
 import { DEFAULT_ELEMENT_COLOR, ELEMENT_COLORS } from './elementColors';
 
 const ATOM_RADIUS = 0.2;
+const SELECTED_ATOM_EMISSIVE_COLOR = 0xffb300;
+const SELECTED_ATOM_EMISSIVE_INTENSITY = 0.8;
 
 export class MoleculeScene {
   private readonly scene = new THREE.Scene();
@@ -78,6 +80,28 @@ export class MoleculeScene {
     const [intersection] = this.raycaster.intersectObjects(atomObjects, false);
     const atomIndex = intersection?.object.userData.atomIndex;
     return typeof atomIndex === 'number' ? atomIndex : null;
+  }
+
+  public setSelectedAtomIndices(selectedAtomIndices: readonly number[]): void {
+    const selected = new Set(selectedAtomIndices);
+
+    for (const object of this.scene.children) {
+      if (
+        !(object instanceof THREE.Mesh) ||
+        typeof object.userData.atomIndex !== 'number' ||
+        !(object.material instanceof THREE.MeshStandardMaterial)
+      ) {
+        continue;
+      }
+
+      const isSelected = selected.has(object.userData.atomIndex);
+      object.material.emissive.setHex(
+        isSelected ? SELECTED_ATOM_EMISSIVE_COLOR : 0x000000,
+      );
+      object.material.emissiveIntensity = isSelected
+        ? SELECTED_ATOM_EMISSIVE_INTENSITY
+        : 1;
+    }
   }
 
   private clearMoleculeObjects(): void {
