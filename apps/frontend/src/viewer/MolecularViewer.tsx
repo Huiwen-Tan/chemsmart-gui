@@ -3,10 +3,41 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 import type { MoleculeDocument } from '../shared/types';
+import { useViewerStore } from '../state/useViewerStore';
 import { MoleculeScene } from './three/MoleculeScene';
 
 interface MolecularViewerProps {
   document: MoleculeDocument | null;
+}
+
+interface AtomPicker {
+  pickAtom(pointer: THREE.Vector2, camera: THREE.Camera): number | null;
+}
+
+export function connectAtomPicking(
+  target: HTMLElement,
+  scene: AtomPicker,
+  camera: THREE.Camera,
+  toggleAtomSelection: (atomIndex: number) => void,
+): () => void {
+  const onClick = (event: MouseEvent): void => {
+    const bounds = target.getBoundingClientRect();
+    if (bounds.width === 0 || bounds.height === 0) {
+      return;
+    }
+
+    const pointer = new THREE.Vector2(
+      ((event.clientX - bounds.left) / bounds.width) * 2 - 1,
+      -((event.clientY - bounds.top) / bounds.height) * 2 + 1,
+    );
+    const atomIndex = scene.pickAtom(pointer, camera);
+    if (atomIndex !== null) {
+      toggleAtomSelection(atomIndex);
+    }
+  };
+
+  target.addEventListener('click', onClick);
+  return () => target.removeEventListener('click', onClick);
 }
 
 export function MolecularViewer({ document }: MolecularViewerProps): JSX.Element {
@@ -42,6 +73,12 @@ export function MolecularViewer({ document }: MolecularViewerProps): JSX.Element
     controls.enableDamping = true;
     controlsRef.current = controls;
     rendererRef.current = renderer;
+    const disconnectAtomPicking = connectAtomPicking(
+      renderer.domElement,
+      sceneWrapper,
+      camera,
+      useViewerStore.getState().toggleAtomSelection,
+    );
 
     const ambient = new THREE.AmbientLight(0xffffff, 0.8);
     scene.add(ambient);
@@ -70,6 +107,7 @@ export function MolecularViewer({ document }: MolecularViewerProps): JSX.Element
     return () => {
       window.removeEventListener('resize', onResize);
       cancelAnimationFrame(animationFrameId);
+      disconnectAtomPicking();
       controls.dispose();
       renderer.dispose();
       renderer.domElement.remove();
