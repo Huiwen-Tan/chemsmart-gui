@@ -47,7 +47,7 @@ function jsonResponse(body: unknown): Response {
 describe('App', () => {
   beforeEach(() => {
     useDocumentStore.setState({ currentDocument: null });
-    useViewerStore.setState({ selectedAtomIndices: [] });
+    useViewerStore.setState({ selectedAtomIndices: [], showBonds: true });
     fetchMock.mockReset();
     vi.stubGlobal('fetch', fetchMock);
   });
@@ -108,5 +108,25 @@ describe('App', () => {
     });
     expect(useViewerStore.getState().selectedAtomIndices).toEqual([1, 2]);
     expect(screen.getByTestId('viewer-document')).toHaveTextContent('null');
+  });
+
+  it('toggles the viewer bond display setting', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ status: 'ok' }));
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    const showBondsControl = screen.getByRole('checkbox', {
+      name: 'Show Bonds',
+    });
+
+    expect(showBondsControl).toBeChecked();
+    expect(useViewerStore.getState().showBonds).toBe(true);
+
+    fireEvent.click(showBondsControl);
+
+    expect(showBondsControl).not.toBeChecked();
+    expect(useViewerStore.getState().showBonds).toBe(false);
+    expect(useDocumentStore.getState().currentDocument).toBeNull();
   });
 });

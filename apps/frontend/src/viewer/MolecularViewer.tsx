@@ -18,6 +18,10 @@ interface AtomHighlighter {
   setSelectedAtomIndices(selectedAtomIndices: readonly number[]): void;
 }
 
+interface BondVisibilityController {
+  setBondVisibility(showBonds: boolean): void;
+}
+
 const DRAG_PICKING_THRESHOLD_PX = 4;
 
 function applyAtomHighlights(
@@ -31,6 +35,22 @@ export function connectAtomHighlights(scene: AtomHighlighter): () => void {
   applyAtomHighlights(scene, useViewerStore.getState().selectedAtomIndices);
   return useViewerStore.subscribe((state) => {
     applyAtomHighlights(scene, state.selectedAtomIndices);
+  });
+}
+
+function applyBondVisibility(
+  scene: BondVisibilityController,
+  showBonds: boolean,
+): void {
+  scene.setBondVisibility(showBonds);
+}
+
+export function connectBondVisibility(
+  scene: BondVisibilityController,
+): () => void {
+  applyBondVisibility(scene, useViewerStore.getState().showBonds);
+  return useViewerStore.subscribe((state) => {
+    applyBondVisibility(scene, state.showBonds);
   });
 }
 
@@ -147,6 +167,7 @@ export function MolecularViewer({ document }: MolecularViewerProps): JSX.Element
       clearAtomSelection,
     );
     const disconnectAtomHighlights = connectAtomHighlights(sceneWrapper);
+    const disconnectBondVisibility = connectBondVisibility(sceneWrapper);
 
     const ambient = new THREE.AmbientLight(0xffffff, 0.8);
     scene.add(ambient);
@@ -177,6 +198,7 @@ export function MolecularViewer({ document }: MolecularViewerProps): JSX.Element
       cancelAnimationFrame(animationFrameId);
       disconnectAtomPicking();
       disconnectAtomHighlights();
+      disconnectBondVisibility();
       controls.dispose();
       renderer.dispose();
       renderer.domElement.remove();
@@ -199,6 +221,7 @@ export function MolecularViewer({ document }: MolecularViewerProps): JSX.Element
       sceneWrapper,
       useViewerStore.getState().selectedAtomIndices,
     );
+    applyBondVisibility(sceneWrapper, useViewerStore.getState().showBonds);
 
     const camera = cameraRef.current;
     const controls = controlsRef.current;

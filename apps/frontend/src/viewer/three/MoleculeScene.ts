@@ -52,6 +52,7 @@ export class MoleculeScene {
       const material = new THREE.LineBasicMaterial({ color: 0xbbbbbb });
       const line = new THREE.Line(geometry, material);
       line.userData.moleculeObject = true;
+      line.userData.bondObject = true;
       this.scene.add(line);
     }
   }
@@ -101,6 +102,14 @@ export class MoleculeScene {
       object.material.emissiveIntensity = isSelected
         ? SELECTED_ATOM_EMISSIVE_INTENSITY
         : 1;
+    }
+  }
+
+  public setBondVisibility(showBonds: boolean): void {
+    for (const object of this.scene.children) {
+      if (object.userData.bondObject) {
+        object.visible = showBonds;
+      }
     }
   }
 

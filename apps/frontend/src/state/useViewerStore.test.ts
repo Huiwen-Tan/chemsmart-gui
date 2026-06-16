@@ -4,7 +4,7 @@ import { useViewerStore } from './useViewerStore';
 
 describe('useViewerStore', () => {
   beforeEach(() => {
-    useViewerStore.setState({ selectedAtomIndices: [] });
+    useViewerStore.setState({ selectedAtomIndices: [], showBonds: true });
   });
 
   it('toggles multiple 1-based atom indices', () => {
@@ -26,6 +26,20 @@ describe('useViewerStore', () => {
     useViewerStore.getState().clearAtomSelection();
 
     expect(useViewerStore.getState().selectedAtomIndices).toEqual([]);
+  });
+
+  it('sets bond visibility without changing selection', () => {
+    useViewerStore.setState({ selectedAtomIndices: [1, 2] });
+
+    useViewerStore.getState().setShowBonds(false);
+
+    expect(useViewerStore.getState().showBonds).toBe(false);
+    expect(useViewerStore.getState().selectedAtomIndices).toEqual([1, 2]);
+
+    useViewerStore.getState().setShowBonds(true);
+
+    expect(useViewerStore.getState().showBonds).toBe(true);
+    expect(useViewerStore.getState().selectedAtomIndices).toEqual([1, 2]);
   });
 
   it.each([0, -1, 1.5])('rejects invalid atom index %s', (atomIndex) => {

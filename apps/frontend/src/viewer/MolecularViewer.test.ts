@@ -2,7 +2,11 @@ import * as THREE from 'three';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useViewerStore } from '../state/useViewerStore';
-import { connectAtomHighlights, connectAtomPicking } from './MolecularViewer';
+import {
+  connectAtomHighlights,
+  connectAtomPicking,
+  connectBondVisibility,
+} from './MolecularViewer';
 
 function createTarget(): HTMLElement {
   const target = document.createElement('canvas');
@@ -29,7 +33,7 @@ function createPointerEvent(
 
 describe('connectAtomPicking', () => {
   beforeEach(() => {
-    useViewerStore.setState({ selectedAtomIndices: [] });
+    useViewerStore.setState({ selectedAtomIndices: [], showBonds: true });
   });
 
   it('toggles a picked atom from canvas click coordinates', () => {
@@ -158,5 +162,27 @@ describe('connectAtomHighlights', () => {
     disconnect();
     useViewerStore.getState().toggleAtomSelection(2);
     expect(setSelectedAtomIndices).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('connectBondVisibility', () => {
+  beforeEach(() => {
+    useViewerStore.setState({ selectedAtomIndices: [], showBonds: true });
+  });
+
+  it('synchronizes bond visibility changes until disconnected', () => {
+    const setBondVisibility = vi.fn();
+    useViewerStore.setState({ showBonds: false });
+
+    const disconnect = connectBondVisibility({ setBondVisibility });
+
+    expect(setBondVisibility).toHaveBeenLastCalledWith(false);
+
+    useViewerStore.getState().setShowBonds(true);
+    expect(setBondVisibility).toHaveBeenLastCalledWith(true);
+
+    disconnect();
+    useViewerStore.getState().setShowBonds(false);
+    expect(setBondVisibility).toHaveBeenCalledTimes(2);
   });
 });

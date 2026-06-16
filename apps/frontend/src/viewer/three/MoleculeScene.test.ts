@@ -41,6 +41,10 @@ function atomObjects(scene: THREE.Scene): THREE.Object3D[] {
   );
 }
 
+function bondObjects(scene: THREE.Scene): THREE.Object3D[] {
+  return moleculeObjects(scene).filter((object) => object.userData.bondObject);
+}
+
 function atomMaterials(scene: THREE.Scene): THREE.MeshStandardMaterial[] {
   return atomObjects(scene).map((object) => {
     if (
@@ -91,12 +95,13 @@ describe('MoleculeScene', () => {
     expect(
       atomObjects(scene).map((object) => object.userData.atomIndex),
     ).toEqual([1, 2, 3]);
-    const bondObjects = waterObjects.filter(
-      (object) => object instanceof THREE.Line,
-    );
-    expect(bondObjects).toHaveLength(2);
+    const waterBondObjects = bondObjects(scene);
+    expect(waterBondObjects).toHaveLength(2);
     expect(
-      bondObjects.every((object) => object.userData.atomIndex === undefined),
+      waterBondObjects.every((object) => object instanceof THREE.Line),
+    ).toBe(true);
+    expect(
+      waterBondObjects.every((object) => object.userData.atomIndex === undefined),
     ).toBe(true);
     expect(moleculeScene.computeBoundingBox()).not.toBeNull();
 
@@ -123,6 +128,27 @@ describe('MoleculeScene', () => {
         expect(material).toHaveBeenCalledOnce();
       }
     }
+  });
+
+  it('toggles bond visibility without hiding atoms', () => {
+    const moleculeScene = new MoleculeScene();
+    moleculeScene.setMolecule(WATER);
+    const scene = moleculeScene.getScene();
+    const atoms = atomObjects(scene);
+    const bonds = bondObjects(scene);
+
+    expect(bonds).toHaveLength(2);
+    expect(bonds.every((object) => object.visible)).toBe(true);
+
+    moleculeScene.setBondVisibility(false);
+
+    expect(bonds.every((object) => !object.visible)).toBe(true);
+    expect(atoms.every((object) => object.visible)).toBe(true);
+
+    moleculeScene.setBondVisibility(true);
+
+    expect(bonds.every((object) => object.visible)).toBe(true);
+    expect(atoms.every((object) => object.visible)).toBe(true);
   });
 
   it('picks atom identity from normalized pointer input', () => {

@@ -3,11 +3,14 @@ import { useEffect, useState } from 'react';
 import { healthCheck, openDocument } from './api/client';
 import { AppShell } from './app/AppShell';
 import { useDocumentStore } from './state/useDocumentStore';
+import { useViewerStore } from './state/useViewerStore';
 import { MolecularViewer } from './viewer/MolecularViewer';
 import { SelectedAtomPanel } from './viewer/SelectedAtomPanel';
 
 export function App(): JSX.Element {
   const { currentDocument, setCurrentDocument } = useDocumentStore();
+  const showBonds = useViewerStore((state) => state.showBonds);
+  const setShowBonds = useViewerStore((state) => state.setShowBonds);
   const [healthStatus, setHealthStatus] = useState('checking...');
   const [error, setError] = useState<string | null>(null);
 
@@ -36,6 +39,14 @@ export function App(): JSX.Element {
       <button onClick={() => void loadSampleMolecule()} style={{ marginBottom: 12 }}>
         Load Sample Molecule
       </button>
+      <label style={{ display: 'inline-flex', gap: 6, marginLeft: 12 }}>
+        <input
+          checked={showBonds}
+          onChange={(event) => setShowBonds(event.currentTarget.checked)}
+          type="checkbox"
+        />
+        Show Bonds
+      </label>
       {error ? <p style={{ color: '#ff8080' }}>Error: {error}</p> : null}
       <MolecularViewer document={currentDocument} />
       <SelectedAtomPanel document={currentDocument} />
