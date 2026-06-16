@@ -11,6 +11,10 @@ export function App(): JSX.Element {
   const { currentDocument, setCurrentDocument } = useDocumentStore();
   const showBonds = useViewerStore((state) => state.showBonds);
   const setShowBonds = useViewerStore((state) => state.setShowBonds);
+  const showAtomLabels = useViewerStore((state) => state.showAtomLabels);
+  const setShowAtomLabels = useViewerStore(
+    (state) => state.setShowAtomLabels,
+  );
   const requestViewReset = useViewerStore((state) => state.requestViewReset);
   const [healthStatus, setHealthStatus] = useState('checking...');
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +51,14 @@ export function App(): JSX.Element {
           type="checkbox"
         />
         Show Bonds
+      </label>
+      <label style={{ display: 'inline-flex', gap: 6, marginLeft: 12 }}>
+        <input
+          checked={showAtomLabels}
+          onChange={(event) => setShowAtomLabels(event.currentTarget.checked)}
+          type="checkbox"
+        />
+        Show Atom Labels
       </label>
       <button
         onClick={requestViewReset}

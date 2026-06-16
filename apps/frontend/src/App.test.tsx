@@ -50,6 +50,7 @@ describe('App', () => {
     useViewerStore.setState({
       selectedAtomIndices: [],
       showBonds: true,
+      showAtomLabels: false,
       viewResetRequestId: 0,
     });
     fetchMock.mockReset();
@@ -131,6 +132,26 @@ describe('App', () => {
 
     expect(showBondsControl).not.toBeChecked();
     expect(useViewerStore.getState().showBonds).toBe(false);
+    expect(useDocumentStore.getState().currentDocument).toBeNull();
+  });
+
+  it('toggles the viewer atom label display setting', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ status: 'ok' }));
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    const showAtomLabelsControl = screen.getByRole('checkbox', {
+      name: 'Show Atom Labels',
+    });
+
+    expect(showAtomLabelsControl).not.toBeChecked();
+    expect(useViewerStore.getState().showAtomLabels).toBe(false);
+
+    fireEvent.click(showAtomLabelsControl);
+
+    expect(showAtomLabelsControl).toBeChecked();
+    expect(useViewerStore.getState().showAtomLabels).toBe(true);
     expect(useDocumentStore.getState().currentDocument).toBeNull();
   });
 

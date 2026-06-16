@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useViewerStore } from '../state/useViewerStore';
 import {
   connectAtomHighlights,
+  connectAtomLabelVisibility,
   connectAtomPicking,
   connectBondVisibility,
   connectViewReset,
@@ -37,6 +38,7 @@ describe('connectAtomPicking', () => {
     useViewerStore.setState({
       selectedAtomIndices: [],
       showBonds: true,
+      showAtomLabels: false,
       viewResetRequestId: 0,
     });
   });
@@ -175,6 +177,7 @@ describe('connectBondVisibility', () => {
     useViewerStore.setState({
       selectedAtomIndices: [],
       showBonds: true,
+      showAtomLabels: false,
       viewResetRequestId: 0,
     });
   });
@@ -196,11 +199,46 @@ describe('connectBondVisibility', () => {
   });
 });
 
+describe('connectAtomLabelVisibility', () => {
+  beforeEach(() => {
+    useViewerStore.setState({
+      selectedAtomIndices: [],
+      showBonds: true,
+      showAtomLabels: false,
+      viewResetRequestId: 0,
+    });
+  });
+
+  it('synchronizes atom label visibility changes until disconnected', () => {
+    const setAtomLabelVisibility = vi.fn();
+    const renderLabels = vi.fn();
+    useViewerStore.setState({ showAtomLabels: true });
+
+    const disconnect = connectAtomLabelVisibility(
+      { setAtomLabelVisibility },
+      renderLabels,
+    );
+
+    expect(setAtomLabelVisibility).toHaveBeenLastCalledWith(true);
+    expect(renderLabels).toHaveBeenCalledOnce();
+
+    useViewerStore.getState().setShowAtomLabels(false);
+    expect(setAtomLabelVisibility).toHaveBeenLastCalledWith(false);
+    expect(renderLabels).toHaveBeenCalledTimes(2);
+
+    disconnect();
+    useViewerStore.getState().setShowAtomLabels(true);
+    expect(setAtomLabelVisibility).toHaveBeenCalledTimes(2);
+    expect(renderLabels).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('connectViewReset', () => {
   beforeEach(() => {
     useViewerStore.setState({
       selectedAtomIndices: [],
       showBonds: true,
+      showAtomLabels: false,
       viewResetRequestId: 0,
     });
   });

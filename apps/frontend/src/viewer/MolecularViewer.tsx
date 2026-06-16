@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 
 import type { MoleculeDocument } from '../shared/types';
 import { useViewerStore } from '../state/useViewerStore';
@@ -20,6 +21,10 @@ interface AtomHighlighter {
 
 interface BondVisibilityController {
   setBondVisibility(showBonds: boolean): void;
+}
+
+interface AtomLabelVisibilityController {
+  setAtomLabelVisibility(showAtomLabels: boolean): void;
 }
 
 interface MoleculeFramer {
@@ -60,6 +65,28 @@ export function connectBondVisibility(
   applyBondVisibility(scene, useViewerStore.getState().showBonds);
   return useViewerStore.subscribe((state) => {
     applyBondVisibility(scene, state.showBonds);
+  });
+}
+
+function applyAtomLabelVisibility(
+  scene: AtomLabelVisibilityController,
+  showAtomLabels: boolean,
+): void {
+  scene.setAtomLabelVisibility(showAtomLabels);
+}
+
+export function connectAtomLabelVisibility(
+  scene: AtomLabelVisibilityController,
+  onVisibilityChange: () => void = () => {},
+): () => void {
+  const syncAtomLabelVisibility = (showAtomLabels: boolean): void => {
+    applyAtomLabelVisibility(scene, showAtomLabels);
+    onVisibilityChange();
+  };
+
+  syncAtomLabelVisibility(useViewerStore.getState().showAtomLabels);
+  return useViewerStore.subscribe((state) => {
+    syncAtomLabelVisibility(state.showAtomLabels);
   });
 }
 
@@ -177,6 +204,7 @@ export function MolecularViewer({ document }: MolecularViewerProps): JSX.Element
   const sceneRef = useRef<MoleculeScene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
+  const labelRendererRef = useRef<CSS2DRenderer | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
 
   useEffect(() => {
@@ -193,6 +221,14 @@ export function MolecularViewer({ document }: MolecularViewerProps): JSX.Element
     renderer.setPixelRatio(window.devicePixelRatio);
     container.appendChild(renderer.domElement);
 
+    const labelRenderer = new CSS2DRenderer();
+    labelRenderer.setSize(width, height);
+    labelRenderer.domElement.style.left = '0';
+    labelRenderer.domElement.style.pointerEvents = 'none';
+    labelRenderer.domElement.style.position = 'absolute';
+    labelRenderer.domElement.style.top = '0';
+    container.appendChild(labelRenderer.domElement);
+
     const sceneWrapper = new MoleculeScene();
     sceneRef.current = sceneWrapper;
     const scene = sceneWrapper.getScene();
@@ -204,6 +240,7 @@ export function MolecularViewer({ document }: MolecularViewerProps): JSX.Element
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controlsRef.current = controls;
+    labelRendererRef.current = labelRenderer;
     rendererRef.current = renderer;
     const { clearAtomSelection, toggleAtomSelection } = useViewerStore.getState();
     const disconnectAtomPicking = connectAtomPicking(
@@ -215,6 +252,12 @@ export function MolecularViewer({ document }: MolecularViewerProps): JSX.Element
     );
     const disconnectAtomHighlights = connectAtomHighlights(sceneWrapper);
     const disconnectBondVisibility = connectBondVisibility(sceneWrapper);
+    const disconnectAtomLabelVisibility = connectAtomLabelVisibility(
+      sceneWrapper,
+      () => {
+        labelRenderer.render(scene, camera);
+      },
+    );
     const disconnectViewReset = connectViewReset(() => {
       frameMolecule(sceneWrapper, camera, controls);
     });
@@ -229,6 +272,7 @@ export function MolecularViewer({ document }: MolecularViewerProps): JSX.Element
     const animate = () => {
       controls.update();
       renderer.render(scene, camera);
+      labelRenderer.render(scene, camera);
       animationFrameId = requestAnimationFrame(animate);
     };
     animate();
@@ -239,6 +283,7 @@ export function MolecularViewer({ document }: MolecularViewerProps): JSX.Element
       camera.aspect = nextWidth / nextHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(nextWidth, nextHeight);
+      labelRenderer.setSize(nextWidth, nextHeight);
     };
 
     window.addEventListener('resize', onResize);
@@ -249,13 +294,16 @@ export function MolecularViewer({ document }: MolecularViewerProps): JSX.Element
       disconnectAtomPicking();
       disconnectAtomHighlights();
       disconnectBondVisibility();
+      disconnectAtomLabelVisibility();
       disconnectViewReset();
       controls.dispose();
       renderer.dispose();
+      labelRenderer.domElement.remove();
       renderer.domElement.remove();
       sceneRef.current = null;
       cameraRef.current = null;
       controlsRef.current = null;
+      labelRendererRef.current = null;
       rendererRef.current = null;
     };
   }, []);
@@ -273,6 +321,10 @@ export function MolecularViewer({ document }: MolecularViewerProps): JSX.Element
       useViewerStore.getState().selectedAtomIndices,
     );
     applyBondVisibility(sceneWrapper, useViewerStore.getState().showBonds);
+    applyAtomLabelVisibility(
+      sceneWrapper,
+      useViewerStore.getState().showAtomLabels,
+    );
 
     const camera = cameraRef.current;
     const controls = controlsRef.current;
@@ -281,7 +333,18 @@ export function MolecularViewer({ document }: MolecularViewerProps): JSX.Element
     }
 
     frameMolecule(sceneWrapper, camera, controls);
+    labelRendererRef.current?.render(sceneWrapper.getScene(), camera);
   }, [document]);
 
-  return <div ref={containerRef} style={{ width: '100%', height: 480, border: '1px solid #324055' }} />;
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        width: '100%',
+        height: 480,
+        border: '1px solid #324055',
+        position: 'relative',
+      }}
+    />
+  );
 }

@@ -41,6 +41,20 @@ function atomObjects(scene: THREE.Scene): THREE.Object3D[] {
   );
 }
 
+function atomLabelObjects(scene: THREE.Scene): THREE.Object3D[] {
+  return moleculeObjects(scene).filter((object) => object.userData.atomLabel);
+}
+
+function atomLabelElements(scene: THREE.Scene): HTMLElement[] {
+  return atomLabelObjects(scene).map((label) => {
+    const element = (label as { element?: HTMLElement }).element;
+    if (!element) {
+      throw new Error('Expected an atom label with a DOM element');
+    }
+    return element;
+  });
+}
+
 function bondObjects(scene: THREE.Scene): THREE.Object3D[] {
   return moleculeObjects(scene).filter((object) => object.userData.bondObject);
 }
@@ -90,11 +104,16 @@ describe('MoleculeScene', () => {
     moleculeScene.setMolecule(WATER);
 
     const waterObjects = moleculeObjects(scene);
-    const waterDisposal = waterObjects.map(spyOnDisposal);
-    expect(waterObjects).toHaveLength(5);
+    const disposableWaterObjects = waterObjects.filter(
+      (object) => object instanceof THREE.Mesh || object instanceof THREE.Line,
+    );
+    const waterDisposal = disposableWaterObjects.map(spyOnDisposal);
+    expect(waterObjects).toHaveLength(8);
+    expect(disposableWaterObjects).toHaveLength(5);
     expect(
       atomObjects(scene).map((object) => object.userData.atomIndex),
     ).toEqual([1, 2, 3]);
+    expect(atomLabelObjects(scene)).toHaveLength(3);
     const waterBondObjects = bondObjects(scene);
     expect(waterBondObjects).toHaveLength(2);
     expect(
@@ -107,7 +126,7 @@ describe('MoleculeScene', () => {
 
     moleculeScene.setMolecule(HELIUM);
 
-    expect(moleculeObjects(scene)).toHaveLength(1);
+    expect(moleculeObjects(scene)).toHaveLength(2);
     expect(scene.children).toContain(light);
     for (const disposal of waterDisposal) {
       expect(disposal.geometry).toHaveBeenCalledOnce();
@@ -116,7 +135,11 @@ describe('MoleculeScene', () => {
       }
     }
 
-    const heliumDisposal = moleculeObjects(scene).map(spyOnDisposal);
+    const heliumDisposal = moleculeObjects(scene)
+      .filter((object) => (
+        object instanceof THREE.Mesh || object instanceof THREE.Line
+      ))
+      .map(spyOnDisposal);
     moleculeScene.setMolecule(null);
 
     expect(moleculeObjects(scene)).toHaveLength(0);
@@ -128,6 +151,52 @@ describe('MoleculeScene', () => {
         expect(material).toHaveBeenCalledOnce();
       }
     }
+  });
+
+  it('toggles atom label visibility without affecting atom picking objects', () => {
+    const moleculeScene = new MoleculeScene();
+    moleculeScene.setMolecule(WATER);
+    const scene = moleculeScene.getScene();
+    const labels = atomLabelObjects(scene);
+    const labelElements = atomLabelElements(scene);
+
+    expect(labels).toHaveLength(3);
+    expect(labels.map((label) => label.userData.atomIndex)).toEqual([
+      undefined,
+      undefined,
+      undefined,
+    ]);
+    expect(labels.every((label) => !label.visible)).toBe(true);
+    expect(labelElements.map((element) => element.style.display)).toEqual([
+      'none',
+      'none',
+      'none',
+    ]);
+    expect(labelElements.map((element) => element.textContent)).toEqual([
+      '1 O',
+      '2 H',
+      '3 H',
+    ]);
+
+    moleculeScene.setAtomLabelVisibility(true);
+
+    expect(labels.every((label) => label.visible)).toBe(true);
+    expect(labelElements.map((element) => element.style.display)).toEqual([
+      '',
+      '',
+      '',
+    ]);
+    expect(atomObjects(scene)).toHaveLength(3);
+
+    moleculeScene.setAtomLabelVisibility(false);
+
+    expect(labels.every((label) => !label.visible)).toBe(true);
+    expect(labelElements.map((element) => element.style.display)).toEqual([
+      'none',
+      'none',
+      'none',
+    ]);
+    expect(atomObjects(scene)).toHaveLength(3);
   });
 
   it('toggles bond visibility without hiding atoms', () => {

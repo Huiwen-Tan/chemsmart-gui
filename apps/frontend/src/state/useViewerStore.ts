@@ -3,16 +3,19 @@ import { create } from 'zustand';
 interface ViewerState {
   selectedAtomIndices: number[];
   showBonds: boolean;
+  showAtomLabels: boolean;
   viewResetRequestId: number;
   toggleAtomSelection: (atomIndex: number) => void;
   clearAtomSelection: () => void;
   setShowBonds: (showBonds: boolean) => void;
+  setShowAtomLabels: (showAtomLabels: boolean) => void;
   requestViewReset: () => void;
 }
 
 export const useViewerStore = create<ViewerState>((set) => ({
   selectedAtomIndices: [],
   showBonds: true,
+  showAtomLabels: false,
   viewResetRequestId: 0,
   toggleAtomSelection: (atomIndex) => {
     if (!Number.isInteger(atomIndex) || atomIndex < 1) {
@@ -27,6 +30,7 @@ export const useViewerStore = create<ViewerState>((set) => ({
   },
   clearAtomSelection: () => set({ selectedAtomIndices: [] }),
   setShowBonds: (showBonds) => set({ showBonds }),
+  setShowAtomLabels: (showAtomLabels) => set({ showAtomLabels }),
   requestViewReset: () => set((state) => ({
     viewResetRequestId: state.viewResetRequestId + 1,
   })),

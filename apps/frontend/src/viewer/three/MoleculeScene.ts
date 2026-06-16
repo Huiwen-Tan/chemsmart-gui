@@ -1,11 +1,35 @@
 import * as THREE from 'three';
+import { CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 
 import type { MoleculeDocument } from '../../shared/types';
 import { DEFAULT_ELEMENT_COLOR, ELEMENT_COLORS } from './elementColors';
 
 const ATOM_RADIUS = 0.2;
+const LABEL_OFFSET = ATOM_RADIUS * 1.8;
 const SELECTED_ATOM_EMISSIVE_COLOR = 0xffb300;
 const SELECTED_ATOM_EMISSIVE_INTENSITY = 0.8;
+
+function createAtomLabel(text: string, position: THREE.Vector3): CSS2DObject {
+  const element = document.createElement('span');
+  element.textContent = text;
+  element.style.background = 'rgba(20, 25, 34, 0.75)';
+  element.style.border = '1px solid rgba(255, 255, 255, 0.3)';
+  element.style.borderRadius = '4px';
+  element.style.color = '#f8fafc';
+  element.style.fontSize = '12px';
+  element.style.padding = '1px 4px';
+  element.style.pointerEvents = 'none';
+  element.style.whiteSpace = 'nowrap';
+  element.style.display = 'none';
+
+  const label = new CSS2DObject(element);
+  label.position.copy(position);
+  label.position.y += LABEL_OFFSET;
+  label.visible = false;
+  label.userData.moleculeObject = true;
+  label.userData.atomLabel = true;
+  return label;
+}
 
 export class MoleculeScene {
   private readonly scene = new THREE.Scene();
@@ -40,6 +64,8 @@ export class MoleculeScene {
       sphere.userData.moleculeObject = true;
       sphere.userData.atomIndex = atom.index;
       this.scene.add(sphere);
+
+      this.scene.add(createAtomLabel(`${atom.index} ${atom.element}`, position));
     }
 
     for (const bond of document.bonds) {
@@ -58,7 +84,9 @@ export class MoleculeScene {
   }
 
   public computeBoundingBox(): THREE.Box3 | null {
-    const moleculeObjects = this.scene.children.filter((child: THREE.Object3D) => child.userData.moleculeObject);
+    const moleculeObjects = this.scene.children.filter((child: THREE.Object3D) => (
+      child.userData.moleculeObject && !child.userData.atomLabel
+    ));
     if (moleculeObjects.length === 0) {
       return null;
     }
@@ -113,6 +141,17 @@ export class MoleculeScene {
     }
   }
 
+  public setAtomLabelVisibility(showAtomLabels: boolean): void {
+    for (const object of this.scene.children) {
+      if (object.userData.atomLabel) {
+        object.visible = showAtomLabels;
+        if (object instanceof CSS2DObject) {
+          object.element.style.display = showAtomLabels ? '' : 'none';
+        }
+      }
+    }
+  }
+
   private clearMoleculeObjects(): void {
     const toRemove = this.scene.children.filter((child: THREE.Object3D) => child.userData.moleculeObject);
 
@@ -126,6 +165,8 @@ export class MoleculeScene {
         } else {
           material.dispose();
         }
+      } else if (object instanceof CSS2DObject) {
+        object.element.remove();
       }
     }
   }

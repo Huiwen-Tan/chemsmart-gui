@@ -7,6 +7,7 @@ describe('useViewerStore', () => {
     useViewerStore.setState({
       selectedAtomIndices: [],
       showBonds: true,
+      showAtomLabels: false,
       viewResetRequestId: 0,
     });
   });
@@ -43,6 +44,25 @@ describe('useViewerStore', () => {
     useViewerStore.getState().setShowBonds(true);
 
     expect(useViewerStore.getState().showBonds).toBe(true);
+    expect(useViewerStore.getState().selectedAtomIndices).toEqual([1, 2]);
+  });
+
+  it('sets atom label visibility without changing selection or bonds', () => {
+    useViewerStore.setState({
+      selectedAtomIndices: [1, 2],
+      showBonds: false,
+    });
+
+    useViewerStore.getState().setShowAtomLabels(true);
+
+    expect(useViewerStore.getState().showAtomLabels).toBe(true);
+    expect(useViewerStore.getState().showBonds).toBe(false);
+    expect(useViewerStore.getState().selectedAtomIndices).toEqual([1, 2]);
+
+    useViewerStore.getState().setShowAtomLabels(false);
+
+    expect(useViewerStore.getState().showAtomLabels).toBe(false);
+    expect(useViewerStore.getState().showBonds).toBe(false);
     expect(useViewerStore.getState().selectedAtomIndices).toEqual([1, 2]);
   });
 
