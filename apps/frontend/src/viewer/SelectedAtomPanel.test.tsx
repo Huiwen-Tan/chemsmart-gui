@@ -1,4 +1,10 @@
-import { cleanup, render, screen, within } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import type { MoleculeDocument } from '../shared/types';
@@ -81,9 +87,29 @@ describe('SelectedAtomPanel', () => {
       screen.getByText('Select an atom to inspect its metadata.'),
     ).toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Clear Selection' }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText('Distance:')).not.toBeInTheDocument();
     expect(screen.queryByText('Angle:')).not.toBeInTheDocument();
     expect(screen.queryByText('Dihedral:')).not.toBeInTheDocument();
+  });
+
+  it('clears selected atoms from the panel control', () => {
+    useViewerStore.setState({ selectedAtomIndices: [3, 1] });
+
+    render(<SelectedAtomPanel document={WATER} />);
+
+    expect(screen.getByRole('button', { name: 'Clear Selection' }))
+      .toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear Selection' }));
+
+    expect(useViewerStore.getState().selectedAtomIndices).toEqual([]);
+    expect(
+      screen.getByText('Select an atom to inspect its metadata.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 
   it('shows selected metadata and distance for two valid selected atoms', () => {
