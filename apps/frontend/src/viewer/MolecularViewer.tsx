@@ -39,6 +39,7 @@ export function connectAtomPicking(
   scene: AtomPicker,
   camera: THREE.Camera,
   toggleAtomSelection: (atomIndex: number) => void,
+  clearAtomSelection: () => void,
 ): () => void {
   let pointerDownPosition: { x: number; y: number } | null = null;
   let draggedSincePointerDown = false;
@@ -87,6 +88,8 @@ export function connectAtomPicking(
     const atomIndex = scene.pickAtom(pointer, camera);
     if (atomIndex !== null) {
       toggleAtomSelection(atomIndex);
+    } else {
+      clearAtomSelection();
     }
   };
 
@@ -135,11 +138,13 @@ export function MolecularViewer({ document }: MolecularViewerProps): JSX.Element
     controls.enableDamping = true;
     controlsRef.current = controls;
     rendererRef.current = renderer;
+    const { clearAtomSelection, toggleAtomSelection } = useViewerStore.getState();
     const disconnectAtomPicking = connectAtomPicking(
       renderer.domElement,
       sceneWrapper,
       camera,
-      useViewerStore.getState().toggleAtomSelection,
+      toggleAtomSelection,
+      clearAtomSelection,
     );
     const disconnectAtomHighlights = connectAtomHighlights(sceneWrapper);
 

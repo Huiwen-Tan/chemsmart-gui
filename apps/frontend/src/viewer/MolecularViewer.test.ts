@@ -41,6 +41,7 @@ describe('connectAtomPicking', () => {
       { pickAtom },
       camera,
       useViewerStore.getState().toggleAtomSelection,
+      useViewerStore.getState().clearAtomSelection,
     );
 
     target.dispatchEvent(
@@ -58,15 +59,17 @@ describe('connectAtomPicking', () => {
     expect(useViewerStore.getState().selectedAtomIndices).toEqual([3]);
   });
 
-  it('leaves selection unchanged when the pointer misses', () => {
+  it('clears selection when the pointer misses', () => {
     const target = createTarget();
     const pickAtom = vi.fn().mockReturnValue(null);
     const toggleAtomSelection = vi.fn();
+    const clearAtomSelection = vi.fn();
     const disconnect = connectAtomPicking(
       target,
       { pickAtom },
       new THREE.PerspectiveCamera(),
       toggleAtomSelection,
+      clearAtomSelection,
     );
 
     target.dispatchEvent(new MouseEvent('click', { clientX: 10, clientY: 20 }));
@@ -76,6 +79,7 @@ describe('connectAtomPicking', () => {
       expect.any(THREE.PerspectiveCamera),
     );
     expect(toggleAtomSelection).not.toHaveBeenCalled();
+    expect(clearAtomSelection).toHaveBeenCalledOnce();
     disconnect();
   });
 
@@ -83,11 +87,13 @@ describe('connectAtomPicking', () => {
     const target = createTarget();
     const pickAtom = vi.fn().mockReturnValue(3);
     const toggleAtomSelection = vi.fn();
+    const clearAtomSelection = vi.fn();
     const disconnect = connectAtomPicking(
       target,
       { pickAtom },
       new THREE.PerspectiveCamera(),
       toggleAtomSelection,
+      clearAtomSelection,
     );
 
     target.dispatchEvent(
@@ -102,6 +108,7 @@ describe('connectAtomPicking', () => {
 
     expect(pickAtom).not.toHaveBeenCalled();
     expect(toggleAtomSelection).not.toHaveBeenCalled();
+    expect(clearAtomSelection).not.toHaveBeenCalled();
 
     disconnect();
   });
@@ -110,11 +117,13 @@ describe('connectAtomPicking', () => {
     const target = createTarget();
     const pickAtom = vi.fn().mockReturnValue(3);
     const toggleAtomSelection = vi.fn();
+    const clearAtomSelection = vi.fn();
     const disconnect = connectAtomPicking(
       target,
       { pickAtom },
       new THREE.PerspectiveCamera(),
       toggleAtomSelection,
+      clearAtomSelection,
     );
 
     disconnect();
@@ -130,6 +139,7 @@ describe('connectAtomPicking', () => {
 
     expect(pickAtom).not.toHaveBeenCalled();
     expect(toggleAtomSelection).not.toHaveBeenCalled();
+    expect(clearAtomSelection).not.toHaveBeenCalled();
   });
 });
 
