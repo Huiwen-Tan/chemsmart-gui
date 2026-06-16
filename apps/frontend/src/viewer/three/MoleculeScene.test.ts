@@ -31,6 +31,33 @@ const HELIUM: MoleculeDocument = {
   bonds: [],
 };
 
+const MEDIUM_FIXTURE_ATOM_COUNT = 64;
+const MEDIUM_SCENE_GENERATION_BUDGET_MS = 1000;
+
+function createMediumFixture(): MoleculeDocument {
+  return {
+    id: 'medium-viewer-fixture',
+    name: 'medium-viewer-fixture',
+    coordinate_unit: 'angstrom',
+    charge: 0,
+    multiplicity: 1,
+    atoms: Array.from({ length: MEDIUM_FIXTURE_ATOM_COUNT }, (_, index) => ({
+      index: index + 1,
+      element: 'C',
+      x: index % 4,
+      y: Math.floor(index / 4) % 4,
+      z: Math.floor(index / 16),
+    })),
+    bonds: Array.from(
+      { length: MEDIUM_FIXTURE_ATOM_COUNT - 1 },
+      (_, index) => ({
+        atom1: index + 1,
+        atom2: index + 2,
+      }),
+    ),
+  };
+}
+
 function moleculeObjects(scene: THREE.Scene): THREE.Object3D[] {
   return scene.children.filter((child) => child.userData.moleculeObject);
 }
@@ -197,6 +224,25 @@ describe('MoleculeScene', () => {
       'none',
     ]);
     expect(atomObjects(scene)).toHaveLength(3);
+  });
+
+  it('loads a medium fixture within the scene-generation baseline', () => {
+    const moleculeScene = new MoleculeScene();
+    const mediumFixture = createMediumFixture();
+
+    const startTime = performance.now();
+    moleculeScene.setMolecule(mediumFixture);
+    const durationMs = performance.now() - startTime;
+    const scene = moleculeScene.getScene();
+
+    expect(atomObjects(scene)).toHaveLength(MEDIUM_FIXTURE_ATOM_COUNT);
+    expect(bondObjects(scene)).toHaveLength(MEDIUM_FIXTURE_ATOM_COUNT - 1);
+    expect(atomLabelObjects(scene)).toHaveLength(MEDIUM_FIXTURE_ATOM_COUNT);
+    expect(moleculeObjects(scene)).toHaveLength(
+      MEDIUM_FIXTURE_ATOM_COUNT * 3 - 1,
+    );
+    expect(moleculeScene.computeBoundingBox()).not.toBeNull();
+    expect(durationMs).toBeLessThan(MEDIUM_SCENE_GENERATION_BUDGET_MS);
   });
 
   it('toggles bond visibility without hiding atoms', () => {
