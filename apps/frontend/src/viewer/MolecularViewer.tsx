@@ -18,6 +18,8 @@ interface AtomHighlighter {
   setSelectedAtomIndices(selectedAtomIndices: readonly number[]): void;
 }
 
+const DRAG_PICKING_THRESHOLD_PX = 4;
+
 function applyAtomHighlights(
   scene: AtomHighlighter,
   selectedAtomIndices: readonly number[],
@@ -38,7 +40,41 @@ export function connectAtomPicking(
   camera: THREE.Camera,
   toggleAtomSelection: (atomIndex: number) => void,
 ): () => void {
+  let pointerDownPosition: { x: number; y: number } | null = null;
+  let draggedSincePointerDown = false;
+
+  const onPointerDown = (event: PointerEvent): void => {
+    pointerDownPosition = { x: event.clientX, y: event.clientY };
+    draggedSincePointerDown = false;
+  };
+
+  const onPointerMove = (event: PointerEvent): void => {
+    if (!pointerDownPosition) {
+      return;
+    }
+
+    const distance = Math.hypot(
+      event.clientX - pointerDownPosition.x,
+      event.clientY - pointerDownPosition.y,
+    );
+    if (distance > DRAG_PICKING_THRESHOLD_PX) {
+      draggedSincePointerDown = true;
+    }
+  };
+
+  const onPointerCancel = (): void => {
+    pointerDownPosition = null;
+    draggedSincePointerDown = false;
+  };
+
   const onClick = (event: MouseEvent): void => {
+    if (draggedSincePointerDown) {
+      pointerDownPosition = null;
+      draggedSincePointerDown = false;
+      return;
+    }
+    pointerDownPosition = null;
+
     const bounds = target.getBoundingClientRect();
     if (bounds.width === 0 || bounds.height === 0) {
       return;
@@ -54,8 +90,16 @@ export function connectAtomPicking(
     }
   };
 
+  target.addEventListener('pointerdown', onPointerDown);
+  target.addEventListener('pointermove', onPointerMove);
+  target.addEventListener('pointercancel', onPointerCancel);
   target.addEventListener('click', onClick);
-  return () => target.removeEventListener('click', onClick);
+  return () => {
+    target.removeEventListener('pointerdown', onPointerDown);
+    target.removeEventListener('pointermove', onPointerMove);
+    target.removeEventListener('pointercancel', onPointerCancel);
+    target.removeEventListener('click', onClick);
+  };
 }
 
 export function MolecularViewer({ document }: MolecularViewerProps): JSX.Element {

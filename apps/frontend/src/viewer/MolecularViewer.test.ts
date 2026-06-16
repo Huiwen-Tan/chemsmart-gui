@@ -15,6 +15,18 @@ function createTarget(): HTMLElement {
   return target;
 }
 
+function createPointerEvent(
+  type: string,
+  coordinates: { clientX: number; clientY: number },
+): Event {
+  const event = new Event(type);
+  Object.defineProperties(event, {
+    clientX: { value: coordinates.clientX },
+    clientY: { value: coordinates.clientY },
+  });
+  return event;
+}
+
 describe('connectAtomPicking', () => {
   beforeEach(() => {
     useViewerStore.setState({ selectedAtomIndices: [] });
@@ -65,6 +77,59 @@ describe('connectAtomPicking', () => {
     );
     expect(toggleAtomSelection).not.toHaveBeenCalled();
     disconnect();
+  });
+
+  it('ignores atom picking after a drag gesture', () => {
+    const target = createTarget();
+    const pickAtom = vi.fn().mockReturnValue(3);
+    const toggleAtomSelection = vi.fn();
+    const disconnect = connectAtomPicking(
+      target,
+      { pickAtom },
+      new THREE.PerspectiveCamera(),
+      toggleAtomSelection,
+    );
+
+    target.dispatchEvent(
+      createPointerEvent('pointerdown', { clientX: 110, clientY: 70 }),
+    );
+    target.dispatchEvent(
+      createPointerEvent('pointermove', { clientX: 118, clientY: 70 }),
+    );
+    target.dispatchEvent(
+      new MouseEvent('click', { clientX: 118, clientY: 70 }),
+    );
+
+    expect(pickAtom).not.toHaveBeenCalled();
+    expect(toggleAtomSelection).not.toHaveBeenCalled();
+
+    disconnect();
+  });
+
+  it('removes pointer gesture listeners when disconnected', () => {
+    const target = createTarget();
+    const pickAtom = vi.fn().mockReturnValue(3);
+    const toggleAtomSelection = vi.fn();
+    const disconnect = connectAtomPicking(
+      target,
+      { pickAtom },
+      new THREE.PerspectiveCamera(),
+      toggleAtomSelection,
+    );
+
+    disconnect();
+    target.dispatchEvent(
+      createPointerEvent('pointerdown', { clientX: 110, clientY: 70 }),
+    );
+    target.dispatchEvent(
+      createPointerEvent('pointermove', { clientX: 118, clientY: 70 }),
+    );
+    target.dispatchEvent(
+      new MouseEvent('click', { clientX: 118, clientY: 70 }),
+    );
+
+    expect(pickAtom).not.toHaveBeenCalled();
+    expect(toggleAtomSelection).not.toHaveBeenCalled();
   });
 });
 
