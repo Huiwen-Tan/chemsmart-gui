@@ -18,6 +18,18 @@ export function SelectedAtomPanel({
     const atom = atomsByIndex.get(atomIndex);
     return atom ? [atom] : [];
   });
+  const distanceMeasurement = document && selectedAtoms.length === 2
+    ? {
+        firstAtom: selectedAtoms[0],
+        secondAtom: selectedAtoms[1],
+        value: Math.hypot(
+          selectedAtoms[1].x - selectedAtoms[0].x,
+          selectedAtoms[1].y - selectedAtoms[0].y,
+          selectedAtoms[1].z - selectedAtoms[0].z,
+        ),
+        unit: document.coordinate_unit,
+      }
+    : null;
 
   return (
     <section
@@ -52,6 +64,16 @@ export function SelectedAtomPanel({
           </tbody>
         </table>
       )}
+      {distanceMeasurement ? (
+        <p>
+          <strong>Distance:</strong>{' '}
+          {distanceMeasurement.firstAtom.index}{' '}
+          {distanceMeasurement.firstAtom.element} -{' '}
+          {distanceMeasurement.secondAtom.index}{' '}
+          {distanceMeasurement.secondAtom.element} ={' '}
+          {distanceMeasurement.value.toFixed(3)} {distanceMeasurement.unit}
+        </p>
+      ) : null}
     </section>
   );
 }

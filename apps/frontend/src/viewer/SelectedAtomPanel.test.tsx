@@ -38,9 +38,10 @@ describe('SelectedAtomPanel', () => {
       screen.getByText('Select an atom to inspect its metadata.'),
     ).toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(screen.queryByText('Distance:')).not.toBeInTheDocument();
   });
 
-  it('shows selected atom metadata in interaction order', () => {
+  it('shows selected metadata and distance in interaction order', () => {
     useViewerStore.setState({ selectedAtomIndices: [3, 99, 1] });
 
     render(<SelectedAtomPanel document={WATER} />);
@@ -54,6 +55,22 @@ describe('SelectedAtomPanel', () => {
     expect(within(rows[2]).getByRole('rowheader')).toHaveTextContent('1 O');
     expect(within(rows[2]).getAllByRole('cell').map((cell) => cell.textContent))
       .toEqual(['0.000', '0.000', '0.000']);
+    expect(screen.getByText('Distance:')).toBeInTheDocument();
+    expect(screen.getByText('3 H - 1 O = 0.956 angstrom')).toBeInTheDocument();
     expect(useViewerStore.getState().selectedAtomIndices).toEqual([3, 99, 1]);
   });
+
+  it.each([
+    { selectedAtomIndices: [1] },
+    { selectedAtomIndices: [1, 2, 3] },
+  ])(
+    'does not show a distance for selection $selectedAtomIndices',
+    ({ selectedAtomIndices }) => {
+      useViewerStore.setState({ selectedAtomIndices });
+
+      render(<SelectedAtomPanel document={WATER} />);
+
+      expect(screen.queryByText('Distance:')).not.toBeInTheDocument();
+    },
+  );
 });
