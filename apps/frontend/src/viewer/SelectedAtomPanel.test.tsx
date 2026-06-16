@@ -22,6 +22,14 @@ const WATER: MoleculeDocument = {
   ],
 };
 
+const WATER_WITH_EXTRA_ATOM: MoleculeDocument = {
+  ...WATER,
+  atoms: [
+    ...WATER.atoms,
+    { index: 4, element: 'H', x: 0, y: -0.58, z: 0 },
+  ],
+};
+
 describe('SelectedAtomPanel', () => {
   beforeEach(() => {
     useViewerStore.setState({ selectedAtomIndices: [] });
@@ -39,9 +47,10 @@ describe('SelectedAtomPanel', () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
     expect(screen.queryByText('Distance:')).not.toBeInTheDocument();
+    expect(screen.queryByText('Angle:')).not.toBeInTheDocument();
   });
 
-  it('shows selected metadata and distance in interaction order', () => {
+  it('shows selected metadata and distance for two valid selected atoms', () => {
     useViewerStore.setState({ selectedAtomIndices: [3, 99, 1] });
 
     render(<SelectedAtomPanel document={WATER} />);
@@ -57,12 +66,31 @@ describe('SelectedAtomPanel', () => {
       .toEqual(['0.000', '0.000', '0.000']);
     expect(screen.getByText('Distance:')).toBeInTheDocument();
     expect(screen.getByText('3 H - 1 O = 0.956 angstrom')).toBeInTheDocument();
+    expect(screen.queryByText('Angle:')).not.toBeInTheDocument();
     expect(useViewerStore.getState().selectedAtomIndices).toEqual([3, 99, 1]);
+  });
+
+  it('shows selected metadata and angle using the second atom as the vertex', () => {
+    useViewerStore.setState({ selectedAtomIndices: [3, 99, 1, 2] });
+
+    render(<SelectedAtomPanel document={WATER} />);
+
+    expect(screen.getByText('Angle:')).toBeInTheDocument();
+    expect(
+      screen.getByText('3 H - 1 O - 2 H = 105.301 degrees'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Distance:')).not.toBeInTheDocument();
+    expect(useViewerStore.getState().selectedAtomIndices).toEqual([
+      3,
+      99,
+      1,
+      2,
+    ]);
   });
 
   it.each([
     { selectedAtomIndices: [1] },
-    { selectedAtomIndices: [1, 2, 3] },
+    { selectedAtomIndices: [1, 2, 3, 99] },
   ])(
     'does not show a distance for selection $selectedAtomIndices',
     ({ selectedAtomIndices }) => {
@@ -73,4 +101,38 @@ describe('SelectedAtomPanel', () => {
       expect(screen.queryByText('Distance:')).not.toBeInTheDocument();
     },
   );
+
+  it.each([
+    { document: WATER, selectedAtomIndices: [1] },
+    { document: WATER, selectedAtomIndices: [1, 99, 2] },
+    { document: WATER_WITH_EXTRA_ATOM, selectedAtomIndices: [1, 2, 3, 4] },
+  ])(
+    'does not show an angle for selection $selectedAtomIndices',
+    ({ document, selectedAtomIndices }) => {
+      useViewerStore.setState({ selectedAtomIndices });
+
+      render(<SelectedAtomPanel document={document} />);
+
+      expect(screen.queryByText('Angle:')).not.toBeInTheDocument();
+    },
+  );
+
+  it('does not invent an angle from degenerate vectors', () => {
+    useViewerStore.setState({ selectedAtomIndices: [1, 4, 2] });
+
+    render(
+      <SelectedAtomPanel
+        document={{
+          ...WATER,
+          atoms: [
+            ...WATER.atoms,
+            { index: 4, element: 'H', x: 0, y: 0, z: 0 },
+          ],
+        }}
+      />,
+    );
+
+    expect(screen.queryByText('Angle:')).not.toBeInTheDocument();
+    expect(useViewerStore.getState().selectedAtomIndices).toEqual([1, 4, 2]);
+  });
 });

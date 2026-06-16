@@ -1,8 +1,47 @@
-import type { MoleculeDocument } from '../shared/types';
+import type { Atom, MoleculeDocument } from '../shared/types';
 import { useViewerStore } from '../state/useViewerStore';
 
 interface SelectedAtomPanelProps {
   document: MoleculeDocument | null;
+}
+
+const RAD_TO_DEGREES = 180 / Math.PI;
+
+function calculateAngleDegrees(
+  firstAtom: Atom,
+  vertexAtom: Atom,
+  thirdAtom: Atom,
+): number | null {
+  const firstVector = {
+    x: firstAtom.x - vertexAtom.x,
+    y: firstAtom.y - vertexAtom.y,
+    z: firstAtom.z - vertexAtom.z,
+  };
+  const thirdVector = {
+    x: thirdAtom.x - vertexAtom.x,
+    y: thirdAtom.y - vertexAtom.y,
+    z: thirdAtom.z - vertexAtom.z,
+  };
+  const firstLength = Math.hypot(
+    firstVector.x,
+    firstVector.y,
+    firstVector.z,
+  );
+  const thirdLength = Math.hypot(
+    thirdVector.x,
+    thirdVector.y,
+    thirdVector.z,
+  );
+  if (firstLength === 0 || thirdLength === 0) {
+    return null;
+  }
+
+  const dotProduct =
+    firstVector.x * thirdVector.x +
+    firstVector.y * thirdVector.y +
+    firstVector.z * thirdVector.z;
+  const cosine = dotProduct / (firstLength * thirdLength);
+  return Math.acos(Math.min(1, Math.max(-1, cosine))) * RAD_TO_DEGREES;
 }
 
 export function SelectedAtomPanel({
@@ -28,6 +67,17 @@ export function SelectedAtomPanel({
           selectedAtoms[1].z - selectedAtoms[0].z,
         ),
         unit: document.coordinate_unit,
+      }
+    : null;
+  const angleValue = selectedAtoms.length === 3
+    ? calculateAngleDegrees(selectedAtoms[0], selectedAtoms[1], selectedAtoms[2])
+    : null;
+  const angleMeasurement = angleValue !== null
+    ? {
+        firstAtom: selectedAtoms[0],
+        vertexAtom: selectedAtoms[1],
+        thirdAtom: selectedAtoms[2],
+        value: angleValue,
       }
     : null;
 
@@ -72,6 +122,17 @@ export function SelectedAtomPanel({
           {distanceMeasurement.secondAtom.index}{' '}
           {distanceMeasurement.secondAtom.element} ={' '}
           {distanceMeasurement.value.toFixed(3)} {distanceMeasurement.unit}
+        </p>
+      ) : null}
+      {angleMeasurement ? (
+        <p>
+          <strong>Angle:</strong> {angleMeasurement.firstAtom.index}{' '}
+          {angleMeasurement.firstAtom.element} -{' '}
+          {angleMeasurement.vertexAtom.index}{' '}
+          {angleMeasurement.vertexAtom.element} -{' '}
+          {angleMeasurement.thirdAtom.index}{' '}
+          {angleMeasurement.thirdAtom.element} ={' '}
+          {angleMeasurement.value.toFixed(3)} degrees
         </p>
       ) : null}
     </section>
