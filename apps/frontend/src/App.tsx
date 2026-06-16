@@ -11,6 +11,7 @@ export function App(): JSX.Element {
   const { currentDocument, setCurrentDocument } = useDocumentStore();
   const showBonds = useViewerStore((state) => state.showBonds);
   const setShowBonds = useViewerStore((state) => state.setShowBonds);
+  const requestViewReset = useViewerStore((state) => state.requestViewReset);
   const [healthStatus, setHealthStatus] = useState('checking...');
   const [error, setError] = useState<string | null>(null);
 
@@ -47,6 +48,13 @@ export function App(): JSX.Element {
         />
         Show Bonds
       </label>
+      <button
+        onClick={requestViewReset}
+        style={{ marginLeft: 12 }}
+        type="button"
+      >
+        Reset View
+      </button>
       {error ? <p style={{ color: '#ff8080' }}>Error: {error}</p> : null}
       <MolecularViewer document={currentDocument} />
       <SelectedAtomPanel document={currentDocument} />

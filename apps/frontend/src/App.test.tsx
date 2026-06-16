@@ -47,7 +47,11 @@ function jsonResponse(body: unknown): Response {
 describe('App', () => {
   beforeEach(() => {
     useDocumentStore.setState({ currentDocument: null });
-    useViewerStore.setState({ selectedAtomIndices: [], showBonds: true });
+    useViewerStore.setState({
+      selectedAtomIndices: [],
+      showBonds: true,
+      viewResetRequestId: 0,
+    });
     fetchMock.mockReset();
     vi.stubGlobal('fetch', fetchMock);
   });
@@ -127,6 +131,19 @@ describe('App', () => {
 
     expect(showBondsControl).not.toBeChecked();
     expect(useViewerStore.getState().showBonds).toBe(false);
+    expect(useDocumentStore.getState().currentDocument).toBeNull();
+  });
+
+  it('requests a viewer reset from the toolbar', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ status: 'ok' }));
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reset View' }));
+
+    expect(useViewerStore.getState().viewResetRequestId).toBe(1);
     expect(useDocumentStore.getState().currentDocument).toBeNull();
   });
 });

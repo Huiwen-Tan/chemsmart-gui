@@ -22,6 +22,15 @@ interface BondVisibilityController {
   setBondVisibility(showBonds: boolean): void;
 }
 
+interface MoleculeFramer {
+  computeBoundingBox(): THREE.Box3 | null;
+}
+
+interface CameraControls {
+  target: THREE.Vector3;
+  update(): void;
+}
+
 const DRAG_PICKING_THRESHOLD_PX = 4;
 
 function applyAtomHighlights(
@@ -51,6 +60,44 @@ export function connectBondVisibility(
   applyBondVisibility(scene, useViewerStore.getState().showBonds);
   return useViewerStore.subscribe((state) => {
     applyBondVisibility(scene, state.showBonds);
+  });
+}
+
+function frameMolecule(
+  scene: MoleculeFramer,
+  camera: THREE.PerspectiveCamera,
+  controls: CameraControls,
+): void {
+  const box = scene.computeBoundingBox();
+  if (!box) {
+    return;
+  }
+  const center = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z);
+  const fov = (camera.fov * Math.PI) / 180;
+  const distance = Math.max(2, (maxDim / (2 * Math.tan(fov / 2))) * 1.8);
+
+  camera.position.set(
+    center.x + distance,
+    center.y + distance * 0.8,
+    center.z + distance,
+  );
+  camera.lookAt(center);
+  controls.target.copy(center);
+  controls.update();
+}
+
+export function connectViewReset(onResetView: () => void): () => void {
+  let lastRequestId = useViewerStore.getState().viewResetRequestId;
+
+  return useViewerStore.subscribe((state) => {
+    if (state.viewResetRequestId === lastRequestId) {
+      return;
+    }
+
+    lastRequestId = state.viewResetRequestId;
+    onResetView();
   });
 }
 
@@ -168,6 +215,9 @@ export function MolecularViewer({ document }: MolecularViewerProps): JSX.Element
     );
     const disconnectAtomHighlights = connectAtomHighlights(sceneWrapper);
     const disconnectBondVisibility = connectBondVisibility(sceneWrapper);
+    const disconnectViewReset = connectViewReset(() => {
+      frameMolecule(sceneWrapper, camera, controls);
+    });
 
     const ambient = new THREE.AmbientLight(0xffffff, 0.8);
     scene.add(ambient);
@@ -199,6 +249,7 @@ export function MolecularViewer({ document }: MolecularViewerProps): JSX.Element
       disconnectAtomPicking();
       disconnectAtomHighlights();
       disconnectBondVisibility();
+      disconnectViewReset();
       controls.dispose();
       renderer.dispose();
       renderer.domElement.remove();
@@ -229,20 +280,7 @@ export function MolecularViewer({ document }: MolecularViewerProps): JSX.Element
       return;
     }
 
-    const box = sceneWrapper.computeBoundingBox();
-    if (!box) {
-      return;
-    }
-    const center = box.getCenter(new THREE.Vector3());
-    const size = box.getSize(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.y, size.z);
-    const fov = (camera.fov * Math.PI) / 180;
-    const distance = Math.max(2, (maxDim / (2 * Math.tan(fov / 2))) * 1.8);
-
-    camera.position.set(center.x + distance, center.y + distance * 0.8, center.z + distance);
-    camera.lookAt(center);
-    controls.target.copy(center);
-    controls.update();
+    frameMolecule(sceneWrapper, camera, controls);
   }, [document]);
 
   return <div ref={containerRef} style={{ width: '100%', height: 480, border: '1px solid #324055' }} />;

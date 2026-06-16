@@ -6,6 +6,7 @@ import {
   connectAtomHighlights,
   connectAtomPicking,
   connectBondVisibility,
+  connectViewReset,
 } from './MolecularViewer';
 
 function createTarget(): HTMLElement {
@@ -33,7 +34,11 @@ function createPointerEvent(
 
 describe('connectAtomPicking', () => {
   beforeEach(() => {
-    useViewerStore.setState({ selectedAtomIndices: [], showBonds: true });
+    useViewerStore.setState({
+      selectedAtomIndices: [],
+      showBonds: true,
+      viewResetRequestId: 0,
+    });
   });
 
   it('toggles a picked atom from canvas click coordinates', () => {
@@ -167,7 +172,11 @@ describe('connectAtomHighlights', () => {
 
 describe('connectBondVisibility', () => {
   beforeEach(() => {
-    useViewerStore.setState({ selectedAtomIndices: [], showBonds: true });
+    useViewerStore.setState({
+      selectedAtomIndices: [],
+      showBonds: true,
+      viewResetRequestId: 0,
+    });
   });
 
   it('synchronizes bond visibility changes until disconnected', () => {
@@ -184,5 +193,33 @@ describe('connectBondVisibility', () => {
     disconnect();
     useViewerStore.getState().setShowBonds(false);
     expect(setBondVisibility).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('connectViewReset', () => {
+  beforeEach(() => {
+    useViewerStore.setState({
+      selectedAtomIndices: [],
+      showBonds: true,
+      viewResetRequestId: 0,
+    });
+  });
+
+  it('runs reset callbacks only for reset requests until disconnected', () => {
+    const onResetView = vi.fn();
+
+    const disconnect = connectViewReset(onResetView);
+
+    expect(onResetView).not.toHaveBeenCalled();
+
+    useViewerStore.getState().requestViewReset();
+    expect(onResetView).toHaveBeenCalledOnce();
+
+    useViewerStore.getState().setShowBonds(false);
+    expect(onResetView).toHaveBeenCalledOnce();
+
+    disconnect();
+    useViewerStore.getState().requestViewReset();
+    expect(onResetView).toHaveBeenCalledOnce();
   });
 });
