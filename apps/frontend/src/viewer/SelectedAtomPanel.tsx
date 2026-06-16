@@ -5,43 +5,109 @@ interface SelectedAtomPanelProps {
   document: MoleculeDocument | null;
 }
 
+interface Vector3 {
+  x: number;
+  y: number;
+  z: number;
+}
+
+const GEOMETRY_EPSILON = 1e-12;
 const RAD_TO_DEGREES = 180 / Math.PI;
+
+function subtractVectors(first: Vector3, second: Vector3): Vector3 {
+  return {
+    x: first.x - second.x,
+    y: first.y - second.y,
+    z: first.z - second.z,
+  };
+}
+
+function scaleVector(vector: Vector3, scale: number): Vector3 {
+  return {
+    x: vector.x * scale,
+    y: vector.y * scale,
+    z: vector.z * scale,
+  };
+}
+
+function dotProduct(first: Vector3, second: Vector3): number {
+  return first.x * second.x + first.y * second.y + first.z * second.z;
+}
+
+function crossProduct(first: Vector3, second: Vector3): Vector3 {
+  return {
+    x: first.y * second.z - first.z * second.y,
+    y: first.z * second.x - first.x * second.z,
+    z: first.x * second.y - first.y * second.x,
+  };
+}
+
+function vectorLength(vector: Vector3): number {
+  return Math.hypot(vector.x, vector.y, vector.z);
+}
+
+function normalizeVector(vector: Vector3): Vector3 | null {
+  const length = vectorLength(vector);
+  if (length <= GEOMETRY_EPSILON) {
+    return null;
+  }
+
+  return scaleVector(vector, 1 / length);
+}
 
 function calculateAngleDegrees(
   firstAtom: Atom,
   vertexAtom: Atom,
   thirdAtom: Atom,
 ): number | null {
-  const firstVector = {
-    x: firstAtom.x - vertexAtom.x,
-    y: firstAtom.y - vertexAtom.y,
-    z: firstAtom.z - vertexAtom.z,
-  };
-  const thirdVector = {
-    x: thirdAtom.x - vertexAtom.x,
-    y: thirdAtom.y - vertexAtom.y,
-    z: thirdAtom.z - vertexAtom.z,
-  };
-  const firstLength = Math.hypot(
-    firstVector.x,
-    firstVector.y,
-    firstVector.z,
-  );
-  const thirdLength = Math.hypot(
-    thirdVector.x,
-    thirdVector.y,
-    thirdVector.z,
-  );
-  if (firstLength === 0 || thirdLength === 0) {
+  const firstVector = subtractVectors(firstAtom, vertexAtom);
+  const thirdVector = subtractVectors(thirdAtom, vertexAtom);
+  const firstLength = vectorLength(firstVector);
+  const thirdLength = vectorLength(thirdVector);
+  if (firstLength <= GEOMETRY_EPSILON || thirdLength <= GEOMETRY_EPSILON) {
     return null;
   }
 
-  const dotProduct =
-    firstVector.x * thirdVector.x +
-    firstVector.y * thirdVector.y +
-    firstVector.z * thirdVector.z;
-  const cosine = dotProduct / (firstLength * thirdLength);
+  const cosine = dotProduct(firstVector, thirdVector) /
+    (firstLength * thirdLength);
   return Math.acos(Math.min(1, Math.max(-1, cosine))) * RAD_TO_DEGREES;
+}
+
+function calculateDihedralDegrees(
+  firstAtom: Atom,
+  secondAtom: Atom,
+  thirdAtom: Atom,
+  fourthAtom: Atom,
+): number | null {
+  const firstBond = scaleVector(subtractVectors(secondAtom, firstAtom), -1);
+  const secondBond = subtractVectors(thirdAtom, secondAtom);
+  const thirdBond = subtractVectors(fourthAtom, thirdAtom);
+  const secondBondUnit = normalizeVector(secondBond);
+  if (!secondBondUnit) {
+    return null;
+  }
+
+  const firstPlaneVector = subtractVectors(
+    firstBond,
+    scaleVector(secondBondUnit, dotProduct(firstBond, secondBondUnit)),
+  );
+  const secondPlaneVector = subtractVectors(
+    thirdBond,
+    scaleVector(secondBondUnit, dotProduct(thirdBond, secondBondUnit)),
+  );
+  if (
+    vectorLength(firstPlaneVector) <= GEOMETRY_EPSILON ||
+    vectorLength(secondPlaneVector) <= GEOMETRY_EPSILON
+  ) {
+    return null;
+  }
+
+  const xValue = dotProduct(firstPlaneVector, secondPlaneVector);
+  const yValue = dotProduct(
+    crossProduct(secondBondUnit, firstPlaneVector),
+    secondPlaneVector,
+  );
+  return Math.atan2(yValue, xValue) * RAD_TO_DEGREES;
 }
 
 export function SelectedAtomPanel({
@@ -78,6 +144,23 @@ export function SelectedAtomPanel({
         vertexAtom: selectedAtoms[1],
         thirdAtom: selectedAtoms[2],
         value: angleValue,
+      }
+    : null;
+  const dihedralValue = selectedAtoms.length === 4
+    ? calculateDihedralDegrees(
+        selectedAtoms[0],
+        selectedAtoms[1],
+        selectedAtoms[2],
+        selectedAtoms[3],
+      )
+    : null;
+  const dihedralMeasurement = dihedralValue !== null
+    ? {
+        firstAtom: selectedAtoms[0],
+        secondAtom: selectedAtoms[1],
+        thirdAtom: selectedAtoms[2],
+        fourthAtom: selectedAtoms[3],
+        value: dihedralValue,
       }
     : null;
 
@@ -133,6 +216,19 @@ export function SelectedAtomPanel({
           {angleMeasurement.thirdAtom.index}{' '}
           {angleMeasurement.thirdAtom.element} ={' '}
           {angleMeasurement.value.toFixed(3)} degrees
+        </p>
+      ) : null}
+      {dihedralMeasurement ? (
+        <p>
+          <strong>Dihedral:</strong> {dihedralMeasurement.firstAtom.index}{' '}
+          {dihedralMeasurement.firstAtom.element} -{' '}
+          {dihedralMeasurement.secondAtom.index}{' '}
+          {dihedralMeasurement.secondAtom.element} -{' '}
+          {dihedralMeasurement.thirdAtom.index}{' '}
+          {dihedralMeasurement.thirdAtom.element} -{' '}
+          {dihedralMeasurement.fourthAtom.index}{' '}
+          {dihedralMeasurement.fourthAtom.element} ={' '}
+          {dihedralMeasurement.value.toFixed(3)} degrees
         </p>
       ) : null}
     </section>
