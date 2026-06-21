@@ -11,9 +11,12 @@ export interface Bond {
   atom2: number;
 }
 
+export type DocumentKind = 'structure';
+
 export interface MoleculeDocument {
   id: string;
   name: string;
+  document_kind: DocumentKind;
   coordinate_unit: 'angstrom';
   charge: number | null;
   multiplicity: number | null;

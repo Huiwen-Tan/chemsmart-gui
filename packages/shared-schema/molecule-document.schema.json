@@ -6,6 +6,7 @@
   "required": [
     "id",
     "name",
+    "document_kind",
     "coordinate_unit",
     "charge",
     "multiplicity",
@@ -15,6 +16,11 @@
   "properties": {
     "id": { "type": "string", "minLength": 1 },
     "name": { "type": "string", "minLength": 1 },
+    "document_kind": {
+      "type": "string",
+      "const": "structure",
+      "description": "Normalized document kind used to route document-specific UI behavior."
+    },
     "coordinate_unit": {
       "type": "string",
       "const": "angstrom",

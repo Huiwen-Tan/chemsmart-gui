@@ -23,6 +23,7 @@ def test_water_mapping_contract() -> None:
     assert document.model_dump() == {
         "id": "102b86d024728b9b902fb38c1b108f09e06311db6154a021419913cc2be81082",
         "name": "str-H2O-102b86d02472",
+        "document_kind": "structure",
         "coordinate_unit": "angstrom",
         "charge": None,
         "multiplicity": None,
@@ -59,12 +60,14 @@ def test_shared_schema_expresses_mapping_contract() -> None:
     assert schema["required"] == [
         "id",
         "name",
+        "document_kind",
         "coordinate_unit",
         "charge",
         "multiplicity",
         "atoms",
         "bonds",
     ]
+    assert properties["document_kind"]["const"] == "structure"
     assert properties["coordinate_unit"]["const"] == "angstrom"
     assert properties["charge"]["type"] == ["integer", "null"]
     assert properties["multiplicity"]["type"] == ["integer", "null"]

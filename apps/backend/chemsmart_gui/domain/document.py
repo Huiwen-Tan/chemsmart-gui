@@ -4,10 +4,13 @@ from pydantic import BaseModel, Field
 
 from .molecule import Atom, Bond
 
+DocumentKind = Literal["structure"]
+
 
 class MoleculeDocument(BaseModel):
     id: str = Field(min_length=1)
     name: str = Field(min_length=1)
+    document_kind: DocumentKind
     coordinate_unit: Literal["angstrom"]
     charge: int | None
     multiplicity: int | None

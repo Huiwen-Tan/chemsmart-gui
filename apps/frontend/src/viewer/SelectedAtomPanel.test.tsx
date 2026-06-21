@@ -14,6 +14,7 @@ import { SelectedAtomPanel } from './SelectedAtomPanel';
 const WATER: MoleculeDocument = {
   id: 'water',
   name: 'water',
+  document_kind: 'structure',
   coordinate_unit: 'angstrom',
   charge: null,
   multiplicity: null,
@@ -39,6 +40,7 @@ const WATER_WITH_EXTRA_ATOM: MoleculeDocument = {
 const DIHEDRAL_FRAGMENT: MoleculeDocument = {
   id: 'dihedral-fragment',
   name: 'dihedral-fragment',
+  document_kind: 'structure',
   coordinate_unit: 'angstrom',
   charge: null,
   multiplicity: null,

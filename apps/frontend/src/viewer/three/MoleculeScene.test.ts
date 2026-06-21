@@ -7,6 +7,7 @@ import { MoleculeScene } from './MoleculeScene';
 const WATER: MoleculeDocument = {
   id: '102b86d024728b9b902fb38c1b108f09e06311db6154a021419913cc2be81082',
   name: 'str-H2O-102b86d02472',
+  document_kind: 'structure',
   coordinate_unit: 'angstrom',
   charge: null,
   multiplicity: null,
@@ -24,6 +25,7 @@ const WATER: MoleculeDocument = {
 const HELIUM: MoleculeDocument = {
   id: '4054373538ed8c659cd165de0c57822be13073206e4305ddc5dc6937fb2cd65b',
   name: 'str-He-4054373538ed',
+  document_kind: 'structure',
   coordinate_unit: 'angstrom',
   charge: 0,
   multiplicity: 1,
@@ -38,6 +40,7 @@ function createMediumFixture(): MoleculeDocument {
   return {
     id: 'medium-viewer-fixture',
     name: 'medium-viewer-fixture',
+    document_kind: 'structure',
     coordinate_unit: 'angstrom',
     charge: 0,
     multiplicity: 1,

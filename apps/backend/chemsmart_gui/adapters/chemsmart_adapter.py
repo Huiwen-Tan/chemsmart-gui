@@ -21,6 +21,7 @@ class ChemsmartAdapter:
         return MoleculeDocument(
             id=molecule.structure_id,
             name=molecule.structure_label,
+            document_kind="structure",
             coordinate_unit="angstrom",
             charge=molecule.charge,
             multiplicity=molecule.multiplicity,

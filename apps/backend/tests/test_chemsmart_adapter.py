@@ -14,6 +14,7 @@ def test_open_molecule_from_path_returns_normalized_document() -> None:
         "102b86d024728b9b902fb38c1b108f09e06311db6154a021419913cc2be81082"
     )
     assert document.name == "str-H2O-102b86d02472"
+    assert document.document_kind == "structure"
     assert document.coordinate_unit == "angstrom"
     assert [atom.index for atom in document.atoms] == [1, 2, 3]
     assert [atom.element for atom in document.atoms] == ["O", "H", "H"]

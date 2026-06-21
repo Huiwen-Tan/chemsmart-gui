@@ -17,6 +17,7 @@ class MockDocumentService(DocumentService):
         document = MoleculeDocument(
             id=self.WATER_STRUCTURE_ID,
             name="str-H2O-102b86d02472",
+            document_kind="structure",
             coordinate_unit="angstrom",
             charge=None,
             multiplicity=None,

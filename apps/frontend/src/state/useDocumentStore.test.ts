@@ -7,6 +7,7 @@ import { useDocumentStore } from './useDocumentStore';
 const WATER: MoleculeDocument = {
   id: 'water',
   name: 'water',
+  document_kind: 'structure',
   coordinate_unit: 'angstrom',
   charge: null,
   multiplicity: null,
