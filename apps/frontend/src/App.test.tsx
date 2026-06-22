@@ -3,6 +3,7 @@ import {
   fireEvent,
   render,
   screen,
+  within,
   waitFor,
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -77,6 +78,7 @@ describe('App', () => {
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
     expect(screen.getByTestId('viewer-document')).toHaveTextContent('null');
+    expect(screen.getByText('No document loaded.')).toBeInTheDocument();
     useViewerStore.setState({ selectedAtomIndices: [1, 2] });
 
     fireEvent.click(
@@ -88,6 +90,18 @@ describe('App', () => {
         JSON.stringify(WATER_DOCUMENT),
       );
     });
+    const documentSummary = screen.getByRole('region', {
+      name: 'Current Document',
+    });
+    expect(
+      within(documentSummary).getByText('str-H2O-102b86d02472'),
+    ).toBeInTheDocument();
+    expect(within(documentSummary).getByText('structure')).toBeInTheDocument();
+    expect(within(documentSummary).getByText('water.xyz')).toBeInTheDocument();
+    expect(within(documentSummary).getByText('xyz')).toBeInTheDocument();
+    expect(
+      within(documentSummary).getByText('sample-data/water.xyz'),
+    ).toBeInTheDocument();
     expect(useViewerStore.getState().selectedAtomIndices).toEqual([]);
 
     expect(fetchMock).toHaveBeenNthCalledWith(
