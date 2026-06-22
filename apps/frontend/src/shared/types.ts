@@ -13,10 +13,17 @@ export interface Bond {
 
 export type DocumentKind = 'structure';
 
+export interface DocumentSource {
+  path: string;
+  filename: string;
+  filetype: string;
+}
+
 export interface MoleculeDocument {
   id: string;
   name: string;
   document_kind: DocumentKind;
+  source: DocumentSource | null;
   coordinate_unit: 'angstrom';
   charge: number | null;
   multiplicity: number | null;

@@ -22,6 +22,11 @@ const WATER_DOCUMENT = {
   id: '102b86d024728b9b902fb38c1b108f09e06311db6154a021419913cc2be81082',
   name: 'str-H2O-102b86d02472',
   document_kind: 'structure',
+  source: {
+    path: 'sample-data/water.xyz',
+    filename: 'water.xyz',
+    filetype: 'xyz',
+  },
   coordinate_unit: 'angstrom',
   charge: null,
   multiplicity: null,

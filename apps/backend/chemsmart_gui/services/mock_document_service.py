@@ -1,4 +1,10 @@
-from chemsmart_gui.domain.document import MoleculeDocument, OpenDocumentRequest
+from pathlib import Path
+
+from chemsmart_gui.domain.document import (
+    DocumentSource,
+    MoleculeDocument,
+    OpenDocumentRequest,
+)
 from chemsmart_gui.domain.molecule import Atom, Bond
 from chemsmart_gui.services.document_service import DocumentService
 
@@ -14,10 +20,16 @@ class MockDocumentService(DocumentService):
         self._documents: dict[str, MoleculeDocument] = {}
 
     def open_document(self, request: OpenDocumentRequest) -> MoleculeDocument:
+        source_path = Path(request.path or "sample-data/water.xyz")
         document = MoleculeDocument(
             id=self.WATER_STRUCTURE_ID,
             name="str-H2O-102b86d02472",
             document_kind="structure",
+            source=DocumentSource(
+                path=str(source_path),
+                filename=source_path.name,
+                filetype=source_path.suffix.lower().removeprefix(".") or "xyz",
+            ),
             coordinate_unit="angstrom",
             charge=None,
             multiplicity=None,

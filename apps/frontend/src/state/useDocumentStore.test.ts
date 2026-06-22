@@ -8,6 +8,7 @@ const WATER: MoleculeDocument = {
   id: 'water',
   name: 'water',
   document_kind: 'structure',
+  source: null,
   coordinate_unit: 'angstrom',
   charge: null,
   multiplicity: null,

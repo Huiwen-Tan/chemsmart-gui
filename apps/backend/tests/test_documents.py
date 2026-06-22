@@ -33,6 +33,11 @@ def test_open_document_returns_molecule_document() -> None:
     assert body["id"] == WATER_STRUCTURE_ID
     assert body["name"] == "str-H2O-102b86d02472"
     assert body["document_kind"] == "structure"
+    assert body["source"] == {
+        "path": "sample-data/water.xyz",
+        "filename": "water.xyz",
+        "filetype": "xyz",
+    }
     assert body["coordinate_unit"] == "angstrom"
     assert body["charge"] is None
     assert body["multiplicity"] is None
@@ -62,6 +67,11 @@ def test_open_document_parses_requested_xyz(tmp_path: Path) -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["document_kind"] == "structure"
+    assert body["source"] == {
+        "path": str(helium_path),
+        "filename": "helium.xyz",
+        "filetype": "xyz",
+    }
     assert body["name"].startswith("str-He-")
     assert body["atoms"] == [
         {"index": 1, "element": "He", "x": 1.5, "y": 0.0, "z": 0.0}

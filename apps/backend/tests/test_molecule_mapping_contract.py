@@ -24,6 +24,7 @@ def test_water_mapping_contract() -> None:
         "id": "102b86d024728b9b902fb38c1b108f09e06311db6154a021419913cc2be81082",
         "name": "str-H2O-102b86d02472",
         "document_kind": "structure",
+        "source": None,
         "coordinate_unit": "angstrom",
         "charge": None,
         "multiplicity": None,
@@ -51,6 +52,7 @@ def test_mapping_preserves_explicit_electronic_state() -> None:
 
     assert document.charge == 1
     assert document.multiplicity == 2
+    assert document.source is None
 
 
 def test_shared_schema_expresses_mapping_contract() -> None:
@@ -61,6 +63,7 @@ def test_shared_schema_expresses_mapping_contract() -> None:
         "id",
         "name",
         "document_kind",
+        "source",
         "coordinate_unit",
         "charge",
         "multiplicity",
@@ -68,6 +71,11 @@ def test_shared_schema_expresses_mapping_contract() -> None:
         "bonds",
     ]
     assert properties["document_kind"]["const"] == "structure"
+    source_schema = properties["source"]["anyOf"][0]
+    assert source_schema["required"] == ["path", "filename", "filetype"]
+    assert source_schema["properties"]["path"]["minLength"] == 1
+    assert source_schema["properties"]["filename"]["minLength"] == 1
+    assert source_schema["properties"]["filetype"]["minLength"] == 1
     assert properties["coordinate_unit"]["const"] == "angstrom"
     assert properties["charge"]["type"] == ["integer", "null"]
     assert properties["multiplicity"]["type"] == ["integer", "null"]

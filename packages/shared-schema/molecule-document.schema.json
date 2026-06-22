@@ -7,6 +7,7 @@
     "id",
     "name",
     "document_kind",
+    "source",
     "coordinate_unit",
     "charge",
     "multiplicity",
@@ -20,6 +21,22 @@
       "type": "string",
       "const": "structure",
       "description": "Normalized document kind used to route document-specific UI behavior."
+    },
+    "source": {
+      "description": "Source file metadata for documents opened from a file path.",
+      "anyOf": [
+        {
+          "type": "object",
+          "required": ["path", "filename", "filetype"],
+          "properties": {
+            "path": { "type": "string", "minLength": 1 },
+            "filename": { "type": "string", "minLength": 1 },
+            "filetype": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        },
+        { "type": "null" }
+      ]
     },
     "coordinate_unit": {
       "type": "string",

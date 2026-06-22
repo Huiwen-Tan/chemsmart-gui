@@ -1,8 +1,19 @@
+from pathlib import Path
+
 from ase.io.formats import UnknownFileTypeError
 from chemsmart.io.molecules.structure import Molecule
 
-from chemsmart_gui.domain.document import MoleculeDocument
+from chemsmart_gui.domain.document import DocumentSource, MoleculeDocument
 from chemsmart_gui.domain.molecule import Atom, Bond
+
+
+def document_source_from_path(path: str) -> DocumentSource:
+    source_path = Path(path)
+    return DocumentSource(
+        path=path,
+        filename=source_path.name,
+        filetype=source_path.suffix.lower().removeprefix("."),
+    )
 
 
 class ChemsmartAdapter:
@@ -13,7 +24,11 @@ class ChemsmartAdapter:
     or calls CHEMSMART internals.
     """
 
-    def to_document(self, molecule: Molecule) -> MoleculeDocument:
+    def to_document(
+        self,
+        molecule: Molecule,
+        source: DocumentSource | None = None,
+    ) -> MoleculeDocument:
         """Normalize a CHEMSMART molecule for GUI transport."""
         graph = molecule.to_graph()
         edges = sorted(tuple(sorted(edge)) for edge in graph.edges())
@@ -22,6 +37,7 @@ class ChemsmartAdapter:
             id=molecule.structure_id,
             name=molecule.structure_label,
             document_kind="structure",
+            source=source,
             coordinate_unit="angstrom",
             charge=molecule.charge,
             multiplicity=molecule.multiplicity,
@@ -54,4 +70,7 @@ class ChemsmartAdapter:
         if molecule is None:
             raise ValueError(f"No molecular structure found in '{path}'.")
 
-        return self.to_document(molecule)
+        return self.to_document(
+            molecule,
+            source=document_source_from_path(path),
+        )
