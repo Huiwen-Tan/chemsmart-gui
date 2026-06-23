@@ -2,6 +2,24 @@ import type { MoleculeDocument, OpenDocumentRequest } from '../shared/types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000';
 
+interface ErrorResponseBody {
+  detail?: unknown;
+}
+
+async function readErrorDetail(response: Response): Promise<string | null> {
+  const contentType = response.headers.get('Content-Type') ?? '';
+  if (!contentType.includes('application/json')) {
+    return null;
+  }
+
+  try {
+    const body = (await response.json()) as ErrorResponseBody;
+    return typeof body.detail === 'string' ? body.detail : null;
+  } catch {
+    return null;
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: { 'Content-Type': 'application/json' },
@@ -9,7 +27,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    throw new Error(`Request failed (${response.status}): ${response.statusText}`);
+    const detail = await readErrorDetail(response);
+    throw new Error(
+      detail ?? `Request failed (${response.status}): ${response.statusText}`,
+    );
   }
 
   return response.json() as Promise<T>;

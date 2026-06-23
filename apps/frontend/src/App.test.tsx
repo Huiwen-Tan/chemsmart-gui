@@ -51,6 +51,16 @@ function jsonResponse(body: unknown): Response {
   });
 }
 
+function jsonErrorResponse(
+  body: unknown,
+  init: ResponseInit = { status: 400, statusText: 'Bad Request' },
+): Response {
+  return new Response(JSON.stringify(body), {
+    ...init,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
 describe('App', () => {
   beforeEach(() => {
     useDocumentStore.setState({ currentDocument: null });
@@ -184,6 +194,33 @@ describe('App', () => {
       expect(screen.getByText('Error: Open failed')).toBeInTheDocument();
     });
     expect(useViewerStore.getState().selectedAtomIndices).toEqual([1, 2]);
+    expect(screen.getByTestId('viewer-document')).toHaveTextContent('null');
+  });
+
+  it('displays backend document-open error details', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
+      .mockResolvedValueOnce(
+        jsonErrorResponse({
+          detail: "No molecular structure found in 'empty.xyz'.",
+        }),
+      );
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText('Document path'), {
+      target: { value: 'empty.xyz' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          "Error: No molecular structure found in 'empty.xyz'.",
+        ),
+      ).toBeInTheDocument();
+    });
     expect(screen.getByTestId('viewer-document')).toHaveTextContent('null');
   });
 
