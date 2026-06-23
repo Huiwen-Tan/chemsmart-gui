@@ -79,6 +79,37 @@ def test_open_document_parses_requested_xyz(tmp_path: Path) -> None:
     assert body["bonds"] == []
 
 
+@pytest.mark.parametrize(
+    ("path", "filename", "filetype"),
+    [
+        ("sample-data/water.com", "water.com", "com"),
+        ("sample-data/water.gjf", "water.gjf", "gjf"),
+    ],
+)
+def test_open_document_parses_gaussian_input(
+    path: str,
+    filename: str,
+    filetype: str,
+) -> None:
+    response = client.post("/api/documents/open", json={"path": path})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["document_kind"] == "structure"
+    assert body["source"] == {
+        "path": path,
+        "filename": filename,
+        "filetype": filetype,
+    }
+    assert body["charge"] == 0
+    assert body["multiplicity"] == 1
+    assert body["atoms"] == [
+        {"index": 1, "element": "O", "x": 0.0, "y": 0.0, "z": 0.0},
+        {"index": 2, "element": "H", "x": 0.76, "y": 0.58, "z": 0.0},
+        {"index": 3, "element": "H", "x": -0.76, "y": 0.58, "z": 0.0},
+    ]
+
+
 def test_open_document_reports_missing_request_path() -> None:
     response = client.post("/api/documents/open", json={})
 
