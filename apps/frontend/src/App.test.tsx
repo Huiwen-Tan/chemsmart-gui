@@ -77,13 +77,14 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    expect(screen.getByLabelText('Document path')).toHaveValue(
+      'sample-data/water.xyz',
+    );
     expect(screen.getByTestId('viewer-document')).toHaveTextContent('null');
     expect(screen.getByText('No document loaded.')).toBeInTheDocument();
     useViewerStore.setState({ selectedAtomIndices: [1, 2] });
 
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Load Sample Molecule' }),
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
 
     await waitFor(() => {
       expect(screen.getByTestId('viewer-document')).toHaveTextContent(
@@ -114,6 +115,59 @@ describe('App', () => {
     );
   });
 
+  it('submits the edited document path to the open-document API', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          ...WATER_DOCUMENT,
+          source: {
+            path: '/tmp/helium.xyz',
+            filename: 'helium.xyz',
+            filetype: 'xyz',
+          },
+        }),
+      );
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText('Document path'), {
+      target: { value: ' /tmp/helium.xyz ' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        2,
+        'http://127.0.0.1:8000/api/documents/open',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ path: '/tmp/helium.xyz' }),
+        }),
+      );
+    });
+    expect(screen.getByText('/tmp/helium.xyz')).toBeInTheDocument();
+  });
+
+  it('reports a local error for blank document paths', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ status: 'ok' }));
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText('Document path'), {
+      target: { value: '   ' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+
+    expect(
+      screen.getByText('Error: A document path is required.'),
+    ).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('viewer-document')).toHaveTextContent('null');
+  });
+
   it('preserves selection when sample molecule loading fails', async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
@@ -124,9 +178,7 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
     useViewerStore.setState({ selectedAtomIndices: [1, 2] });
 
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Load Sample Molecule' }),
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
 
     await waitFor(() => {
       expect(screen.getByText('Error: Open failed')).toBeInTheDocument();

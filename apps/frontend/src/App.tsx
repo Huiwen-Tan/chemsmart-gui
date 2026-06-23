@@ -19,6 +19,7 @@ export function App(): JSX.Element {
   const requestViewReset = useViewerStore((state) => state.requestViewReset);
   const [healthStatus, setHealthStatus] = useState('checking...');
   const [error, setError] = useState<string | null>(null);
+  const [documentPath, setDocumentPath] = useState('sample-data/water.xyz');
 
   useEffect(() => {
     healthCheck()
@@ -29,10 +30,16 @@ export function App(): JSX.Element {
       });
   }, []);
 
-  const loadSampleMolecule = async (): Promise<void> => {
+  const openCurrentDocument = async (): Promise<void> => {
     setError(null);
+    const path = documentPath.trim();
+    if (!path) {
+      setError('A document path is required.');
+      return;
+    }
+
     try {
-      const document = await openDocument({ path: 'sample-data/water.xyz' });
+      const document = await openDocument({ path });
       setCurrentDocument(document);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Unknown error');
@@ -42,9 +49,25 @@ export function App(): JSX.Element {
   return (
     <AppShell>
       <p>Backend health: <strong>{healthStatus}</strong></p>
-      <button onClick={() => void loadSampleMolecule()} style={{ marginBottom: 12 }}>
-        Load Sample Molecule
-      </button>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          void openCurrentDocument();
+        }}
+        style={{ marginBottom: 12 }}
+      >
+        <label style={{ display: 'inline-flex', gap: 6 }}>
+          Document path
+          <input
+            onChange={(event) => setDocumentPath(event.currentTarget.value)}
+            type="text"
+            value={documentPath}
+          />
+        </label>
+        <button style={{ marginLeft: 12 }} type="submit">
+          Open Document
+        </button>
+      </form>
       <label style={{ display: 'inline-flex', gap: 6, marginLeft: 12 }}>
         <input
           checked={showBonds}
