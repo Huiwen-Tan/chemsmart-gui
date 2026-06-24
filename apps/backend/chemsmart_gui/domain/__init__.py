@@ -1,6 +1,7 @@
 """Domain models for chemsmart-gui backend."""
 
 from .document import (
+    CalculationResultDocument,
     CalculationMetadata,
     DocumentSource,
     MoleculeDocument,
@@ -13,6 +14,7 @@ __all__ = [
     "Atom",
     "Bond",
     "CalculationMetadata",
+    "CalculationResultDocument",
     "DocumentSource",
     "MoleculeDocument",
     "OpenDocumentRequest",

@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chemsmart.local/schema/calculation-result-document.schema.json",
+  "title": "CalculationResultDocument",
+  "type": "object",
+  "required": [
+    "id",
+    "name",
+    "document_kind",
+    "source",
+    "calculation",
+    "record_id",
+    "meta",
+    "results",
+    "molecules",
+    "provenance"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "GUI document identifier; must match CHEMSMART record_id."
+    },
+    "name": { "type": "string", "minLength": 1 },
+    "document_kind": {
+      "type": "string",
+      "const": "calculation_result",
+      "description": "Normalized document kind used to route calculation-result UI behavior."
+    },
+    "source": {
+      "description": "Source file metadata for calculation results opened from a file path.",
+      "anyOf": [
+        {
+          "type": "object",
+          "required": ["path", "filename", "filetype"],
+          "properties": {
+            "path": { "type": "string", "minLength": 1 },
+            "filename": { "type": "string", "minLength": 1 },
+            "filetype": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        },
+        { "type": "null" }
+      ]
+    },
+    "calculation": {
+      "description": "Calculation metadata for the parsed result document.",
+      "anyOf": [
+        {
+          "type": "object",
+          "required": ["program", "normal_termination"],
+          "properties": {
+            "program": {
+              "type": "string",
+              "enum": ["gaussian", "orca"]
+            },
+            "normal_termination": {
+              "type": "boolean",
+              "description": "CHEMSMART parser normal_termination value."
+            }
+          },
+          "additionalProperties": false
+        },
+        { "type": "null" }
+      ]
+    },
+    "record_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "CHEMSMART calculation record_id."
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/jsonValue" }
+    },
+    "results": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/jsonValue" }
+    },
+    "molecules": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "molecule-document.schema.json" }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/jsonValue" }
+    }
+  },
+  "$defs": {
+    "jsonValue": {
+      "anyOf": [
+        { "type": "string" },
+        { "type": "number" },
+        { "type": "boolean" },
+        { "type": "null" },
+        {
+          "type": "array",
+          "items": { "$ref": "#/$defs/jsonValue" }
+        },
+        {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/jsonValue" }
+        }
+      ]
+    }
+  },
+  "additionalProperties": false
+}

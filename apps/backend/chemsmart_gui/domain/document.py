@@ -6,9 +6,16 @@ from .molecule import Atom, Bond
 
 MoleculeDocumentKind = Literal["structure"]
 TrajectoryDocumentKind = Literal["trajectory"]
-DocumentKind = MoleculeDocumentKind | TrajectoryDocumentKind
+CalculationResultDocumentKind = Literal["calculation_result"]
+DocumentKind = (
+    MoleculeDocumentKind
+    | TrajectoryDocumentKind
+    | CalculationResultDocumentKind
+)
 CalculationProgram = Literal["gaussian", "orca"]
 JsonScalar = str | int | float | bool | None
+JsonValue = JsonScalar | list[JsonScalar] | dict[str, JsonScalar]
+JsonObject = dict[str, JsonValue]
 
 
 class DocumentSource(BaseModel):
@@ -51,6 +58,25 @@ class TrajectoryDocument(BaseModel):
             raise ValueError(
                 "frame_properties must contain one entry per trajectory frame"
             )
+        return self
+
+
+class CalculationResultDocument(BaseModel):
+    id: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    document_kind: CalculationResultDocumentKind
+    source: DocumentSource | None
+    calculation: CalculationMetadata | None
+    record_id: str = Field(min_length=1)
+    meta: JsonObject
+    results: JsonObject
+    molecules: list[MoleculeDocument] = Field(min_length=1)
+    provenance: JsonObject
+
+    @model_validator(mode="after")
+    def id_matches_record_id(self) -> "CalculationResultDocument":
+        if self.id != self.record_id:
+            raise ValueError("id must match record_id")
         return self
 
 
