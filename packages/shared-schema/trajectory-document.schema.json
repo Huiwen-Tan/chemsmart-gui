@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chemsmart.local/schema/trajectory-document.schema.json",
+  "title": "TrajectoryDocument",
+  "type": "object",
+  "required": [
+    "id",
+    "name",
+    "document_kind",
+    "source",
+    "calculation",
+    "coordinate_unit",
+    "frames",
+    "frame_properties"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Trajectory document identifier; maps to CHEMSMART trajectory_id when available."
+    },
+    "name": { "type": "string", "minLength": 1 },
+    "document_kind": {
+      "type": "string",
+      "const": "trajectory",
+      "description": "Normalized document kind used to route trajectory-specific UI behavior."
+    },
+    "source": {
+      "description": "Source file metadata for trajectory documents opened from a file path.",
+      "anyOf": [
+        {
+          "type": "object",
+          "required": ["path", "filename", "filetype"],
+          "properties": {
+            "path": { "type": "string", "minLength": 1 },
+            "filename": { "type": "string", "minLength": 1 },
+            "filetype": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        },
+        { "type": "null" }
+      ]
+    },
+    "calculation": {
+      "description": "Calculation metadata shared by trajectory frames parsed from an output document.",
+      "anyOf": [
+        {
+          "type": "object",
+          "required": ["program", "normal_termination"],
+          "properties": {
+            "program": {
+              "type": "string",
+              "enum": ["gaussian", "orca"]
+            },
+            "normal_termination": {
+              "type": "boolean",
+              "description": "CHEMSMART parser normal_termination value."
+            }
+          },
+          "additionalProperties": false
+        },
+        { "type": "null" }
+      ]
+    },
+    "coordinate_unit": {
+      "type": "string",
+      "const": "angstrom",
+      "description": "Unit used by all Cartesian atom coordinates in trajectory frames."
+    },
+    "frames": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "molecule-document.schema.json" }
+    },
+    "frame_properties": {
+      "type": "array",
+      "description": "One metadata object per trajectory frame.",
+      "items": {
+        "type": "object",
+        "additionalProperties": {
+          "type": ["string", "number", "boolean", "null"]
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

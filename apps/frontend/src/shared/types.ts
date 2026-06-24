@@ -11,7 +11,10 @@ export interface Bond {
   atom2: number;
 }
 
-export type DocumentKind = 'structure';
+export type MoleculeDocumentKind = 'structure';
+export type TrajectoryDocumentKind = 'trajectory';
+export type DocumentKind = MoleculeDocumentKind | TrajectoryDocumentKind;
+export type JsonScalar = string | number | boolean | null;
 
 export interface DocumentSource {
   path: string;
@@ -29,7 +32,7 @@ export interface CalculationMetadata {
 export interface MoleculeDocument {
   id: string;
   name: string;
-  document_kind: DocumentKind;
+  document_kind: MoleculeDocumentKind;
   source: DocumentSource | null;
   calculation: CalculationMetadata | null;
   coordinate_unit: 'angstrom';
@@ -37,6 +40,17 @@ export interface MoleculeDocument {
   multiplicity: number | null;
   atoms: Atom[];
   bonds: Bond[];
+}
+
+export interface TrajectoryDocument {
+  id: string;
+  name: string;
+  document_kind: TrajectoryDocumentKind;
+  source: DocumentSource | null;
+  calculation: CalculationMetadata | null;
+  coordinate_unit: 'angstrom';
+  frames: MoleculeDocument[];
+  frame_properties: Array<Record<string, JsonScalar>>;
 }
 
 export interface OpenDocumentRequest {

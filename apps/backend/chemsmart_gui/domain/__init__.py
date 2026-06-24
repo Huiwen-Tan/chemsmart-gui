@@ -5,6 +5,7 @@ from .document import (
     DocumentSource,
     MoleculeDocument,
     OpenDocumentRequest,
+    TrajectoryDocument,
 )
 from .molecule import Atom, Bond
 
@@ -15,4 +16,5 @@ __all__ = [
     "DocumentSource",
     "MoleculeDocument",
     "OpenDocumentRequest",
+    "TrajectoryDocument",
 ]
