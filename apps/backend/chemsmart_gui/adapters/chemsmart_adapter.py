@@ -63,6 +63,15 @@ class ChemsmartAdapter:
             ],
         )
 
+    def to_molecule(self, document: MoleculeDocument) -> Molecule:
+        """Create a CHEMSMART molecule from a normalized GUI document."""
+        return Molecule(
+            symbols=[atom.element for atom in document.atoms],
+            positions=[[atom.x, atom.y, atom.z] for atom in document.atoms],
+            charge=document.charge,
+            multiplicity=document.multiplicity,
+        )
+
     def _open_output_document(
         self,
         path: str,
