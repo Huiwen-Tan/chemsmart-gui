@@ -168,6 +168,41 @@ def test_open_document_parses_gaussian_output() -> None:
     ]
 
 
+def test_open_document_parses_orca_output() -> None:
+    response = client.post(
+        "/api/documents/open",
+        json={"path": "sample-data/water.out"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["document_kind"] == "structure"
+    assert body["source"] == {
+        "path": "sample-data/water.out",
+        "filename": "water.out",
+        "filetype": "out",
+    }
+    assert body["charge"] == 0
+    assert body["multiplicity"] == 1
+    assert body["atoms"] == [
+        {"index": 1, "element": "O", "x": -0.0, "y": 0.0, "z": 0.087348},
+        {
+            "index": 2,
+            "element": "H",
+            "x": -0.75518,
+            "y": 0.0,
+            "z": -0.509674,
+        },
+        {
+            "index": 3,
+            "element": "H",
+            "x": 0.75518,
+            "y": 0.0,
+            "z": -0.509674,
+        },
+    ]
+
+
 def test_open_document_reports_missing_request_path() -> None:
     response = client.post("/api/documents/open", json={})
 
