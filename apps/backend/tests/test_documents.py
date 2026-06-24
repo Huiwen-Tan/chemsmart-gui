@@ -38,6 +38,7 @@ def test_open_document_returns_molecule_document() -> None:
         "filename": "water.xyz",
         "filetype": "xyz",
     }
+    assert body["calculation"] is None
     assert body["coordinate_unit"] == "angstrom"
     assert body["charge"] is None
     assert body["multiplicity"] is None
@@ -72,6 +73,7 @@ def test_open_document_parses_requested_xyz(tmp_path: Path) -> None:
         "filename": "helium.xyz",
         "filetype": "xyz",
     }
+    assert body["calculation"] is None
     assert body["name"].startswith("str-He-")
     assert body["atoms"] == [
         {"index": 1, "element": "He", "x": 1.5, "y": 0.0, "z": 0.0}
@@ -101,6 +103,7 @@ def test_open_document_parses_gaussian_input(
         "filename": filename,
         "filetype": filetype,
     }
+    assert body["calculation"] is None
     assert body["charge"] == 0
     assert body["multiplicity"] == 1
     assert body["atoms"] == [
@@ -124,6 +127,7 @@ def test_open_document_parses_orca_input() -> None:
         "filename": "water.inp",
         "filetype": "inp",
     }
+    assert body["calculation"] is None
     assert body["charge"] == 0
     assert body["multiplicity"] == 1
     assert body["atoms"] == [
@@ -146,6 +150,10 @@ def test_open_document_parses_gaussian_output() -> None:
         "path": "sample-data/water.log",
         "filename": "water.log",
         "filetype": "log",
+    }
+    assert body["calculation"] == {
+        "program": "gaussian",
+        "normal_termination": True,
     }
     assert body["charge"] == 0
     assert body["multiplicity"] == 1
@@ -181,6 +189,10 @@ def test_open_document_parses_orca_output() -> None:
         "path": "sample-data/water.out",
         "filename": "water.out",
         "filetype": "out",
+    }
+    assert body["calculation"] == {
+        "program": "orca",
+        "normal_termination": True,
     }
     assert body["charge"] == 0
     assert body["multiplicity"] == 1

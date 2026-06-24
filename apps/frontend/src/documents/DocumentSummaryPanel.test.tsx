@@ -13,6 +13,7 @@ const WATER_DOCUMENT: MoleculeDocument = {
     filename: 'water.xyz',
     filetype: 'xyz',
   },
+  calculation: null,
   coordinate_unit: 'angstrom',
   charge: null,
   multiplicity: null,

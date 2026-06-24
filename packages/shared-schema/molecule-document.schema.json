@@ -8,6 +8,7 @@
     "name",
     "document_kind",
     "source",
+    "calculation",
     "coordinate_unit",
     "charge",
     "multiplicity",
@@ -32,6 +33,27 @@
             "path": { "type": "string", "minLength": 1 },
             "filename": { "type": "string", "minLength": 1 },
             "filetype": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        },
+        { "type": "null" }
+      ]
+    },
+    "calculation": {
+      "description": "Calculation metadata for parsed quantum-chemistry output documents.",
+      "anyOf": [
+        {
+          "type": "object",
+          "required": ["program", "normal_termination"],
+          "properties": {
+            "program": {
+              "type": "string",
+              "enum": ["gaussian", "orca"]
+            },
+            "normal_termination": {
+              "type": "boolean",
+              "description": "CHEMSMART parser normal_termination value."
+            }
           },
           "additionalProperties": false
         },

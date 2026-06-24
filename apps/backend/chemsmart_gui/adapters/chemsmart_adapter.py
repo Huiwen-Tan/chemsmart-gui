@@ -1,9 +1,16 @@
 from pathlib import Path
 
 from ase.io.formats import UnknownFileTypeError
+from chemsmart.io.gaussian.output import Gaussian16Output
 from chemsmart.io.molecules.structure import Molecule
+from chemsmart.io.orca.output import ORCAOutput
+from chemsmart.utils.io import get_program_type_from_file
 
-from chemsmart_gui.domain.document import DocumentSource, MoleculeDocument
+from chemsmart_gui.domain.document import (
+    CalculationMetadata,
+    DocumentSource,
+    MoleculeDocument,
+)
 from chemsmart_gui.domain.molecule import Atom, Bond
 
 
@@ -28,6 +35,7 @@ class ChemsmartAdapter:
         self,
         molecule: Molecule,
         source: DocumentSource | None = None,
+        calculation: CalculationMetadata | None = None,
     ) -> MoleculeDocument:
         """Normalize a CHEMSMART molecule for GUI transport."""
         graph = molecule.to_graph()
@@ -38,6 +46,7 @@ class ChemsmartAdapter:
             name=molecule.structure_label,
             document_kind="structure",
             source=source,
+            calculation=calculation,
             coordinate_unit="angstrom",
             charge=molecule.charge,
             multiplicity=molecule.multiplicity,
@@ -54,9 +63,46 @@ class ChemsmartAdapter:
             ],
         )
 
+    def _open_output_document(
+        self,
+        path: str,
+        source: DocumentSource,
+    ) -> MoleculeDocument | None:
+        source_path = Path(path)
+        suffix = source_path.suffix.lower()
+
+        if suffix == ".log":
+            program = "gaussian"
+            parser = Gaussian16Output(filename=path)
+        elif suffix == ".out":
+            program = get_program_type_from_file(path)
+            if program == "gaussian":
+                parser = Gaussian16Output(filename=path)
+            elif program == "orca":
+                parser = ORCAOutput(filename=path)
+            else:
+                return None
+        else:
+            return None
+
+        molecule = parser.get_molecule(index="-1")
+        return self.to_document(
+            molecule,
+            source=source,
+            calculation=CalculationMetadata(
+                program=program,
+                normal_termination=parser.normal_termination,
+            ),
+        )
+
     def open_molecule_from_path(self, path: str) -> MoleculeDocument:
         """Open one structure through CHEMSMART and normalize it."""
+        source = document_source_from_path(path)
         try:
+            output_document = self._open_output_document(path, source=source)
+            if output_document is not None:
+                return output_document
+
             molecule = Molecule.from_filepath(path)
         except UnknownFileTypeError as exc:
             raise ValueError(
@@ -72,5 +118,5 @@ class ChemsmartAdapter:
 
         return self.to_document(
             molecule,
-            source=document_source_from_path(path),
+            source=source,
         )

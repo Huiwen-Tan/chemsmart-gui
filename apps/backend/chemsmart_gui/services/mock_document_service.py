@@ -30,6 +30,7 @@ class MockDocumentService(DocumentService):
                 filename=source_path.name,
                 filetype=source_path.suffix.lower().removeprefix(".") or "xyz",
             ),
+            calculation=None,
             coordinate_unit="angstrom",
             charge=None,
             multiplicity=None,

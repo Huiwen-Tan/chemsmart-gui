@@ -19,11 +19,19 @@ export interface DocumentSource {
   filetype: string;
 }
 
+export type CalculationProgram = 'gaussian' | 'orca';
+
+export interface CalculationMetadata {
+  program: CalculationProgram;
+  normal_termination: boolean;
+}
+
 export interface MoleculeDocument {
   id: string;
   name: string;
   document_kind: DocumentKind;
   source: DocumentSource | null;
+  calculation: CalculationMetadata | null;
   coordinate_unit: 'angstrom';
   charge: number | null;
   multiplicity: number | null;

@@ -26,6 +26,7 @@ def test_open_molecule_from_path_returns_normalized_document() -> None:
     assert document.source.path == str(WATER_PATH)
     assert document.source.filename == "water.xyz"
     assert document.source.filetype == "xyz"
+    assert document.calculation is None
     assert document.coordinate_unit == "angstrom"
     assert [atom.index for atom in document.atoms] == [1, 2, 3]
     assert [atom.element for atom in document.atoms] == ["O", "H", "H"]
@@ -55,6 +56,7 @@ def test_open_gaussian_input_from_path_returns_normalized_document(
     assert document.source.path == str(path)
     assert document.source.filename == filename
     assert document.source.filetype == filetype
+    assert document.calculation is None
     assert document.charge == 0
     assert document.multiplicity == 1
     assert document.coordinate_unit == "angstrom"
@@ -76,6 +78,7 @@ def test_open_orca_input_from_path_returns_normalized_document() -> None:
     assert document.source.path == str(WATER_INP_PATH)
     assert document.source.filename == "water.inp"
     assert document.source.filetype == "inp"
+    assert document.calculation is None
     assert document.charge == 0
     assert document.multiplicity == 1
     assert document.coordinate_unit == "angstrom"
@@ -97,6 +100,9 @@ def test_open_gaussian_output_from_path_returns_final_structure() -> None:
     assert document.source.path == str(WATER_LOG_PATH)
     assert document.source.filename == "water.log"
     assert document.source.filetype == "log"
+    assert document.calculation is not None
+    assert document.calculation.program == "gaussian"
+    assert document.calculation.normal_termination is True
     assert document.charge == 0
     assert document.multiplicity == 1
     assert document.coordinate_unit == "angstrom"
@@ -118,6 +124,9 @@ def test_open_orca_output_from_path_returns_final_structure() -> None:
     assert document.source.path == str(WATER_OUT_PATH)
     assert document.source.filename == "water.out"
     assert document.source.filetype == "out"
+    assert document.calculation is not None
+    assert document.calculation.program == "orca"
+    assert document.calculation.normal_termination is True
     assert document.charge == 0
     assert document.multiplicity == 1
     assert document.coordinate_unit == "angstrom"
