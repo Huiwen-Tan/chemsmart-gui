@@ -25,6 +25,14 @@ export function DocumentSummaryPanel({
           <dd>{document.source?.filetype ?? 'Unavailable'}</dd>
           <dt>Source path</dt>
           <dd>{document.source?.path ?? 'Unavailable'}</dd>
+          <dt>Calculation program</dt>
+          <dd>{document.calculation?.program ?? 'Unavailable'}</dd>
+          <dt>normal_termination</dt>
+          <dd>
+            {document.calculation
+              ? String(document.calculation.normal_termination)
+              : 'Unavailable'}
+          </dd>
         </dl>
       ) : (
         <p>No document loaded.</p>

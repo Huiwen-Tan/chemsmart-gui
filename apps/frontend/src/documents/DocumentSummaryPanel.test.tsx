@@ -21,6 +21,20 @@ const WATER_DOCUMENT: MoleculeDocument = {
   bonds: [],
 };
 
+const GAUSSIAN_OUTPUT_DOCUMENT: MoleculeDocument = {
+  ...WATER_DOCUMENT,
+  id: 'water-log',
+  source: {
+    path: 'sample-data/water.log',
+    filename: 'water.log',
+    filetype: 'log',
+  },
+  calculation: {
+    program: 'gaussian',
+    normal_termination: true,
+  },
+};
+
 describe('DocumentSummaryPanel', () => {
   afterEach(() => {
     cleanup();
@@ -44,6 +58,9 @@ describe('DocumentSummaryPanel', () => {
     expect(
       within(panel).getByText('sample-data/water.xyz'),
     ).toBeInTheDocument();
+    expect(within(panel).getByText('Calculation program')).toBeInTheDocument();
+    expect(within(panel).getByText('normal_termination')).toBeInTheDocument();
+    expect(within(panel).getAllByText('Unavailable')).toHaveLength(2);
   });
 
   it('shows unavailable source fields without inventing metadata', () => {
@@ -57,6 +74,15 @@ describe('DocumentSummaryPanel', () => {
     );
 
     const panel = screen.getByRole('region', { name: 'Current Document' });
-    expect(within(panel).getAllByText('Unavailable')).toHaveLength(3);
+    expect(within(panel).getAllByText('Unavailable')).toHaveLength(5);
+  });
+
+  it('shows calculation metadata for output documents', () => {
+    render(<DocumentSummaryPanel document={GAUSSIAN_OUTPUT_DOCUMENT} />);
+
+    const panel = screen.getByRole('region', { name: 'Current Document' });
+    expect(within(panel).getByText('water.log')).toBeInTheDocument();
+    expect(within(panel).getByText('gaussian')).toBeInTheDocument();
+    expect(within(panel).getByText('true')).toBeInTheDocument();
   });
 });
