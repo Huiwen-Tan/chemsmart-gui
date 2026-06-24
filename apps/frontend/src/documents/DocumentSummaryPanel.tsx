@@ -4,6 +4,18 @@ interface DocumentSummaryPanelProps {
   document: MoleculeDocument | null;
 }
 
+function formatCalculationState(
+  calculation: MoleculeDocument['calculation'],
+): string {
+  if (!calculation) {
+    return 'Unavailable';
+  }
+
+  return calculation.normal_termination
+    ? 'Normal termination'
+    : 'Incomplete or failed';
+}
+
 export function DocumentSummaryPanel({
   document,
 }: DocumentSummaryPanelProps): JSX.Element {
@@ -33,6 +45,8 @@ export function DocumentSummaryPanel({
               ? String(document.calculation.normal_termination)
               : 'Unavailable'}
           </dd>
+          <dt>Calculation state</dt>
+          <dd>{formatCalculationState(document.calculation)}</dd>
         </dl>
       ) : (
         <p>No document loaded.</p>

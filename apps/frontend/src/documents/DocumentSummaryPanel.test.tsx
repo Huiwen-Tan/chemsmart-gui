@@ -35,6 +35,15 @@ const GAUSSIAN_OUTPUT_DOCUMENT: MoleculeDocument = {
   },
 };
 
+const INCOMPLETE_OUTPUT_DOCUMENT: MoleculeDocument = {
+  ...GAUSSIAN_OUTPUT_DOCUMENT,
+  id: 'incomplete-water-log',
+  calculation: {
+    program: 'gaussian',
+    normal_termination: false,
+  },
+};
+
 describe('DocumentSummaryPanel', () => {
   afterEach(() => {
     cleanup();
@@ -60,7 +69,8 @@ describe('DocumentSummaryPanel', () => {
     ).toBeInTheDocument();
     expect(within(panel).getByText('Calculation program')).toBeInTheDocument();
     expect(within(panel).getByText('normal_termination')).toBeInTheDocument();
-    expect(within(panel).getAllByText('Unavailable')).toHaveLength(2);
+    expect(within(panel).getByText('Calculation state')).toBeInTheDocument();
+    expect(within(panel).getAllByText('Unavailable')).toHaveLength(3);
   });
 
   it('shows unavailable source fields without inventing metadata', () => {
@@ -74,7 +84,7 @@ describe('DocumentSummaryPanel', () => {
     );
 
     const panel = screen.getByRole('region', { name: 'Current Document' });
-    expect(within(panel).getAllByText('Unavailable')).toHaveLength(5);
+    expect(within(panel).getAllByText('Unavailable')).toHaveLength(6);
   });
 
   it('shows calculation metadata for output documents', () => {
@@ -84,5 +94,14 @@ describe('DocumentSummaryPanel', () => {
     expect(within(panel).getByText('water.log')).toBeInTheDocument();
     expect(within(panel).getByText('gaussian')).toBeInTheDocument();
     expect(within(panel).getByText('true')).toBeInTheDocument();
+    expect(within(panel).getByText('Normal termination')).toBeInTheDocument();
+  });
+
+  it('shows incomplete or failed state for non-normal termination', () => {
+    render(<DocumentSummaryPanel document={INCOMPLETE_OUTPUT_DOCUMENT} />);
+
+    const panel = screen.getByRole('region', { name: 'Current Document' });
+    expect(within(panel).getByText('false')).toBeInTheDocument();
+    expect(within(panel).getByText('Incomplete or failed')).toBeInTheDocument();
   });
 });
