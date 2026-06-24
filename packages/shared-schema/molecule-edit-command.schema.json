@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chemsmart.local/schema/molecule-edit-command.schema.json",
+  "title": "MoleculeEditCommand",
+  "description": "Explicit molecule edit commands. Atom indices are 1-based and Cartesian coordinates are in Angstrom.",
+  "oneOf": [
+    {
+      "title": "SetAtomPositionCommand",
+      "type": "object",
+      "required": [
+        "command_type",
+        "document_id",
+        "atom_index",
+        "position",
+        "coordinate_unit"
+      ],
+      "properties": {
+        "command_type": {
+          "type": "string",
+          "const": "set_atom_position"
+        },
+        "document_id": { "type": "string", "minLength": 1 },
+        "atom_index": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based atom index in the target molecule document."
+        },
+        "position": {
+          "type": "object",
+          "required": ["x", "y", "z"],
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" },
+            "z": { "type": "number" }
+          },
+          "additionalProperties": false
+        },
+        "coordinate_unit": {
+          "type": "string",
+          "const": "angstrom",
+          "description": "Unit used by the Cartesian target position."
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

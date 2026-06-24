@@ -8,15 +8,23 @@ from .document import (
     OpenDocumentRequest,
     TrajectoryDocument,
 )
+from .edit import (
+    CartesianPosition,
+    MoleculeEditCommand,
+    SetAtomPositionCommand,
+)
 from .molecule import Atom, Bond
 
 __all__ = [
     "Atom",
     "Bond",
+    "CartesianPosition",
     "CalculationMetadata",
     "CalculationResultDocument",
     "DocumentSource",
     "MoleculeDocument",
+    "MoleculeEditCommand",
     "OpenDocumentRequest",
+    "SetAtomPositionCommand",
     "TrajectoryDocument",
 ]

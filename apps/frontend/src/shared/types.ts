@@ -11,6 +11,12 @@ export interface Bond {
   atom2: number;
 }
 
+export interface CartesianPosition {
+  x: number;
+  y: number;
+  z: number;
+}
+
 export type MoleculeDocumentKind = 'structure';
 export type TrajectoryDocumentKind = 'trajectory';
 export type CalculationResultDocumentKind = 'calculation_result';
@@ -70,6 +76,18 @@ export interface CalculationResultDocument {
   molecules: MoleculeDocument[];
   provenance: Record<string, JsonValue>;
 }
+
+export type MoleculeEditCommandType = 'set_atom_position';
+
+export interface SetAtomPositionCommand {
+  command_type: 'set_atom_position';
+  document_id: string;
+  atom_index: number;
+  position: CartesianPosition;
+  coordinate_unit: 'angstrom';
+}
+
+export type MoleculeEditCommand = SetAtomPositionCommand;
 
 export interface OpenDocumentRequest {
   path?: string;
