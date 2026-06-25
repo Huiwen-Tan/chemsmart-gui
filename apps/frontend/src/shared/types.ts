@@ -89,6 +89,17 @@ export interface SetAtomPositionCommand {
 
 export type MoleculeEditCommand = SetAtomPositionCommand;
 
+export interface ApplyMoleculeEditRequest {
+  document: MoleculeDocument;
+  command: MoleculeEditCommand;
+}
+
+export interface MoleculeEditResponse {
+  document: MoleculeDocument;
+  can_undo: boolean;
+  can_redo: boolean;
+}
+
 export interface OpenDocumentRequest {
   path?: string;
   document_id?: string;

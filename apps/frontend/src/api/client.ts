@@ -1,4 +1,9 @@
-import type { MoleculeDocument, OpenDocumentRequest } from '../shared/types';
+import type {
+  ApplyMoleculeEditRequest,
+  MoleculeDocument,
+  MoleculeEditResponse,
+  OpenDocumentRequest,
+} from '../shared/types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000';
 
@@ -42,6 +47,15 @@ export function healthCheck(): Promise<{ status: string }> {
 
 export function openDocument(payload: OpenDocumentRequest): Promise<MoleculeDocument> {
   return request('/api/documents/open', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function applyMoleculeEdit(
+  payload: ApplyMoleculeEditRequest,
+): Promise<MoleculeEditResponse> {
+  return request('/api/documents/edit', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
