@@ -1,10 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from chemsmart_gui.domain.document import MoleculeDocument, OpenDocumentRequest
+from chemsmart_gui.domain.edit import (
+    ApplyMoleculeEditRequest,
+    MoleculeEditResponse,
+)
 from chemsmart_gui.services.chemsmart_document_service import (
     ChemsmartDocumentService,
 )
 from chemsmart_gui.services.document_service import DocumentService
+from chemsmart_gui.services.molecule_edit_history import MoleculeEditHistory
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
@@ -32,6 +37,27 @@ def open_document(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
+
+
+@router.post("/edit", response_model=MoleculeEditResponse)
+def apply_document_edit(
+    request: ApplyMoleculeEditRequest,
+) -> MoleculeEditResponse:
+    try:
+        history = MoleculeEditHistory.start(request.document).apply(
+            request.command,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+    return MoleculeEditResponse(
+        document=history.current_document,
+        can_undo=history.can_undo,
+        can_redo=history.can_redo,
+    )
 
 
 @router.get("/{document_id}", response_model=MoleculeDocument)

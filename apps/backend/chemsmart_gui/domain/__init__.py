@@ -9,14 +9,17 @@ from .document import (
     TrajectoryDocument,
 )
 from .edit import (
+    ApplyMoleculeEditRequest,
     CartesianPosition,
     MoleculeEditCommand,
+    MoleculeEditResponse,
     SetAtomPositionCommand,
 )
 from .molecule import Atom, Bond
 
 __all__ = [
     "Atom",
+    "ApplyMoleculeEditRequest",
     "Bond",
     "CartesianPosition",
     "CalculationMetadata",
@@ -24,6 +27,7 @@ __all__ = [
     "DocumentSource",
     "MoleculeDocument",
     "MoleculeEditCommand",
+    "MoleculeEditResponse",
     "OpenDocumentRequest",
     "SetAtomPositionCommand",
     "TrajectoryDocument",

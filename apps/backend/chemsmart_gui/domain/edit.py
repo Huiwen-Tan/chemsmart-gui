@@ -2,6 +2,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from chemsmart_gui.domain.document import MoleculeDocument
+
 
 class CartesianPosition(BaseModel):
     x: float
@@ -18,3 +20,14 @@ class SetAtomPositionCommand(BaseModel):
 
 
 MoleculeEditCommand = SetAtomPositionCommand
+
+
+class ApplyMoleculeEditRequest(BaseModel):
+    document: MoleculeDocument
+    command: MoleculeEditCommand
+
+
+class MoleculeEditResponse(BaseModel):
+    document: MoleculeDocument
+    can_undo: bool
+    can_redo: bool
