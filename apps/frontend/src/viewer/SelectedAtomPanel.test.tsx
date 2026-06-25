@@ -5,9 +5,10 @@ import {
   screen,
   within,
 } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { MoleculeDocument } from '../shared/types';
+import { useDocumentStore } from '../state/useDocumentStore';
 import { useViewerStore } from '../state/useViewerStore';
 import { SelectedAtomPanel } from './SelectedAtomPanel';
 
@@ -77,8 +78,19 @@ const COLLINEAR_FRAGMENT: MoleculeDocument = {
   ],
 };
 
+const initialDocumentState = useDocumentStore.getState();
+
 describe('SelectedAtomPanel', () => {
   beforeEach(() => {
+    useDocumentStore.setState({
+      currentDocument: null,
+      canUndoMoleculeEdit: false,
+      canRedoMoleculeEdit: false,
+      isApplyingMoleculeEdit: false,
+      moleculeEditError: null,
+      setCurrentDocument: initialDocumentState.setCurrentDocument,
+      applyMoleculeEditCommand: initialDocumentState.applyMoleculeEditCommand,
+    });
     useViewerStore.setState({ selectedAtomIndices: [] });
   });
 
@@ -137,6 +149,94 @@ describe('SelectedAtomPanel', () => {
     expect(screen.queryByText('Angle:')).not.toBeInTheDocument();
     expect(screen.queryByText('Dihedral:')).not.toBeInTheDocument();
     expect(useViewerStore.getState().selectedAtomIndices).toEqual([3, 99, 1]);
+  });
+
+  it('shows coordinate inputs for one valid selected atom', () => {
+    useViewerStore.setState({ selectedAtomIndices: [2] });
+
+    render(<SelectedAtomPanel document={WATER} />);
+
+    expect(
+      screen.getByRole('form', {
+        name: 'Edit selected atom coordinates',
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('X coordinate')).toHaveDisplayValue('0.76');
+    expect(screen.getByLabelText('Y coordinate')).toHaveDisplayValue('0.58');
+    expect(screen.getByLabelText('Z coordinate')).toHaveDisplayValue('0');
+    expect(
+      screen.getByRole('button', { name: 'Apply Coordinates' }),
+    ).toBeInTheDocument();
+  });
+
+  it('does not show coordinate inputs for multiple selected atoms', () => {
+    useViewerStore.setState({ selectedAtomIndices: [1, 2] });
+
+    render(<SelectedAtomPanel document={WATER} />);
+
+    expect(
+      screen.queryByRole('form', {
+        name: 'Edit selected atom coordinates',
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('submits selected atom coordinate edits through the document store', () => {
+    const applyMoleculeEditCommand = vi.fn().mockResolvedValue(undefined);
+    useDocumentStore.setState({ applyMoleculeEditCommand });
+    useViewerStore.setState({ selectedAtomIndices: [2] });
+
+    render(<SelectedAtomPanel document={WATER} />);
+
+    fireEvent.change(screen.getByLabelText('X coordinate'), {
+      target: { value: '1' },
+    });
+    fireEvent.change(screen.getByLabelText('Y coordinate'), {
+      target: { value: '1.1' },
+    });
+    fireEvent.change(screen.getByLabelText('Z coordinate'), {
+      target: { value: '1.2' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply Coordinates' }));
+
+    expect(applyMoleculeEditCommand).toHaveBeenCalledWith({
+      command_type: 'set_atom_position',
+      document_id: 'water',
+      atom_index: 2,
+      position: { x: 1, y: 1.1, z: 1.2 },
+      coordinate_unit: 'angstrom',
+    });
+  });
+
+  it('shows a local error for invalid coordinate edits', () => {
+    const applyMoleculeEditCommand = vi.fn().mockResolvedValue(undefined);
+    useDocumentStore.setState({ applyMoleculeEditCommand });
+    useViewerStore.setState({ selectedAtomIndices: [2] });
+
+    render(<SelectedAtomPanel document={WATER} />);
+
+    fireEvent.change(screen.getByLabelText('X coordinate'), {
+      target: { value: 'not-a-number' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply Coordinates' }));
+
+    expect(
+      screen.getByText('Coordinates must be finite numbers.'),
+    ).toBeInTheDocument();
+    expect(applyMoleculeEditCommand).not.toHaveBeenCalled();
+  });
+
+  it('shows backend molecule edit errors from the document store', () => {
+    useDocumentStore.setState({
+      moleculeEditError: 'Atom index 99 was not found in document water.',
+    });
+    useViewerStore.setState({ selectedAtomIndices: [2] });
+
+    render(<SelectedAtomPanel document={WATER} />);
+
+    expect(
+      screen.getByText('Atom index 99 was not found in document water.'),
+    ).toBeInTheDocument();
   });
 
   it('shows selected metadata and angle using the second atom as the vertex', () => {

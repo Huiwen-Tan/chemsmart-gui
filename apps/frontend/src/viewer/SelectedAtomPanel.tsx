@@ -1,4 +1,7 @@
+import { type FormEvent, useEffect, useState } from 'react';
+
 import type { Atom, MoleculeDocument } from '../shared/types';
+import { useDocumentStore } from '../state/useDocumentStore';
 import { useViewerStore } from '../state/useViewerStore';
 
 interface SelectedAtomPanelProps {
@@ -9,6 +12,12 @@ interface Vector3 {
   x: number;
   y: number;
   z: number;
+}
+
+interface CoordinateDraft {
+  x: string;
+  y: string;
+  z: string;
 }
 
 const GEOMETRY_EPSILON = 1e-12;
@@ -113,6 +122,15 @@ function calculateDihedralDegrees(
 export function SelectedAtomPanel({
   document,
 }: SelectedAtomPanelProps): JSX.Element {
+  const applyMoleculeEditCommand = useDocumentStore(
+    (state) => state.applyMoleculeEditCommand,
+  );
+  const isApplyingMoleculeEdit = useDocumentStore(
+    (state) => state.isApplyingMoleculeEdit,
+  );
+  const moleculeEditError = useDocumentStore(
+    (state) => state.moleculeEditError,
+  );
   const selectedAtomIndices = useViewerStore(
     (state) => state.selectedAtomIndices,
   );
@@ -126,6 +144,76 @@ export function SelectedAtomPanel({
     const atom = atomsByIndex.get(atomIndex);
     return atom ? [atom] : [];
   });
+  const singleSelectedAtom = selectedAtoms.length === 1
+    ? selectedAtoms[0]
+    : null;
+  const [coordinateDraft, setCoordinateDraft] = useState<CoordinateDraft>({
+    x: '',
+    y: '',
+    z: '',
+  });
+  const [coordinateEditError, setCoordinateEditError] = useState<string | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (!singleSelectedAtom) {
+      setCoordinateDraft({ x: '', y: '', z: '' });
+      setCoordinateEditError(null);
+      return;
+    }
+
+    setCoordinateDraft({
+      x: String(singleSelectedAtom.x),
+      y: String(singleSelectedAtom.y),
+      z: String(singleSelectedAtom.z),
+    });
+    setCoordinateEditError(null);
+  }, [
+    singleSelectedAtom?.index,
+    singleSelectedAtom?.x,
+    singleSelectedAtom?.y,
+    singleSelectedAtom?.z,
+  ]);
+
+  const submitCoordinateEdit = (event: FormEvent<HTMLFormElement>): void => {
+    event.preventDefault();
+    if (!document || !singleSelectedAtom) {
+      return;
+    }
+
+    const position = {
+      x: Number(coordinateDraft.x),
+      y: Number(coordinateDraft.y),
+      z: Number(coordinateDraft.z),
+    };
+    if (
+      !Number.isFinite(position.x) ||
+      !Number.isFinite(position.y) ||
+      !Number.isFinite(position.z)
+    ) {
+      setCoordinateEditError('Coordinates must be finite numbers.');
+      return;
+    }
+
+    setCoordinateEditError(null);
+    void applyMoleculeEditCommand({
+      command_type: 'set_atom_position',
+      document_id: document.id,
+      atom_index: singleSelectedAtom.index,
+      position,
+      coordinate_unit: document.coordinate_unit,
+    });
+  };
+  const updateCoordinateDraft = (
+    field: keyof CoordinateDraft,
+    value: string,
+  ): void => {
+    setCoordinateDraft((draft) => ({
+      ...draft,
+      [field]: value,
+    }));
+  };
   const distanceMeasurement = document && selectedAtoms.length === 2
     ? {
         firstAtom: selectedAtoms[0],
@@ -207,6 +295,70 @@ export function SelectedAtomPanel({
               ))}
             </tbody>
           </table>
+          {singleSelectedAtom ? (
+            <form
+              aria-label="Edit selected atom coordinates"
+              onSubmit={submitCoordinateEdit}
+              style={{ marginTop: 12 }}
+            >
+              <fieldset disabled={isApplyingMoleculeEdit}>
+                <legend>
+                  Edit Atom {singleSelectedAtom.index}{' '}
+                  {singleSelectedAtom.element} Coordinates
+                </legend>
+                <label style={{ display: 'inline-flex', gap: 6 }}>
+                  X
+                  <input
+                    aria-label="X coordinate"
+                    inputMode="decimal"
+                    onChange={(event) => updateCoordinateDraft(
+                      'x',
+                      event.currentTarget.value,
+                    )}
+                    type="text"
+                    value={coordinateDraft.x}
+                  />
+                </label>
+                <label style={{ display: 'inline-flex', gap: 6, marginLeft: 8 }}>
+                  Y
+                  <input
+                    aria-label="Y coordinate"
+                    inputMode="decimal"
+                    onChange={(event) => updateCoordinateDraft(
+                      'y',
+                      event.currentTarget.value,
+                    )}
+                    type="text"
+                    value={coordinateDraft.y}
+                  />
+                </label>
+                <label style={{ display: 'inline-flex', gap: 6, marginLeft: 8 }}>
+                  Z
+                  <input
+                    aria-label="Z coordinate"
+                    inputMode="decimal"
+                    onChange={(event) => updateCoordinateDraft(
+                      'z',
+                      event.currentTarget.value,
+                    )}
+                    type="text"
+                    value={coordinateDraft.z}
+                  />
+                </label>
+                <button style={{ marginLeft: 8 }} type="submit">
+                  {isApplyingMoleculeEdit
+                    ? 'Applying Coordinates...'
+                    : 'Apply Coordinates'}
+                </button>
+              </fieldset>
+              {coordinateEditError ? (
+                <p style={{ color: '#ff8080' }}>{coordinateEditError}</p>
+              ) : null}
+              {moleculeEditError ? (
+                <p style={{ color: '#ff8080' }}>{moleculeEditError}</p>
+              ) : null}
+            </form>
+          ) : null}
         </>
       )}
       {distanceMeasurement ? (
