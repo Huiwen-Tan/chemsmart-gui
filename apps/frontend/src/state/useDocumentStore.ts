@@ -4,14 +4,23 @@ import { applyMoleculeEdit } from '../api/client';
 import type { MoleculeDocument, MoleculeEditCommand } from '../shared/types';
 import { useViewerStore } from './useViewerStore';
 
+interface MoleculeEditSnapshot {
+  beforeDocument: MoleculeDocument;
+  afterDocument: MoleculeDocument;
+}
+
 interface DocumentState {
   currentDocument: MoleculeDocument | null;
   canUndoMoleculeEdit: boolean;
   canRedoMoleculeEdit: boolean;
   isApplyingMoleculeEdit: boolean;
   moleculeEditError: string | null;
+  moleculeEditUndoStack: MoleculeEditSnapshot[];
+  moleculeEditRedoStack: MoleculeEditSnapshot[];
   setCurrentDocument: (document: MoleculeDocument | null) => void;
   applyMoleculeEditCommand: (command: MoleculeEditCommand) => Promise<void>;
+  undoMoleculeEdit: () => void;
+  redoMoleculeEdit: () => void;
 }
 
 function messageFromUnknownError(error: unknown): string {
@@ -24,6 +33,8 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
   canRedoMoleculeEdit: false,
   isApplyingMoleculeEdit: false,
   moleculeEditError: null,
+  moleculeEditUndoStack: [],
+  moleculeEditRedoStack: [],
   setCurrentDocument: (document) => {
     useViewerStore.getState().clearAtomSelection();
     set({
@@ -32,6 +43,8 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
       canRedoMoleculeEdit: false,
       isApplyingMoleculeEdit: false,
       moleculeEditError: null,
+      moleculeEditUndoStack: [],
+      moleculeEditRedoStack: [],
     });
   },
   applyMoleculeEditCommand: async (command) => {
@@ -54,13 +67,22 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
         document,
         command,
       });
+      const undoStack = [
+        ...get().moleculeEditUndoStack,
+        {
+          beforeDocument: document,
+          afterDocument: response.document,
+        },
+      ];
 
       set({
         currentDocument: response.document,
-        canUndoMoleculeEdit: response.can_undo,
-        canRedoMoleculeEdit: response.can_redo,
+        canUndoMoleculeEdit: undoStack.length > 0,
+        canRedoMoleculeEdit: false,
         isApplyingMoleculeEdit: false,
         moleculeEditError: null,
+        moleculeEditUndoStack: undoStack,
+        moleculeEditRedoStack: [],
       });
     } catch (error: unknown) {
       set({
@@ -68,5 +90,45 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
         moleculeEditError: messageFromUnknownError(error),
       });
     }
+  },
+  undoMoleculeEdit: () => {
+    const { moleculeEditRedoStack, moleculeEditUndoStack } = get();
+    const snapshot = moleculeEditUndoStack[moleculeEditUndoStack.length - 1];
+    if (!snapshot) {
+      set({ moleculeEditError: 'No molecule edit is available to undo.' });
+      return;
+    }
+
+    const undoStack = moleculeEditUndoStack.slice(0, -1);
+    const redoStack = [snapshot, ...moleculeEditRedoStack];
+    set({
+      currentDocument: snapshot.beforeDocument,
+      canUndoMoleculeEdit: undoStack.length > 0,
+      canRedoMoleculeEdit: redoStack.length > 0,
+      isApplyingMoleculeEdit: false,
+      moleculeEditError: null,
+      moleculeEditUndoStack: undoStack,
+      moleculeEditRedoStack: redoStack,
+    });
+  },
+  redoMoleculeEdit: () => {
+    const { moleculeEditRedoStack, moleculeEditUndoStack } = get();
+    const snapshot = moleculeEditRedoStack[0];
+    if (!snapshot) {
+      set({ moleculeEditError: 'No molecule edit is available to redo.' });
+      return;
+    }
+
+    const undoStack = [...moleculeEditUndoStack, snapshot];
+    const redoStack = moleculeEditRedoStack.slice(1);
+    set({
+      currentDocument: snapshot.afterDocument,
+      canUndoMoleculeEdit: undoStack.length > 0,
+      canRedoMoleculeEdit: redoStack.length > 0,
+      isApplyingMoleculeEdit: false,
+      moleculeEditError: null,
+      moleculeEditUndoStack: undoStack,
+      moleculeEditRedoStack: redoStack,
+    });
   },
 }));

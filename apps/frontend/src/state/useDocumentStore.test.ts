@@ -34,12 +34,27 @@ const EDITED_WATER: MoleculeDocument = {
   ],
 };
 
+const REEDITED_WATER: MoleculeDocument = {
+  ...WATER,
+  id: 'reedited-water',
+  atoms: [
+    WATER.atoms[0],
+    { index: 2, element: 'H', x: 2, y: 2.1, z: 2.2 },
+    WATER.atoms[2],
+  ],
+};
+
 const SET_ATOM_POSITION: SetAtomPositionCommand = {
   command_type: 'set_atom_position',
   document_id: WATER.id,
   atom_index: 2,
   position: { x: 1, y: 1.1, z: 1.2 },
   coordinate_unit: 'angstrom',
+};
+
+const SET_ATOM_POSITION_AGAIN: SetAtomPositionCommand = {
+  ...SET_ATOM_POSITION,
+  position: { x: 2, y: 2.1, z: 2.2 },
 };
 
 const fetchMock = vi.fn<typeof fetch>();
@@ -69,6 +84,8 @@ describe('useDocumentStore', () => {
       canRedoMoleculeEdit: false,
       isApplyingMoleculeEdit: false,
       moleculeEditError: null,
+      moleculeEditUndoStack: [],
+      moleculeEditRedoStack: [],
     });
     useViewerStore.setState({ selectedAtomIndices: [] });
     fetchMock.mockReset();
@@ -85,6 +102,18 @@ describe('useDocumentStore', () => {
       canRedoMoleculeEdit: true,
       isApplyingMoleculeEdit: true,
       moleculeEditError: 'Previous error',
+      moleculeEditUndoStack: [
+        {
+          beforeDocument: WATER,
+          afterDocument: EDITED_WATER,
+        },
+      ],
+      moleculeEditRedoStack: [
+        {
+          beforeDocument: WATER,
+          afterDocument: EDITED_WATER,
+        },
+      ],
     });
     useViewerStore.setState({ selectedAtomIndices: [1, 2] });
 
@@ -95,11 +124,21 @@ describe('useDocumentStore', () => {
     expect(useDocumentStore.getState().canRedoMoleculeEdit).toBe(false);
     expect(useDocumentStore.getState().isApplyingMoleculeEdit).toBe(false);
     expect(useDocumentStore.getState().moleculeEditError).toBeNull();
+    expect(useDocumentStore.getState().moleculeEditUndoStack).toEqual([]);
+    expect(useDocumentStore.getState().moleculeEditRedoStack).toEqual([]);
     expect(useViewerStore.getState().selectedAtomIndices).toEqual([]);
   });
 
   it('clears viewer atom selection when the active document is cleared', () => {
-    useDocumentStore.setState({ currentDocument: WATER });
+    useDocumentStore.setState({
+      currentDocument: WATER,
+      moleculeEditUndoStack: [
+        {
+          beforeDocument: WATER,
+          afterDocument: EDITED_WATER,
+        },
+      ],
+    });
     useViewerStore.setState({ selectedAtomIndices: [1] });
 
     useDocumentStore.getState().setCurrentDocument(null);
@@ -107,6 +146,8 @@ describe('useDocumentStore', () => {
     expect(useDocumentStore.getState().currentDocument).toBeNull();
     expect(useDocumentStore.getState().canUndoMoleculeEdit).toBe(false);
     expect(useDocumentStore.getState().canRedoMoleculeEdit).toBe(false);
+    expect(useDocumentStore.getState().moleculeEditUndoStack).toEqual([]);
+    expect(useDocumentStore.getState().moleculeEditRedoStack).toEqual([]);
     expect(useViewerStore.getState().selectedAtomIndices).toEqual([]);
   });
 
@@ -130,6 +171,13 @@ describe('useDocumentStore', () => {
     expect(useDocumentStore.getState().canRedoMoleculeEdit).toBe(false);
     expect(useDocumentStore.getState().isApplyingMoleculeEdit).toBe(false);
     expect(useDocumentStore.getState().moleculeEditError).toBeNull();
+    expect(useDocumentStore.getState().moleculeEditUndoStack).toEqual([
+      {
+        beforeDocument: WATER,
+        afterDocument: EDITED_WATER,
+      },
+    ]);
+    expect(useDocumentStore.getState().moleculeEditRedoStack).toEqual([]);
     expect(useViewerStore.getState().selectedAtomIndices).toEqual([2]);
     expect(fetchMock).toHaveBeenCalledWith(
       'http://127.0.0.1:8000/api/documents/edit',
@@ -141,6 +189,92 @@ describe('useDocumentStore', () => {
           command: SET_ATOM_POSITION,
         }),
       },
+    );
+  });
+
+  it('undoes and redoes molecule edit snapshots without clearing selection', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        document: EDITED_WATER,
+        can_undo: true,
+        can_redo: false,
+      }),
+    );
+    useDocumentStore.setState({ currentDocument: WATER });
+    useViewerStore.setState({ selectedAtomIndices: [2] });
+
+    await useDocumentStore
+      .getState()
+      .applyMoleculeEditCommand(SET_ATOM_POSITION);
+
+    useDocumentStore.getState().undoMoleculeEdit();
+
+    expect(useDocumentStore.getState().currentDocument).toEqual(WATER);
+    expect(useDocumentStore.getState().canUndoMoleculeEdit).toBe(false);
+    expect(useDocumentStore.getState().canRedoMoleculeEdit).toBe(true);
+    expect(useDocumentStore.getState().moleculeEditUndoStack).toEqual([]);
+    expect(useDocumentStore.getState().moleculeEditRedoStack).toHaveLength(1);
+    expect(useViewerStore.getState().selectedAtomIndices).toEqual([2]);
+
+    useDocumentStore.getState().redoMoleculeEdit();
+
+    expect(useDocumentStore.getState().currentDocument).toEqual(EDITED_WATER);
+    expect(useDocumentStore.getState().canUndoMoleculeEdit).toBe(true);
+    expect(useDocumentStore.getState().canRedoMoleculeEdit).toBe(false);
+    expect(useDocumentStore.getState().moleculeEditUndoStack).toHaveLength(1);
+    expect(useDocumentStore.getState().moleculeEditRedoStack).toEqual([]);
+    expect(useViewerStore.getState().selectedAtomIndices).toEqual([2]);
+  });
+
+  it('clears redo history after applying a new molecule edit', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          document: EDITED_WATER,
+          can_undo: true,
+          can_redo: false,
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          document: REEDITED_WATER,
+          can_undo: true,
+          can_redo: false,
+        }),
+      );
+    useDocumentStore.setState({ currentDocument: WATER });
+
+    await useDocumentStore
+      .getState()
+      .applyMoleculeEditCommand(SET_ATOM_POSITION);
+    useDocumentStore.getState().undoMoleculeEdit();
+    await useDocumentStore
+      .getState()
+      .applyMoleculeEditCommand(SET_ATOM_POSITION_AGAIN);
+
+    expect(useDocumentStore.getState().currentDocument).toEqual(REEDITED_WATER);
+    expect(useDocumentStore.getState().canUndoMoleculeEdit).toBe(true);
+    expect(useDocumentStore.getState().canRedoMoleculeEdit).toBe(false);
+    expect(useDocumentStore.getState().moleculeEditUndoStack).toEqual([
+      {
+        beforeDocument: WATER,
+        afterDocument: REEDITED_WATER,
+      },
+    ]);
+    expect(useDocumentStore.getState().moleculeEditRedoStack).toEqual([]);
+  });
+
+  it('records errors when undo or redo history is unavailable', () => {
+    useDocumentStore.getState().undoMoleculeEdit();
+
+    expect(useDocumentStore.getState().moleculeEditError).toBe(
+      'No molecule edit is available to undo.',
+    );
+
+    useDocumentStore.getState().redoMoleculeEdit();
+
+    expect(useDocumentStore.getState().moleculeEditError).toBe(
+      'No molecule edit is available to redo.',
     );
   });
 
@@ -167,6 +301,12 @@ describe('useDocumentStore', () => {
       currentDocument: WATER,
       canUndoMoleculeEdit: true,
       canRedoMoleculeEdit: false,
+      moleculeEditUndoStack: [
+        {
+          beforeDocument: WATER,
+          afterDocument: EDITED_WATER,
+        },
+      ],
     });
 
     await useDocumentStore.getState().applyMoleculeEditCommand({
