@@ -86,8 +86,11 @@ describe('SelectedAtomPanel', () => {
       currentDocument: null,
       canUndoMoleculeEdit: false,
       canRedoMoleculeEdit: false,
+      hasUnsavedMoleculeEdits: false,
       isApplyingMoleculeEdit: false,
       moleculeEditError: null,
+      moleculeEditUndoStack: [],
+      moleculeEditRedoStack: [],
       setCurrentDocument: initialDocumentState.setCurrentDocument,
       applyMoleculeEditCommand: initialDocumentState.applyMoleculeEditCommand,
     });

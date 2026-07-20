@@ -77,6 +77,7 @@ function setUndoHistory(): void {
     currentDocument: EDITED_WATER_DOCUMENT,
     canUndoMoleculeEdit: true,
     canRedoMoleculeEdit: false,
+    hasUnsavedMoleculeEdits: true,
     moleculeEditUndoStack: [
       {
         beforeDocument: WATER_DOCUMENT,
@@ -92,6 +93,7 @@ function setRedoHistory(): void {
     currentDocument: WATER_DOCUMENT,
     canUndoMoleculeEdit: false,
     canRedoMoleculeEdit: true,
+    hasUnsavedMoleculeEdits: false,
     moleculeEditUndoStack: [],
     moleculeEditRedoStack: [
       {
@@ -108,6 +110,7 @@ describe('App', () => {
       currentDocument: null,
       canUndoMoleculeEdit: false,
       canRedoMoleculeEdit: false,
+      hasUnsavedMoleculeEdits: false,
       isApplyingMoleculeEdit: false,
       moleculeEditError: null,
       moleculeEditUndoStack: [],
@@ -432,6 +435,7 @@ describe('App', () => {
       currentDocument: EDITED_WATER_DOCUMENT,
       canUndoMoleculeEdit: false,
       canRedoMoleculeEdit: false,
+      hasUnsavedMoleculeEdits: false,
       moleculeEditUndoStack: [],
       moleculeEditRedoStack: [],
     });

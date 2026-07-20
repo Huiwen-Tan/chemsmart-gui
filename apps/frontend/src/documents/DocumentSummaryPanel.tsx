@@ -2,6 +2,7 @@ import type { MoleculeDocument } from '../shared/types';
 
 interface DocumentSummaryPanelProps {
   document: MoleculeDocument | null;
+  hasUnsavedMoleculeEdits?: boolean;
 }
 
 function formatCalculationState(
@@ -18,6 +19,7 @@ function formatCalculationState(
 
 export function DocumentSummaryPanel({
   document,
+  hasUnsavedMoleculeEdits = false,
 }: DocumentSummaryPanelProps): JSX.Element {
   return (
     <section
@@ -37,6 +39,12 @@ export function DocumentSummaryPanel({
           <dd>{document.source?.filetype ?? 'Unavailable'}</dd>
           <dt>Source path</dt>
           <dd>{document.source?.path ?? 'Unavailable'}</dd>
+          <dt>Molecule edit state</dt>
+          <dd>
+            {hasUnsavedMoleculeEdits
+              ? 'Unsaved edits'
+              : 'No unsaved edits'}
+          </dd>
           <dt>Calculation program</dt>
           <dd>{document.calculation?.program ?? 'Unavailable'}</dd>
           <dt>normal_termination</dt>

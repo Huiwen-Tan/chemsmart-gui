@@ -70,7 +70,21 @@ describe('DocumentSummaryPanel', () => {
     expect(within(panel).getByText('Calculation program')).toBeInTheDocument();
     expect(within(panel).getByText('normal_termination')).toBeInTheDocument();
     expect(within(panel).getByText('Calculation state')).toBeInTheDocument();
+    expect(within(panel).getByText('Molecule edit state')).toBeInTheDocument();
+    expect(within(panel).getByText('No unsaved edits')).toBeInTheDocument();
     expect(within(panel).getAllByText('Unavailable')).toHaveLength(3);
+  });
+
+  it('shows unsaved molecule edit state for edited documents', () => {
+    render(
+      <DocumentSummaryPanel
+        document={WATER_DOCUMENT}
+        hasUnsavedMoleculeEdits
+      />,
+    );
+
+    const panel = screen.getByRole('region', { name: 'Current Document' });
+    expect(within(panel).getByText('Unsaved edits')).toBeInTheDocument();
   });
 
   it('shows unavailable source fields without inventing metadata', () => {

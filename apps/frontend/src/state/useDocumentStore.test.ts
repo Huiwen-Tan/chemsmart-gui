@@ -82,6 +82,7 @@ describe('useDocumentStore', () => {
       currentDocument: null,
       canUndoMoleculeEdit: false,
       canRedoMoleculeEdit: false,
+      hasUnsavedMoleculeEdits: false,
       isApplyingMoleculeEdit: false,
       moleculeEditError: null,
       moleculeEditUndoStack: [],
@@ -100,6 +101,7 @@ describe('useDocumentStore', () => {
     useDocumentStore.setState({
       canUndoMoleculeEdit: true,
       canRedoMoleculeEdit: true,
+      hasUnsavedMoleculeEdits: true,
       isApplyingMoleculeEdit: true,
       moleculeEditError: 'Previous error',
       moleculeEditUndoStack: [
@@ -122,6 +124,7 @@ describe('useDocumentStore', () => {
     expect(useDocumentStore.getState().currentDocument).toBe(WATER);
     expect(useDocumentStore.getState().canUndoMoleculeEdit).toBe(false);
     expect(useDocumentStore.getState().canRedoMoleculeEdit).toBe(false);
+    expect(useDocumentStore.getState().hasUnsavedMoleculeEdits).toBe(false);
     expect(useDocumentStore.getState().isApplyingMoleculeEdit).toBe(false);
     expect(useDocumentStore.getState().moleculeEditError).toBeNull();
     expect(useDocumentStore.getState().moleculeEditUndoStack).toEqual([]);
@@ -132,6 +135,7 @@ describe('useDocumentStore', () => {
   it('clears viewer atom selection when the active document is cleared', () => {
     useDocumentStore.setState({
       currentDocument: WATER,
+      hasUnsavedMoleculeEdits: true,
       moleculeEditUndoStack: [
         {
           beforeDocument: WATER,
@@ -146,6 +150,7 @@ describe('useDocumentStore', () => {
     expect(useDocumentStore.getState().currentDocument).toBeNull();
     expect(useDocumentStore.getState().canUndoMoleculeEdit).toBe(false);
     expect(useDocumentStore.getState().canRedoMoleculeEdit).toBe(false);
+    expect(useDocumentStore.getState().hasUnsavedMoleculeEdits).toBe(false);
     expect(useDocumentStore.getState().moleculeEditUndoStack).toEqual([]);
     expect(useDocumentStore.getState().moleculeEditRedoStack).toEqual([]);
     expect(useViewerStore.getState().selectedAtomIndices).toEqual([]);
@@ -169,6 +174,7 @@ describe('useDocumentStore', () => {
     expect(useDocumentStore.getState().currentDocument).toEqual(EDITED_WATER);
     expect(useDocumentStore.getState().canUndoMoleculeEdit).toBe(true);
     expect(useDocumentStore.getState().canRedoMoleculeEdit).toBe(false);
+    expect(useDocumentStore.getState().hasUnsavedMoleculeEdits).toBe(true);
     expect(useDocumentStore.getState().isApplyingMoleculeEdit).toBe(false);
     expect(useDocumentStore.getState().moleculeEditError).toBeNull();
     expect(useDocumentStore.getState().moleculeEditUndoStack).toEqual([
@@ -212,6 +218,7 @@ describe('useDocumentStore', () => {
     expect(useDocumentStore.getState().currentDocument).toEqual(WATER);
     expect(useDocumentStore.getState().canUndoMoleculeEdit).toBe(false);
     expect(useDocumentStore.getState().canRedoMoleculeEdit).toBe(true);
+    expect(useDocumentStore.getState().hasUnsavedMoleculeEdits).toBe(false);
     expect(useDocumentStore.getState().moleculeEditUndoStack).toEqual([]);
     expect(useDocumentStore.getState().moleculeEditRedoStack).toHaveLength(1);
     expect(useViewerStore.getState().selectedAtomIndices).toEqual([2]);
@@ -221,6 +228,7 @@ describe('useDocumentStore', () => {
     expect(useDocumentStore.getState().currentDocument).toEqual(EDITED_WATER);
     expect(useDocumentStore.getState().canUndoMoleculeEdit).toBe(true);
     expect(useDocumentStore.getState().canRedoMoleculeEdit).toBe(false);
+    expect(useDocumentStore.getState().hasUnsavedMoleculeEdits).toBe(true);
     expect(useDocumentStore.getState().moleculeEditUndoStack).toHaveLength(1);
     expect(useDocumentStore.getState().moleculeEditRedoStack).toEqual([]);
     expect(useViewerStore.getState().selectedAtomIndices).toEqual([2]);
@@ -255,6 +263,7 @@ describe('useDocumentStore', () => {
     expect(useDocumentStore.getState().currentDocument).toEqual(REEDITED_WATER);
     expect(useDocumentStore.getState().canUndoMoleculeEdit).toBe(true);
     expect(useDocumentStore.getState().canRedoMoleculeEdit).toBe(false);
+    expect(useDocumentStore.getState().hasUnsavedMoleculeEdits).toBe(true);
     expect(useDocumentStore.getState().moleculeEditUndoStack).toEqual([
       {
         beforeDocument: WATER,
@@ -284,6 +293,7 @@ describe('useDocumentStore', () => {
       .applyMoleculeEditCommand(SET_ATOM_POSITION);
 
     expect(useDocumentStore.getState().currentDocument).toBeNull();
+    expect(useDocumentStore.getState().hasUnsavedMoleculeEdits).toBe(false);
     expect(useDocumentStore.getState().moleculeEditError).toBe(
       'No document is loaded.',
     );
@@ -301,6 +311,7 @@ describe('useDocumentStore', () => {
       currentDocument: WATER,
       canUndoMoleculeEdit: true,
       canRedoMoleculeEdit: false,
+      hasUnsavedMoleculeEdits: true,
       moleculeEditUndoStack: [
         {
           beforeDocument: WATER,
@@ -317,6 +328,7 @@ describe('useDocumentStore', () => {
     expect(useDocumentStore.getState().currentDocument).toBe(WATER);
     expect(useDocumentStore.getState().canUndoMoleculeEdit).toBe(true);
     expect(useDocumentStore.getState().canRedoMoleculeEdit).toBe(false);
+    expect(useDocumentStore.getState().hasUnsavedMoleculeEdits).toBe(true);
     expect(useDocumentStore.getState().isApplyingMoleculeEdit).toBe(false);
     expect(useDocumentStore.getState().moleculeEditError).toBe(
       'Atom index 99 was not found in document water.',

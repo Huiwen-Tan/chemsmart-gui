@@ -13,6 +13,7 @@ interface DocumentState {
   currentDocument: MoleculeDocument | null;
   canUndoMoleculeEdit: boolean;
   canRedoMoleculeEdit: boolean;
+  hasUnsavedMoleculeEdits: boolean;
   isApplyingMoleculeEdit: boolean;
   moleculeEditError: string | null;
   moleculeEditUndoStack: MoleculeEditSnapshot[];
@@ -31,6 +32,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
   currentDocument: null,
   canUndoMoleculeEdit: false,
   canRedoMoleculeEdit: false,
+  hasUnsavedMoleculeEdits: false,
   isApplyingMoleculeEdit: false,
   moleculeEditError: null,
   moleculeEditUndoStack: [],
@@ -41,6 +43,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
       currentDocument: document,
       canUndoMoleculeEdit: false,
       canRedoMoleculeEdit: false,
+      hasUnsavedMoleculeEdits: false,
       isApplyingMoleculeEdit: false,
       moleculeEditError: null,
       moleculeEditUndoStack: [],
@@ -79,6 +82,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
         currentDocument: response.document,
         canUndoMoleculeEdit: undoStack.length > 0,
         canRedoMoleculeEdit: false,
+        hasUnsavedMoleculeEdits: undoStack.length > 0,
         isApplyingMoleculeEdit: false,
         moleculeEditError: null,
         moleculeEditUndoStack: undoStack,
@@ -105,6 +109,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
       currentDocument: snapshot.beforeDocument,
       canUndoMoleculeEdit: undoStack.length > 0,
       canRedoMoleculeEdit: redoStack.length > 0,
+      hasUnsavedMoleculeEdits: undoStack.length > 0,
       isApplyingMoleculeEdit: false,
       moleculeEditError: null,
       moleculeEditUndoStack: undoStack,
@@ -125,6 +130,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
       currentDocument: snapshot.afterDocument,
       canUndoMoleculeEdit: undoStack.length > 0,
       canRedoMoleculeEdit: redoStack.length > 0,
+      hasUnsavedMoleculeEdits: undoStack.length > 0,
       isApplyingMoleculeEdit: false,
       moleculeEditError: null,
       moleculeEditUndoStack: undoStack,

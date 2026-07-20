@@ -26,6 +26,7 @@ export function App(): JSX.Element {
     canRedoMoleculeEdit,
     canUndoMoleculeEdit,
     currentDocument,
+    hasUnsavedMoleculeEdits,
     redoMoleculeEdit,
     setCurrentDocument,
     undoMoleculeEdit,
@@ -167,7 +168,10 @@ export function App(): JSX.Element {
       </button>
       {error ? <p style={{ color: '#ff8080' }}>Error: {error}</p> : null}
       <MolecularViewer document={currentDocument} />
-      <DocumentSummaryPanel document={currentDocument} />
+      <DocumentSummaryPanel
+        document={currentDocument}
+        hasUnsavedMoleculeEdits={hasUnsavedMoleculeEdits}
+      />
       <SelectedAtomPanel document={currentDocument} />
     </AppShell>
   );
