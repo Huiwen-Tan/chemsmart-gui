@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { healthCheck, openDocument } from './api/client';
 import { AppShell } from './app/AppShell';
 import { DocumentSummaryPanel } from './documents/DocumentSummaryPanel';
+import { MoleculeExportPreviewPanel } from './documents/MoleculeExportPreviewPanel';
 import { useDocumentStore } from './state/useDocumentStore';
 import { useViewerStore } from './state/useViewerStore';
 import { MolecularViewer } from './viewer/MolecularViewer';
@@ -181,6 +182,7 @@ export function App(): JSX.Element {
         document={currentDocument}
         hasUnsavedMoleculeEdits={hasUnsavedMoleculeEdits}
       />
+      <MoleculeExportPreviewPanel document={currentDocument} />
       <SelectedAtomPanel document={currentDocument} />
     </AppShell>
   );

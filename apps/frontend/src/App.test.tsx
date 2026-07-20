@@ -361,6 +361,57 @@ describe('App', () => {
     expect(screen.getByTestId('viewer-document')).toHaveTextContent('null');
   });
 
+  it('previews XYZ export content for the loaded document', async () => {
+    const xyzPreviewContent =
+      '3\nwater.xyz    Empirical formula: H2O\nO 0 0 0\nH 1 1 1\nH -1 1 1\n';
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
+      .mockResolvedValueOnce(jsonResponse(WATER_DOCUMENT))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          filename: 'water.xyz',
+          filetype: 'xyz',
+          content: xyzPreviewContent,
+        }),
+      );
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(WATER_DOCUMENT),
+      );
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Preview XYZ Export' }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('XYZ export preview').textContent).toBe(
+        xyzPreviewContent,
+      );
+    });
+    expect(
+      within(
+        screen.getByRole('region', { name: 'Export Preview' }),
+      ).getByText('water.xyz'),
+    ).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      'http://127.0.0.1:8000/api/documents/export-preview',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          document: WATER_DOCUMENT,
+          filetype: 'xyz',
+        }),
+      }),
+    );
+  });
+
   it('toggles the viewer bond display setting', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ status: 'ok' }));
 
