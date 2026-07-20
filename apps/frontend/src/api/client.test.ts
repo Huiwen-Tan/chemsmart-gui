@@ -3,9 +3,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   ApplyMoleculeEditRequest,
   MoleculeDocument,
+  MoleculeExportPreviewRequest,
+  MoleculeExportPreviewResponse,
   MoleculeEditResponse,
 } from '../shared/types';
-import { applyMoleculeEdit, openDocument } from './client';
+import {
+  applyMoleculeEdit,
+  openDocument,
+  previewMoleculeExport,
+} from './client';
 
 const fetchMock = vi.fn<typeof fetch>();
 
@@ -51,6 +57,17 @@ const EDIT_RESPONSE: MoleculeEditResponse = {
   },
   can_undo: true,
   can_redo: false,
+};
+
+const EXPORT_PREVIEW_REQUEST: MoleculeExportPreviewRequest = {
+  document: WATER_DOCUMENT,
+  filetype: 'xyz',
+};
+
+const EXPORT_PREVIEW_RESPONSE: MoleculeExportPreviewResponse = {
+  filename: 'water.xyz',
+  filetype: 'xyz',
+  content: '2\nwater.xyz    Empirical formula: H2O\nO 0 0 0\nH 1 1 1\n',
 };
 
 function jsonResponse(
@@ -133,5 +150,37 @@ describe('api client', () => {
     await expect(applyMoleculeEdit(EDIT_REQUEST)).rejects.toThrow(
       "Edit command targets document 'other-document'",
     );
+  });
+
+  it('posts molecule export previews to the document export API', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(EXPORT_PREVIEW_RESPONSE));
+
+    await expect(
+      previewMoleculeExport(EXPORT_PREVIEW_REQUEST),
+    ).resolves.toEqual(EXPORT_PREVIEW_RESPONSE);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/api/documents/export-preview',
+      {
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        body: JSON.stringify(EXPORT_PREVIEW_REQUEST),
+      },
+    );
+  });
+
+  it('throws backend export preview detail from JSON errors', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(
+        {
+          detail: "Export preview filetype 'pdb' is not supported.",
+        },
+        { status: 400, statusText: 'Bad Request' },
+      ),
+    );
+
+    await expect(
+      previewMoleculeExport(EXPORT_PREVIEW_REQUEST),
+    ).rejects.toThrow("Export preview filetype 'pdb' is not supported.");
   });
 });

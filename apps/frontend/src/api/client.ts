@@ -1,6 +1,8 @@
 import type {
   ApplyMoleculeEditRequest,
   MoleculeDocument,
+  MoleculeExportPreviewRequest,
+  MoleculeExportPreviewResponse,
   MoleculeEditResponse,
   OpenDocumentRequest,
 } from '../shared/types';
@@ -56,6 +58,15 @@ export function applyMoleculeEdit(
   payload: ApplyMoleculeEditRequest,
 ): Promise<MoleculeEditResponse> {
   return request('/api/documents/edit', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function previewMoleculeExport(
+  payload: MoleculeExportPreviewRequest,
+): Promise<MoleculeExportPreviewResponse> {
+  return request('/api/documents/export-preview', {
     method: 'POST',
     body: JSON.stringify(payload),
   });

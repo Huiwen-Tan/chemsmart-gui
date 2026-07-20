@@ -100,6 +100,19 @@ export interface MoleculeEditResponse {
   can_redo: boolean;
 }
 
+export type MoleculeExportPreviewFiletype = 'xyz';
+
+export interface MoleculeExportPreviewRequest {
+  document: MoleculeDocument;
+  filetype: MoleculeExportPreviewFiletype;
+}
+
+export interface MoleculeExportPreviewResponse {
+  filename: string;
+  filetype: MoleculeExportPreviewFiletype;
+  content: string;
+}
+
 export interface OpenDocumentRequest {
   path?: string;
   document_id?: string;
