@@ -1,4 +1,5 @@
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from ase.io.formats import UnknownFileTypeError
 from chemsmart.io.gaussian.output import Gaussian16Output
@@ -12,6 +13,16 @@ from chemsmart_gui.domain.document import (
     MoleculeDocument,
 )
 from chemsmart_gui.domain.molecule import Atom, Bond
+
+
+def _safe_filename_stem(name: str) -> str:
+    safe_stem = "".join(
+        character
+        if character.isalnum() or character in {".", "-", "_"}
+        else "_"
+        for character in name
+    ).strip("._")
+    return safe_stem or "molecule"
 
 
 def document_source_from_path(path: str) -> DocumentSource:
@@ -71,6 +82,38 @@ class ChemsmartAdapter:
             charge=document.charge,
             multiplicity=document.multiplicity,
         )
+
+    def suggested_export_filename(
+        self,
+        document: MoleculeDocument,
+        filetype: str,
+    ) -> str:
+        """Return a safe default export filename for a molecule document."""
+        source_name = (
+            document.source.filename if document.source else document.name
+        )
+        stem = _safe_filename_stem(Path(source_name).stem)
+        return f"{stem}.{filetype}"
+
+    def preview_molecule_export(
+        self,
+        document: MoleculeDocument,
+        filetype: str,
+    ) -> tuple[str, str]:
+        """Generate molecule export text using CHEMSMART writer behavior."""
+        if filetype != "xyz":
+            raise ValueError(
+                f"Export preview filetype '{filetype}' is not supported."
+            )
+
+        filename = self.suggested_export_filename(document, filetype)
+        molecule = self.to_molecule(document)
+        with TemporaryDirectory() as temporary_directory:
+            preview_path = Path(temporary_directory) / filename
+            molecule.write(str(preview_path), format=filetype, mode="w")
+            content = preview_path.read_text(encoding="utf-8")
+
+        return filename, content
 
     def _open_output_document(
         self,

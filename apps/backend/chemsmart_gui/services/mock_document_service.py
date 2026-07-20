@@ -5,6 +5,10 @@ from chemsmart_gui.domain.document import (
     MoleculeDocument,
     OpenDocumentRequest,
 )
+from chemsmart_gui.domain.export import (
+    MoleculeExportPreviewRequest,
+    MoleculeExportPreviewResponse,
+)
 from chemsmart_gui.domain.molecule import Atom, Bond
 from chemsmart_gui.services.document_service import DocumentService
 
@@ -49,3 +53,22 @@ class MockDocumentService(DocumentService):
 
     def get_document(self, document_id: str) -> MoleculeDocument | None:
         return self._documents.get(document_id)
+
+    def preview_molecule_export(
+        self,
+        request: MoleculeExportPreviewRequest,
+    ) -> MoleculeExportPreviewResponse:
+        lines = [
+            str(len(request.document.atoms)),
+            f"{request.document.name}    Empirical formula: unavailable",
+            *(
+                f"{atom.element:5} {atom.x:15.10f} "
+                f"{atom.y:15.10f} {atom.z:15.10f}"
+                for atom in request.document.atoms
+            ),
+        ]
+        return MoleculeExportPreviewResponse(
+            filename=f"{request.document.name}.xyz",
+            filetype=request.filetype,
+            content="\n".join(lines) + "\n",
+        )

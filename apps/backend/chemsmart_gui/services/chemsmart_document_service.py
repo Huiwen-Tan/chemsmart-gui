@@ -1,5 +1,9 @@
 from chemsmart_gui.adapters.chemsmart_adapter import ChemsmartAdapter
 from chemsmart_gui.domain.document import MoleculeDocument, OpenDocumentRequest
+from chemsmart_gui.domain.export import (
+    MoleculeExportPreviewRequest,
+    MoleculeExportPreviewResponse,
+)
 from chemsmart_gui.services.document_service import DocumentService
 
 
@@ -20,3 +24,17 @@ class ChemsmartDocumentService(DocumentService):
 
     def get_document(self, document_id: str) -> MoleculeDocument | None:
         return self._documents.get(document_id)
+
+    def preview_molecule_export(
+        self,
+        request: MoleculeExportPreviewRequest,
+    ) -> MoleculeExportPreviewResponse:
+        filename, content = self._adapter.preview_molecule_export(
+            request.document,
+            request.filetype,
+        )
+        return MoleculeExportPreviewResponse(
+            filename=filename,
+            filetype=request.filetype,
+            content=content,
+        )

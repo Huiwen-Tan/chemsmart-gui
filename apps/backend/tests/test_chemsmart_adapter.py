@@ -137,3 +137,72 @@ def test_open_orca_output_from_path_returns_final_structure() -> None:
         (-0.75518, 0.0, -0.509674),
         (0.75518, 0.0, -0.509674),
     ]
+
+
+def test_preview_molecule_export_returns_xyz_text() -> None:
+    document = ChemsmartAdapter().open_molecule_from_path(str(WATER_PATH))
+
+    filename, content = ChemsmartAdapter().preview_molecule_export(
+        document,
+        "xyz",
+    )
+
+    lines = content.splitlines()
+    assert filename == "water.xyz"
+    assert lines[0] == "3"
+    assert lines[1] == "water.xyz    Empirical formula: H2O"
+    assert lines[2].split() == [
+        "O",
+        "0.0000000000",
+        "0.0000000000",
+        "0.0000000000",
+    ]
+    assert lines[3].split() == [
+        "H",
+        "0.7600000000",
+        "0.5800000000",
+        "0.0000000000",
+    ]
+    assert lines[4].split() == [
+        "H",
+        "-0.7600000000",
+        "0.5800000000",
+        "0.0000000000",
+    ]
+
+
+def test_preview_molecule_export_does_not_overwrite_source_file(
+    tmp_path: Path,
+) -> None:
+    source_path = tmp_path / "helium.xyz"
+    original_content = "1\nHelium\nHe 1.5 0.0 0.0\n"
+    source_path.write_text(original_content, encoding="utf-8")
+    document = ChemsmartAdapter().open_molecule_from_path(str(source_path))
+    edited_document = document.model_copy(
+        update={
+            "atoms": [
+                document.atoms[0].model_copy(update={"x": 2.0}),
+            ],
+        },
+    )
+
+    filename, content = ChemsmartAdapter().preview_molecule_export(
+        edited_document,
+        "xyz",
+    )
+
+    assert filename == "helium.xyz"
+    assert source_path.read_text(encoding="utf-8") == original_content
+    assert content.splitlines()[2].split() == [
+        "He",
+        "2.0000000000",
+        "0.0000000000",
+        "0.0000000000",
+    ]
+
+
+def test_preview_molecule_export_rejects_unsupported_filetype() -> None:
+    document = ChemsmartAdapter().open_molecule_from_path(str(WATER_PATH))
+
+    with pytest.raises(ValueError, match="not supported"):
+        ChemsmartAdapter().preview_molecule_export(document, "pdb")

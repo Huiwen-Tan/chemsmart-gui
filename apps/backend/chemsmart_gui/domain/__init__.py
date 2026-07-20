@@ -15,6 +15,11 @@ from .edit import (
     MoleculeEditResponse,
     SetAtomPositionCommand,
 )
+from .export import (
+    MoleculeExportFiletype,
+    MoleculeExportPreviewRequest,
+    MoleculeExportPreviewResponse,
+)
 from .molecule import Atom, Bond
 
 __all__ = [
@@ -28,6 +33,9 @@ __all__ = [
     "MoleculeDocument",
     "MoleculeEditCommand",
     "MoleculeEditResponse",
+    "MoleculeExportFiletype",
+    "MoleculeExportPreviewRequest",
+    "MoleculeExportPreviewResponse",
     "OpenDocumentRequest",
     "SetAtomPositionCommand",
     "TrajectoryDocument",

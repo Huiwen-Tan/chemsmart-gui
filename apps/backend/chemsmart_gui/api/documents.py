@@ -5,6 +5,10 @@ from chemsmart_gui.domain.edit import (
     ApplyMoleculeEditRequest,
     MoleculeEditResponse,
 )
+from chemsmart_gui.domain.export import (
+    MoleculeExportPreviewRequest,
+    MoleculeExportPreviewResponse,
+)
 from chemsmart_gui.services.chemsmart_document_service import (
     ChemsmartDocumentService,
 )
@@ -58,6 +62,20 @@ def apply_document_edit(
         can_undo=history.can_undo,
         can_redo=history.can_redo,
     )
+
+
+@router.post("/export-preview", response_model=MoleculeExportPreviewResponse)
+def preview_document_export(
+    request: MoleculeExportPreviewRequest,
+    document_service: DocumentService = Depends(get_document_service),
+) -> MoleculeExportPreviewResponse:
+    try:
+        return document_service.preview_molecule_export(request)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
 
 
 @router.get("/{document_id}", response_model=MoleculeDocument)
