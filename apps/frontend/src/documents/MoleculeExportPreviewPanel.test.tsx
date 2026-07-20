@@ -67,6 +67,19 @@ function jsonErrorResponse(
   });
 }
 
+function readBlobAsText(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener('load', () => {
+      resolve(String(reader.result));
+    });
+    reader.addEventListener('error', () => {
+      reject(reader.error ?? new Error('Could not read Blob.'));
+    });
+    reader.readAsText(blob);
+  });
+}
+
 describe('MoleculeExportPreviewPanel', () => {
   beforeEach(() => {
     fetchMock.mockReset();
@@ -75,6 +88,7 @@ describe('MoleculeExportPreviewPanel', () => {
 
   afterEach(() => {
     cleanup();
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
 
@@ -88,6 +102,9 @@ describe('MoleculeExportPreviewPanel', () => {
     expect(
       within(panel).getByText('No molecule document loaded.'),
     ).toBeInTheDocument();
+    expect(
+      within(panel).queryByRole('button', { name: 'Download XYZ Export' }),
+    ).not.toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -110,6 +127,9 @@ describe('MoleculeExportPreviewPanel', () => {
       expect(screen.getByText('water.xyz')).toBeInTheDocument();
     });
     expect(screen.getByText('xyz')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Download XYZ Export' }),
+    ).toBeEnabled();
     expect(screen.getByLabelText('XYZ export preview').textContent).toBe(
       XYZ_PREVIEW_CONTENT,
     );
@@ -124,6 +144,64 @@ describe('MoleculeExportPreviewPanel', () => {
         }),
       },
     );
+  });
+
+  it('downloads the backend-generated XYZ preview content', async () => {
+    const createObjectURL = vi.fn((blob: Blob): string => {
+      void blob;
+      return 'blob:water-xyz-preview';
+    });
+    const revokeObjectURL = vi.fn();
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => {});
+    vi.stubGlobal('URL', {
+      ...URL,
+      createObjectURL,
+      revokeObjectURL,
+    });
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        filename: 'water.xyz',
+        filetype: 'xyz',
+        content: XYZ_PREVIEW_CONTENT,
+      }),
+    );
+
+    render(<MoleculeExportPreviewPanel document={WATER_DOCUMENT} />);
+
+    expect(
+      screen.queryByRole('button', { name: 'Download XYZ Export' }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Preview XYZ Export' }),
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: 'Download XYZ Export' }),
+      ).toBeEnabled();
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Download XYZ Export' }),
+    );
+
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    const blob = createObjectURL.mock.calls[0]?.[0];
+    if (!(blob instanceof Blob)) {
+      throw new Error('Expected an XYZ export Blob.');
+    }
+    expect(blob).toBeInstanceOf(Blob);
+    expect(blob.type).toBe('chemical/x-xyz;charset=utf-8');
+    await expect(readBlobAsText(blob)).resolves.toBe(XYZ_PREVIEW_CONTENT);
+    expect(click).toHaveBeenCalledTimes(1);
+    const link = click.mock.contexts[0] as HTMLAnchorElement;
+    expect(link.download).toBe('water.xyz');
+    expect(link.href).toBe('blob:water-xyz-preview');
+    expect(link.rel).toBe('noopener');
+    expect(document.body.contains(link)).toBe(false);
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:water-xyz-preview');
   });
 
   it('shows loading state while requesting XYZ preview', async () => {

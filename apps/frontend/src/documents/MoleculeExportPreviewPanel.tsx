@@ -14,6 +14,25 @@ function messageFromUnknownError(error: unknown): string {
   return error instanceof Error ? error.message : 'Unknown error';
 }
 
+function downloadTextFile(filename: string, content: string): void {
+  const blob = new Blob([content], {
+    type: 'chemical/x-xyz;charset=utf-8',
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.download = filename;
+  link.href = url;
+  link.rel = 'noopener';
+
+  try {
+    document.body.appendChild(link);
+    link.click();
+  } finally {
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+}
+
 export function MoleculeExportPreviewPanel({
   document,
 }: MoleculeExportPreviewPanelProps): JSX.Element {
@@ -94,6 +113,12 @@ export function MoleculeExportPreviewPanel({
           <p>
             Filetype: <strong>{preview.filetype}</strong>
           </p>
+          <button
+            onClick={() => downloadTextFile(preview.filename, preview.content)}
+            type="button"
+          >
+            Download XYZ Export
+          </button>
           <pre
             aria-label="XYZ export preview"
             style={{
