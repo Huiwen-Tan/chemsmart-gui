@@ -53,6 +53,19 @@ const EDITED_WATER_DOCUMENT = {
   ],
 } satisfies MoleculeDocument;
 
+const HELIUM_DOCUMENT = {
+  ...WATER_DOCUMENT,
+  id: 'helium-document',
+  name: 'str-He',
+  source: {
+    path: '/tmp/helium.xyz',
+    filename: 'helium.xyz',
+    filetype: 'xyz',
+  },
+  atoms: [{ index: 1, element: 'He', x: 0, y: 0, z: 0 }],
+  bonds: [],
+} satisfies MoleculeDocument;
+
 const fetchMock = vi.fn<typeof fetch>();
 
 function jsonResponse(body: unknown): Response {
@@ -128,6 +141,7 @@ describe('App', () => {
 
   afterEach(() => {
     cleanup();
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
 
@@ -180,16 +194,7 @@ describe('App', () => {
   it('submits the edited document path to the open-document API', async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
-      .mockResolvedValueOnce(
-        jsonResponse({
-          ...WATER_DOCUMENT,
-          source: {
-            path: '/tmp/helium.xyz',
-            filename: 'helium.xyz',
-            filetype: 'xyz',
-          },
-        }),
-      );
+      .mockResolvedValueOnce(jsonResponse(HELIUM_DOCUMENT));
 
     render(<App />);
 
@@ -228,6 +233,86 @@ describe('App', () => {
     ).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId('viewer-document')).toHaveTextContent('null');
+  });
+
+  it('does not prompt before blank document path validation', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ status: 'ok' }));
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    setUndoHistory();
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText('Document path'), {
+      target: { value: '   ' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+
+    expect(
+      screen.getByText('Error: A document path is required.'),
+    ).toBeInTheDocument();
+    expect(confirm).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+      JSON.stringify(EDITED_WATER_DOCUMENT),
+    );
+  });
+
+  it('keeps unsaved molecule edits when replacing the document is declined', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ status: 'ok' }));
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    setUndoHistory();
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText('Document path'), {
+      target: { value: '/tmp/helium.xyz' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+
+    expect(confirm).toHaveBeenCalledWith(
+      'Current molecule has unsaved edits. Open a different document and discard them?',
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+      JSON.stringify(EDITED_WATER_DOCUMENT),
+    );
+    expect(screen.getByText('Unsaved edits')).toBeInTheDocument();
+  });
+
+  it('opens the requested document after confirming unsaved edit replacement', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
+      .mockResolvedValueOnce(jsonResponse(HELIUM_DOCUMENT));
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    setUndoHistory();
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText('Document path'), {
+      target: { value: '/tmp/helium.xyz' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(HELIUM_DOCUMENT),
+      );
+    });
+    expect(confirm).toHaveBeenCalledWith(
+      'Current molecule has unsaved edits. Open a different document and discard them?',
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'http://127.0.0.1:8000/api/documents/open',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ path: '/tmp/helium.xyz' }),
+      }),
+    );
+    expect(screen.getByText('No unsaved edits')).toBeInTheDocument();
   });
 
   it('preserves selection when sample molecule loading fails', async () => {

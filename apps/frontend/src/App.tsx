@@ -8,6 +8,9 @@ import { useViewerStore } from './state/useViewerStore';
 import { MolecularViewer } from './viewer/MolecularViewer';
 import { SelectedAtomPanel } from './viewer/SelectedAtomPanel';
 
+const REPLACE_UNSAVED_EDITS_MESSAGE =
+  'Current molecule has unsaved edits. Open a different document and discard them?';
+
 function isEditableShortcutTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) {
     return false;
@@ -94,6 +97,12 @@ export function App(): JSX.Element {
     const path = documentPath.trim();
     if (!path) {
       setError('A document path is required.');
+      return;
+    }
+    if (
+      hasUnsavedMoleculeEdits &&
+      !window.confirm(REPLACE_UNSAVED_EDITS_MESSAGE)
+    ) {
       return;
     }
 
