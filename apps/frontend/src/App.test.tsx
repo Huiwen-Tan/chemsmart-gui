@@ -72,6 +72,36 @@ function jsonErrorResponse(
   });
 }
 
+function setUndoHistory(): void {
+  useDocumentStore.setState({
+    currentDocument: EDITED_WATER_DOCUMENT,
+    canUndoMoleculeEdit: true,
+    canRedoMoleculeEdit: false,
+    moleculeEditUndoStack: [
+      {
+        beforeDocument: WATER_DOCUMENT,
+        afterDocument: EDITED_WATER_DOCUMENT,
+      },
+    ],
+    moleculeEditRedoStack: [],
+  });
+}
+
+function setRedoHistory(): void {
+  useDocumentStore.setState({
+    currentDocument: WATER_DOCUMENT,
+    canUndoMoleculeEdit: false,
+    canRedoMoleculeEdit: true,
+    moleculeEditUndoStack: [],
+    moleculeEditRedoStack: [
+      {
+        beforeDocument: WATER_DOCUMENT,
+        afterDocument: EDITED_WATER_DOCUMENT,
+      },
+    ],
+  });
+}
+
 describe('App', () => {
   beforeEach(() => {
     useDocumentStore.setState({
@@ -309,18 +339,7 @@ describe('App', () => {
 
   it('undoes a molecule edit from the toolbar', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ status: 'ok' }));
-    useDocumentStore.setState({
-      currentDocument: EDITED_WATER_DOCUMENT,
-      canUndoMoleculeEdit: true,
-      canRedoMoleculeEdit: false,
-      moleculeEditUndoStack: [
-        {
-          beforeDocument: WATER_DOCUMENT,
-          afterDocument: EDITED_WATER_DOCUMENT,
-        },
-      ],
-      moleculeEditRedoStack: [],
-    });
+    setUndoHistory();
 
     render(<App />);
 
@@ -339,18 +358,7 @@ describe('App', () => {
 
   it('redoes a molecule edit from the toolbar', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ status: 'ok' }));
-    useDocumentStore.setState({
-      currentDocument: WATER_DOCUMENT,
-      canUndoMoleculeEdit: false,
-      canRedoMoleculeEdit: true,
-      moleculeEditUndoStack: [],
-      moleculeEditRedoStack: [
-        {
-          beforeDocument: WATER_DOCUMENT,
-          afterDocument: EDITED_WATER_DOCUMENT,
-        },
-      ],
-    });
+    setRedoHistory();
 
     render(<App />);
 
@@ -359,6 +367,101 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Redo Edit' })).toBeEnabled();
 
     fireEvent.click(screen.getByRole('button', { name: 'Redo Edit' }));
+
+    expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+      JSON.stringify(EDITED_WATER_DOCUMENT),
+    );
+    expect(screen.getByRole('button', { name: 'Undo Edit' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Redo Edit' })).toBeDisabled();
+  });
+
+  it('undoes a molecule edit with the primary undo shortcut', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ status: 'ok' }));
+    setUndoHistory();
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+
+    fireEvent.keyDown(window, { key: 'z', metaKey: true });
+
+    expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+      JSON.stringify(WATER_DOCUMENT),
+    );
+    expect(screen.getByRole('button', { name: 'Undo Edit' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Redo Edit' })).toBeEnabled();
+  });
+
+  it('redoes a molecule edit with the shift redo shortcut', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ status: 'ok' }));
+    setRedoHistory();
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+
+    fireEvent.keyDown(window, { key: 'Z', ctrlKey: true, shiftKey: true });
+
+    expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+      JSON.stringify(EDITED_WATER_DOCUMENT),
+    );
+    expect(screen.getByRole('button', { name: 'Undo Edit' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Redo Edit' })).toBeDisabled();
+  });
+
+  it('redoes a molecule edit with the y redo shortcut', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ status: 'ok' }));
+    setRedoHistory();
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+
+    fireEvent.keyDown(window, { key: 'y', ctrlKey: true });
+
+    expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+      JSON.stringify(EDITED_WATER_DOCUMENT),
+    );
+    expect(screen.getByRole('button', { name: 'Undo Edit' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Redo Edit' })).toBeDisabled();
+  });
+
+  it('ignores molecule edit shortcuts when edit history is unavailable', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ status: 'ok' }));
+    useDocumentStore.setState({
+      currentDocument: EDITED_WATER_DOCUMENT,
+      canUndoMoleculeEdit: false,
+      canRedoMoleculeEdit: false,
+      moleculeEditUndoStack: [],
+      moleculeEditRedoStack: [],
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+
+    fireEvent.keyDown(window, { key: 'z', metaKey: true });
+    fireEvent.keyDown(window, { key: 'y', ctrlKey: true });
+
+    expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+      JSON.stringify(EDITED_WATER_DOCUMENT),
+    );
+    expect(screen.getByRole('button', { name: 'Undo Edit' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Redo Edit' })).toBeDisabled();
+  });
+
+  it('keeps molecule edit shortcuts out of editable text controls', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ status: 'ok' }));
+    setUndoHistory();
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+
+    fireEvent.keyDown(screen.getByLabelText('Document path'), {
+      key: 'z',
+      metaKey: true,
+    });
 
     expect(screen.getByTestId('viewer-document')).toHaveTextContent(
       JSON.stringify(EDITED_WATER_DOCUMENT),

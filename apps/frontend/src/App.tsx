@@ -8,6 +8,19 @@ import { useViewerStore } from './state/useViewerStore';
 import { MolecularViewer } from './viewer/MolecularViewer';
 import { SelectedAtomPanel } from './viewer/SelectedAtomPanel';
 
+function isEditableShortcutTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  return (
+    target.isContentEditable ||
+    target.tagName === 'INPUT' ||
+    target.tagName === 'SELECT' ||
+    target.tagName === 'TEXTAREA'
+  );
+}
+
 export function App(): JSX.Element {
   const {
     canRedoMoleculeEdit,
@@ -36,6 +49,44 @@ export function App(): JSX.Element {
         setError(err instanceof Error ? err.message : 'Unknown error');
       });
   }, []);
+
+  useEffect(() => {
+    const handleEditHistoryShortcut = (event: KeyboardEvent): void => {
+      if (isEditableShortcutTarget(event.target)) {
+        return;
+      }
+
+      const key = event.key.toLowerCase();
+      const hasPrimaryModifier = event.metaKey || event.ctrlKey;
+      if (!hasPrimaryModifier || event.altKey) {
+        return;
+      }
+
+      if (key === 'z' && !event.shiftKey && canUndoMoleculeEdit) {
+        event.preventDefault();
+        undoMoleculeEdit();
+        return;
+      }
+
+      const isRedoShortcut =
+        (key === 'z' && event.shiftKey) ||
+        (key === 'y' && !event.shiftKey);
+      if (isRedoShortcut && canRedoMoleculeEdit) {
+        event.preventDefault();
+        redoMoleculeEdit();
+      }
+    };
+
+    window.addEventListener('keydown', handleEditHistoryShortcut);
+    return () => {
+      window.removeEventListener('keydown', handleEditHistoryShortcut);
+    };
+  }, [
+    canRedoMoleculeEdit,
+    canUndoMoleculeEdit,
+    redoMoleculeEdit,
+    undoMoleculeEdit,
+  ]);
 
   const openCurrentDocument = async (): Promise<void> => {
     setError(null);
