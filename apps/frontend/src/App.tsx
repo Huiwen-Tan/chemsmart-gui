@@ -9,7 +9,14 @@ import { MolecularViewer } from './viewer/MolecularViewer';
 import { SelectedAtomPanel } from './viewer/SelectedAtomPanel';
 
 export function App(): JSX.Element {
-  const { currentDocument, setCurrentDocument } = useDocumentStore();
+  const {
+    canRedoMoleculeEdit,
+    canUndoMoleculeEdit,
+    currentDocument,
+    redoMoleculeEdit,
+    setCurrentDocument,
+    undoMoleculeEdit,
+  } = useDocumentStore();
   const showBonds = useViewerStore((state) => state.showBonds);
   const setShowBonds = useViewerStore((state) => state.setShowBonds);
   const showAtomLabels = useViewerStore((state) => state.showAtomLabels);
@@ -90,6 +97,22 @@ export function App(): JSX.Element {
         type="button"
       >
         Reset View
+      </button>
+      <button
+        disabled={!canUndoMoleculeEdit}
+        onClick={undoMoleculeEdit}
+        style={{ marginLeft: 12 }}
+        type="button"
+      >
+        Undo Edit
+      </button>
+      <button
+        disabled={!canRedoMoleculeEdit}
+        onClick={redoMoleculeEdit}
+        style={{ marginLeft: 12 }}
+        type="button"
+      >
+        Redo Edit
       </button>
       {error ? <p style={{ color: '#ff8080' }}>Error: {error}</p> : null}
       <MolecularViewer document={currentDocument} />
