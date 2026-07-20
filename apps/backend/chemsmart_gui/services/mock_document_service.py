@@ -58,6 +58,9 @@ class MockDocumentService(DocumentService):
         self,
         request: MoleculeExportPreviewRequest,
     ) -> MoleculeExportPreviewResponse:
+        if request.filetype != "xyz":
+            raise ValueError("Mock export preview supports only xyz.")
+
         lines = [
             str(len(request.document.atoms)),
             f"{request.document.name}    Empirical formula: unavailable",

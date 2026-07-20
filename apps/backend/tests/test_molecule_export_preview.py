@@ -10,10 +10,20 @@ from chemsmart_gui.main import app
 client = TestClient(app)
 REPOSITORY_ROOT = Path(__file__).parents[3]
 WATER_PATH = REPOSITORY_ROOT / "sample-data" / "water.xyz"
+WATER_GJF_PATH = REPOSITORY_ROOT / "sample-data" / "water.gjf"
+WATER_INP_PATH = REPOSITORY_ROOT / "sample-data" / "water.inp"
 
 
 def open_water_document() -> MoleculeDocument:
     return ChemsmartAdapter().open_molecule_from_path(str(WATER_PATH))
+
+
+def open_gaussian_document() -> MoleculeDocument:
+    return ChemsmartAdapter().open_molecule_from_path(str(WATER_GJF_PATH))
+
+
+def open_orca_document() -> MoleculeDocument:
+    return ChemsmartAdapter().open_molecule_from_path(str(WATER_INP_PATH))
 
 
 def test_preview_molecule_export_returns_xyz_payload() -> None:
@@ -95,3 +105,60 @@ def test_preview_molecule_export_rejects_unsupported_filetype() -> None:
     )
 
     assert response.status_code == 422
+
+
+def test_preview_molecule_export_returns_gjf_payload() -> None:
+    document = open_gaussian_document()
+
+    response = client.post(
+        "/api/documents/export-preview",
+        json={
+            "document": document.model_dump(),
+            "filetype": "gjf",
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["filename"] == "water.gjf"
+    assert body["filetype"] == "gjf"
+    assert "# hf/sto-3g opt" in body["content"]
+    assert "0 1" in body["content"].splitlines()
+
+
+def test_preview_molecule_export_returns_inp_payload() -> None:
+    document = open_orca_document()
+
+    response = client.post(
+        "/api/documents/export-preview",
+        json={
+            "document": document.model_dump(),
+            "filetype": "inp",
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["filename"] == "water.inp"
+    assert body["filetype"] == "inp"
+    assert body["content"].splitlines()[0].split() == [
+        "!",
+        "hf",
+        "def2-svp",
+    ]
+    assert "* xyz 0 1" in body["content"].splitlines()
+
+
+def test_preview_molecule_export_returns_bad_request_for_wrong_source() -> None:
+    document = open_water_document()
+
+    response = client.post(
+        "/api/documents/export-preview",
+        json={
+            "document": document.model_dump(),
+            "filetype": "gjf",
+        },
+    )
+
+    assert response.status_code == 400
+    assert "requires a Gaussian" in response.json()["detail"]

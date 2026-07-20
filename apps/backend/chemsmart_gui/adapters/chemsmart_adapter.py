@@ -1,10 +1,19 @@
+from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from ase.io.formats import UnknownFileTypeError
+from chemsmart.io.gaussian.input import Gaussian16Input
 from chemsmart.io.gaussian.output import Gaussian16Output
 from chemsmart.io.molecules.structure import Molecule
+from chemsmart.io.orca.input import ORCAInput
 from chemsmart.io.orca.output import ORCAOutput
+from chemsmart.jobs.gaussian.job import GaussianJob
+from chemsmart.jobs.gaussian.settings import GaussianJobSettings
+from chemsmart.jobs.gaussian.writer import GaussianInputWriter
+from chemsmart.jobs.orca.job import ORCAJob
+from chemsmart.jobs.orca.settings import ORCAJobSettings
+from chemsmart.jobs.orca.writer import ORCAInputWriter
 from chemsmart.utils.io import get_program_type_from_file
 
 from chemsmart_gui.domain.document import (
@@ -32,6 +41,12 @@ def document_source_from_path(path: str) -> DocumentSource:
         filename=source_path.name,
         filetype=source_path.suffix.lower().removeprefix("."),
     )
+
+
+@dataclass(frozen=True)
+class _PreviewJobRunner:
+    num_cores: int = 1
+    mem_gb: int = 1
 
 
 class ChemsmartAdapter:
@@ -101,16 +116,149 @@ class ChemsmartAdapter:
         filetype: str,
     ) -> tuple[str, str]:
         """Generate molecule export text using CHEMSMART writer behavior."""
-        if filetype != "xyz":
-            raise ValueError(
-                f"Export preview filetype '{filetype}' is not supported."
-            )
+        if filetype == "xyz":
+            return self._preview_xyz_export(document, filetype)
+        if filetype == "gjf":
+            return self._preview_gaussian_input_export(document)
+        if filetype == "inp":
+            return self._preview_orca_input_export(document)
 
+        raise ValueError(
+            f"Export preview filetype '{filetype}' is not supported."
+        )
+
+    def _preview_xyz_export(
+        self,
+        document: MoleculeDocument,
+        filetype: str,
+    ) -> tuple[str, str]:
         filename = self.suggested_export_filename(document, filetype)
         molecule = self.to_molecule(document)
         with TemporaryDirectory() as temporary_directory:
             preview_path = Path(temporary_directory) / filename
             molecule.write(str(preview_path), format=filetype, mode="w")
+            content = preview_path.read_text(encoding="utf-8")
+
+        return filename, content
+
+    def _source_path_for_input_preview(
+        self,
+        document: MoleculeDocument,
+        filetype: str,
+    ) -> Path:
+        if document.source is None:
+            raise ValueError(
+                f"Input export preview for '{filetype}' requires an existing "
+                "source input file."
+            )
+
+        source_path = Path(document.source.path)
+        if not source_path.exists():
+            raise ValueError(
+                f"Source file for input export preview does not exist: "
+                f"{document.source.path}"
+            )
+
+        source_filetype = source_path.suffix.lower().removeprefix(".")
+        if filetype == "gjf" and source_filetype not in {"com", "gjf"}:
+            raise ValueError(
+                "Input export preview for 'gjf' requires a Gaussian "
+                ".com or .gjf source document."
+            )
+        if filetype == "inp" and source_filetype != "inp":
+            raise ValueError(
+                "Input export preview for 'inp' requires an ORCA "
+                ".inp source document."
+            )
+
+        return source_path
+
+    @staticmethod
+    def _apply_document_electronic_state(
+        settings: GaussianJobSettings | ORCAJobSettings,
+        document: MoleculeDocument,
+    ) -> None:
+        if document.charge is not None:
+            settings.charge = document.charge
+        if document.multiplicity is not None:
+            settings.multiplicity = document.multiplicity
+
+        if settings.charge is None or settings.multiplicity is None:
+            raise ValueError(
+                "Input export preview requires charge and multiplicity."
+            )
+
+    @staticmethod
+    def _gaussian_title_from_input(parser: Gaussian16Input) -> str | None:
+        if parser.num_content_groups <= 1:
+            return None
+        title_group = parser.content_groups[1]
+        if not title_group:
+            return None
+        return "\n".join(title_group)
+
+    def _preview_gaussian_input_export(
+        self,
+        document: MoleculeDocument,
+    ) -> tuple[str, str]:
+        source_path = self._source_path_for_input_preview(document, "gjf")
+        parser = Gaussian16Input(filename=str(source_path))
+        settings = GaussianJobSettings.from_filepath(str(source_path))
+        settings.route_to_be_written = parser.route_string
+        title = self._gaussian_title_from_input(parser)
+        if title is not None:
+            settings.title = title
+        self._apply_document_electronic_state(settings, document)
+
+        filename = self.suggested_export_filename(document, "gjf")
+        label = Path(filename).stem
+        molecule = self.to_molecule(document)
+        molecule.charge = settings.charge
+        molecule.multiplicity = settings.multiplicity
+        job = GaussianJob(
+            molecule=molecule,
+            settings=settings,
+            label=label,
+            jobrunner=_PreviewJobRunner(
+                num_cores=parser.nproc,
+                mem_gb=parser.mem,
+            ),
+        )
+        with TemporaryDirectory() as temporary_directory:
+            GaussianInputWriter(job=job).write(
+                target_directory=temporary_directory,
+            )
+            preview_path = Path(temporary_directory) / f"{label}.com"
+            content = preview_path.read_text(encoding="utf-8")
+
+        return filename, content
+
+    def _preview_orca_input_export(
+        self,
+        document: MoleculeDocument,
+    ) -> tuple[str, str]:
+        source_path = self._source_path_for_input_preview(document, "inp")
+        parser = ORCAInput(filename=str(source_path))
+        settings = ORCAJobSettings.from_filepath(str(source_path))
+        settings.route_to_be_written = parser.route_string
+        self._apply_document_electronic_state(settings, document)
+
+        filename = self.suggested_export_filename(document, "inp")
+        label = Path(filename).stem
+        molecule = self.to_molecule(document)
+        molecule.charge = settings.charge
+        molecule.multiplicity = settings.multiplicity
+        job = ORCAJob(
+            molecule=molecule,
+            settings=settings,
+            label=label,
+            jobrunner=_PreviewJobRunner(),
+        )
+        with TemporaryDirectory() as temporary_directory:
+            ORCAInputWriter(job=job).write(
+                target_directory=temporary_directory,
+            )
+            preview_path = Path(temporary_directory) / f"{label}.inp"
             content = preview_path.read_text(encoding="utf-8")
 
         return filename, content

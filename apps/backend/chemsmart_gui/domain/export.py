@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 from chemsmart_gui.domain.document import MoleculeDocument
 
-MoleculeExportFiletype = Literal["xyz"]
+MoleculeExportFiletype = Literal["xyz", "gjf", "inp"]
 
 
 class MoleculeExportPreviewRequest(BaseModel):

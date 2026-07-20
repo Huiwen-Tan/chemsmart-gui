@@ -206,3 +206,110 @@ def test_preview_molecule_export_rejects_unsupported_filetype() -> None:
 
     with pytest.raises(ValueError, match="not supported"):
         ChemsmartAdapter().preview_molecule_export(document, "pdb")
+
+
+def test_preview_molecule_export_returns_gjf_from_gaussian_input() -> None:
+    document = ChemsmartAdapter().open_molecule_from_path(str(WATER_GJF_PATH))
+    edited_document = document.model_copy(
+        update={
+            "atoms": [
+                document.atoms[0],
+                document.atoms[1].model_copy(
+                    update={
+                        "x": 1.0,
+                        "y": 1.1,
+                        "z": 1.2,
+                    },
+                ),
+                document.atoms[2],
+            ],
+        },
+    )
+
+    filename, content = ChemsmartAdapter().preview_molecule_export(
+        edited_document,
+        "gjf",
+    )
+
+    lines = content.splitlines()
+    assert filename == "water.gjf"
+    assert lines[0] == "%chk=water.chk"
+    assert lines[1] == "%nprocshared=1"
+    assert lines[2] == "%mem=1GB"
+    assert lines[3] == "# hf/sto-3g opt"
+    assert lines[5] == "water"
+    assert lines[7] == "0 1"
+    assert lines[9].split() == [
+        "H",
+        "1.0000000000",
+        "1.1000000000",
+        "1.2000000000",
+    ]
+
+
+def test_preview_molecule_export_returns_inp_from_orca_input() -> None:
+    document = ChemsmartAdapter().open_molecule_from_path(str(WATER_INP_PATH))
+    edited_document = document.model_copy(
+        update={
+            "atoms": [
+                document.atoms[0].model_copy(
+                    update={
+                        "x": 2.0,
+                        "y": 2.1,
+                        "z": 2.2,
+                    },
+                ),
+                document.atoms[1],
+                document.atoms[2],
+            ],
+        },
+    )
+
+    filename, content = ChemsmartAdapter().preview_molecule_export(
+        edited_document,
+        "inp",
+    )
+
+    lines = content.splitlines()
+    assert filename == "water.inp"
+    assert lines[0].split() == ["!", "hf", "def2-svp"]
+    assert "%pal nprocs 1 end" in lines
+    assert "%maxcore 750" in lines
+    assert "* xyz 0 1" in lines
+    assert [
+        line.split()
+        for line in lines
+        if line.strip().startswith("O")
+    ] == [
+        [
+            "O",
+            "2.0000000000",
+            "2.1000000000",
+            "2.2000000000",
+        ],
+    ]
+
+
+def test_preview_input_export_rejects_xyz_source() -> None:
+    document = ChemsmartAdapter().open_molecule_from_path(str(WATER_PATH))
+
+    with pytest.raises(ValueError, match="requires a Gaussian"):
+        ChemsmartAdapter().preview_molecule_export(document, "gjf")
+
+    with pytest.raises(ValueError, match="requires an ORCA"):
+        ChemsmartAdapter().preview_molecule_export(document, "inp")
+
+
+def test_preview_input_export_rejects_mismatched_input_source() -> None:
+    gaussian_document = ChemsmartAdapter().open_molecule_from_path(
+        str(WATER_GJF_PATH),
+    )
+    orca_document = ChemsmartAdapter().open_molecule_from_path(
+        str(WATER_INP_PATH),
+    )
+
+    with pytest.raises(ValueError, match="requires an ORCA"):
+        ChemsmartAdapter().preview_molecule_export(gaussian_document, "inp")
+
+    with pytest.raises(ValueError, match="requires a Gaussian"):
+        ChemsmartAdapter().preview_molecule_export(orca_document, "gjf")

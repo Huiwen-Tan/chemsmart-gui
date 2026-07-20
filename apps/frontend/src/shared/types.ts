@@ -100,7 +100,7 @@ export interface MoleculeEditResponse {
   can_redo: boolean;
 }
 
-export type MoleculeExportPreviewFiletype = 'xyz';
+export type MoleculeExportPreviewFiletype = 'xyz' | 'gjf' | 'inp';
 
 export interface MoleculeExportPreviewRequest {
   document: MoleculeDocument;
