@@ -8,9 +8,15 @@ from chemsmart_gui.domain.document import (
 from chemsmart_gui.domain.export import (
     MoleculeExportPreviewRequest,
     MoleculeExportPreviewResponse,
+    MoleculeExportWriteRequest,
+    MoleculeExportWriteResponse,
 )
 from chemsmart_gui.domain.molecule import Atom, Bond
 from chemsmart_gui.services.document_service import DocumentService
+from chemsmart_gui.services.export_writer import (
+    validate_export_target,
+    write_export_text,
+)
 
 
 class MockDocumentService(DocumentService):
@@ -74,4 +80,21 @@ class MockDocumentService(DocumentService):
             filename=f"{request.document.name}.xyz",
             filetype=request.filetype,
             content="\n".join(lines) + "\n",
+        )
+
+    def write_molecule_export(
+        self,
+        request: MoleculeExportWriteRequest,
+    ) -> MoleculeExportWriteResponse:
+        validate_export_target(request.target_path, request.filetype)
+        preview = self.preview_molecule_export(
+            MoleculeExportPreviewRequest(
+                document=request.document,
+                filetype=request.filetype,
+            ),
+        )
+        return write_export_text(
+            target_path=request.target_path,
+            filetype=request.filetype,
+            content=preview.content,
         )

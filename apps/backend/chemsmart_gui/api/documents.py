@@ -8,6 +8,8 @@ from chemsmart_gui.domain.edit import (
 from chemsmart_gui.domain.export import (
     MoleculeExportPreviewRequest,
     MoleculeExportPreviewResponse,
+    MoleculeExportWriteRequest,
+    MoleculeExportWriteResponse,
 )
 from chemsmart_gui.services.chemsmart_document_service import (
     ChemsmartDocumentService,
@@ -71,6 +73,30 @@ def preview_document_export(
 ) -> MoleculeExportPreviewResponse:
     try:
         return document_service.preview_molecule_export(request)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+
+@router.post("/export", response_model=MoleculeExportWriteResponse)
+def write_document_export(
+    request: MoleculeExportWriteRequest,
+    document_service: DocumentService = Depends(get_document_service),
+) -> MoleculeExportWriteResponse:
+    try:
+        return document_service.write_molecule_export(request)
+    except FileExistsError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

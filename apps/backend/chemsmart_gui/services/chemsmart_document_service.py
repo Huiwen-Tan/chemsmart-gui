@@ -3,8 +3,14 @@ from chemsmart_gui.domain.document import MoleculeDocument, OpenDocumentRequest
 from chemsmart_gui.domain.export import (
     MoleculeExportPreviewRequest,
     MoleculeExportPreviewResponse,
+    MoleculeExportWriteRequest,
+    MoleculeExportWriteResponse,
 )
 from chemsmart_gui.services.document_service import DocumentService
+from chemsmart_gui.services.export_writer import (
+    validate_export_target,
+    write_export_text,
+)
 
 
 class ChemsmartDocumentService(DocumentService):
@@ -35,6 +41,21 @@ class ChemsmartDocumentService(DocumentService):
         )
         return MoleculeExportPreviewResponse(
             filename=filename,
+            filetype=request.filetype,
+            content=content,
+        )
+
+    def write_molecule_export(
+        self,
+        request: MoleculeExportWriteRequest,
+    ) -> MoleculeExportWriteResponse:
+        validate_export_target(request.target_path, request.filetype)
+        _, content = self._adapter.preview_molecule_export(
+            request.document,
+            request.filetype,
+        )
+        return write_export_text(
+            target_path=request.target_path,
             filetype=request.filetype,
             content=content,
         )

@@ -16,3 +16,16 @@ class MoleculeExportPreviewResponse(BaseModel):
     filename: str = Field(min_length=1)
     filetype: MoleculeExportFiletype
     content: str
+
+
+class MoleculeExportWriteRequest(BaseModel):
+    document: MoleculeDocument
+    filetype: MoleculeExportFiletype
+    target_path: str = Field(min_length=1)
+
+
+class MoleculeExportWriteResponse(BaseModel):
+    filename: str = Field(min_length=1)
+    filetype: MoleculeExportFiletype
+    path: str = Field(min_length=1)
+    bytes_written: int = Field(ge=0)

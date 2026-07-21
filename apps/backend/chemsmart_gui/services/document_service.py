@@ -4,6 +4,8 @@ from chemsmart_gui.domain.document import MoleculeDocument, OpenDocumentRequest
 from chemsmart_gui.domain.export import (
     MoleculeExportPreviewRequest,
     MoleculeExportPreviewResponse,
+    MoleculeExportWriteRequest,
+    MoleculeExportWriteResponse,
 )
 
 
@@ -24,3 +26,10 @@ class DocumentService(ABC):
         request: MoleculeExportPreviewRequest,
     ) -> MoleculeExportPreviewResponse:
         """Preview a molecule document export without writing user files."""
+
+    @abstractmethod
+    def write_molecule_export(
+        self,
+        request: MoleculeExportWriteRequest,
+    ) -> MoleculeExportWriteResponse:
+        """Write a molecule export to a new target file."""
