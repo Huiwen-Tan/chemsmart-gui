@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { previewMoleculeExport } from '../api/client';
+import { previewMoleculeExport, writeMoleculeExport } from '../api/client';
 import type {
   MoleculeDocument,
   MoleculeExportPreviewFiletype,
   MoleculeExportPreviewResponse,
+  MoleculeExportWriteResponse,
 } from '../shared/types';
 
 interface MoleculeExportPreviewPanelProps {
@@ -109,11 +110,17 @@ function downloadTextFile(
 export function MoleculeExportPreviewPanel({
   document,
 }: MoleculeExportPreviewPanelProps): JSX.Element {
-  const requestVersion = useRef(0);
-  const [error, setError] = useState<string | null>(null);
+  const previewRequestVersion = useRef(0);
+  const saveRequestVersion = useRef(0);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [isPreviewing, setIsPreviewing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [preview, setPreview] =
     useState<MoleculeExportPreviewResponse | null>(null);
+  const [savedExport, setSavedExport] =
+    useState<MoleculeExportWriteResponse | null>(null);
+  const [saveTargetPath, setSaveTargetPath] = useState('');
   const [selectedFiletype, setSelectedFiletype] =
     useState<MoleculeExportPreviewFiletype>('xyz');
   const exportFormatOptions = useMemo(
@@ -124,6 +131,7 @@ export function MoleculeExportPreviewPanel({
     exportFormatOptions.find(
       (option) => option.filetype === selectedFiletype,
     ) ?? exportFormatOptions[0];
+  const isBusy = isPreviewing || isSaving;
 
   useEffect(() => {
     if (
@@ -136,21 +144,26 @@ export function MoleculeExportPreviewPanel({
   }, [exportFormatOptions, selectedFiletype]);
 
   useEffect(() => {
-    requestVersion.current += 1;
-    setError(null);
+    previewRequestVersion.current += 1;
+    saveRequestVersion.current += 1;
+    setPreviewError(null);
+    setSaveError(null);
     setIsPreviewing(false);
+    setIsSaving(false);
     setPreview(null);
+    setSavedExport(null);
+    setSaveTargetPath('');
   }, [document, selectedFiletype]);
 
   const previewSelectedExport = async (): Promise<void> => {
     if (!document) {
-      setError('No molecule document is loaded.');
+      setPreviewError('No molecule document is loaded.');
       return;
     }
 
-    const activeRequestVersion = requestVersion.current + 1;
-    requestVersion.current = activeRequestVersion;
-    setError(null);
+    const activeRequestVersion = previewRequestVersion.current + 1;
+    previewRequestVersion.current = activeRequestVersion;
+    setPreviewError(null);
     setIsPreviewing(true);
     setPreview(null);
 
@@ -159,16 +172,54 @@ export function MoleculeExportPreviewPanel({
         document,
         filetype: selectedOption.filetype,
       });
-      if (requestVersion.current === activeRequestVersion) {
+      if (previewRequestVersion.current === activeRequestVersion) {
         setPreview(response);
       }
     } catch (err: unknown) {
-      if (requestVersion.current === activeRequestVersion) {
-        setError(messageFromUnknownError(err));
+      if (previewRequestVersion.current === activeRequestVersion) {
+        setPreviewError(messageFromUnknownError(err));
       }
     } finally {
-      if (requestVersion.current === activeRequestVersion) {
+      if (previewRequestVersion.current === activeRequestVersion) {
         setIsPreviewing(false);
+      }
+    }
+  };
+
+  const saveSelectedExport = async (): Promise<void> => {
+    if (!document) {
+      setSaveError('No molecule document is loaded.');
+      return;
+    }
+
+    const targetPath = saveTargetPath.trim();
+    if (!targetPath) {
+      setSaveError('A backend target path is required.');
+      return;
+    }
+
+    const activeRequestVersion = saveRequestVersion.current + 1;
+    saveRequestVersion.current = activeRequestVersion;
+    setSaveError(null);
+    setIsSaving(true);
+    setSavedExport(null);
+
+    try {
+      const response = await writeMoleculeExport({
+        document,
+        filetype: selectedOption.filetype,
+        target_path: targetPath,
+      });
+      if (saveRequestVersion.current === activeRequestVersion) {
+        setSavedExport(response);
+      }
+    } catch (err: unknown) {
+      if (saveRequestVersion.current === activeRequestVersion) {
+        setSaveError(messageFromUnknownError(err));
+      }
+    } finally {
+      if (saveRequestVersion.current === activeRequestVersion) {
+        setIsSaving(false);
       }
     }
   };
@@ -185,7 +236,7 @@ export function MoleculeExportPreviewPanel({
       <label htmlFor="molecule-export-preview-filetype">
         Format
         <select
-          disabled={!document || isPreviewing}
+          disabled={!document || isBusy}
           id="molecule-export-preview-filetype"
           onChange={(event) => {
             setSelectedFiletype(
@@ -203,7 +254,7 @@ export function MoleculeExportPreviewPanel({
         </select>
       </label>
       <button
-        disabled={!document || isPreviewing}
+        disabled={!document || isBusy}
         onClick={() => {
           void previewSelectedExport();
         }}
@@ -214,10 +265,53 @@ export function MoleculeExportPreviewPanel({
           ? selectedOption.previewingButtonLabel
           : selectedOption.previewButtonLabel}
       </button>
+      <div style={{ marginTop: 12 }}>
+        <p>
+          Save generated export content to a backend-accessible path. Existing
+          files are refused by the backend.
+        </p>
+        <label htmlFor="molecule-export-target-path">
+          Backend target path
+          <input
+            disabled={!document || isBusy}
+            id="molecule-export-target-path"
+            onChange={(event) => {
+              setSaveTargetPath(event.currentTarget.value);
+              setSaveError(null);
+              setSavedExport(null);
+            }}
+            placeholder={`/tmp/molecule.${selectedOption.filetype}`}
+            style={{ marginLeft: 6, minWidth: 280 }}
+            type="text"
+            value={saveTargetPath}
+          />
+        </label>
+        <button
+          disabled={!document || isBusy || saveTargetPath.trim().length === 0}
+          onClick={() => {
+            void saveSelectedExport();
+          }}
+          style={{ marginLeft: 12 }}
+          type="button"
+        >
+          {isSaving ? 'Saving Export...' : 'Save Export'}
+        </button>
+      </div>
       {!document ? <p>No molecule document loaded.</p> : null}
-      {error ? (
+      {previewError ? (
         <p role="alert" style={{ color: '#ff8080' }}>
-          Export preview error: {error}
+          Export preview error: {previewError}
+        </p>
+      ) : null}
+      {saveError ? (
+        <p role="alert" style={{ color: '#ff8080' }}>
+          Export save error: {saveError}
+        </p>
+      ) : null}
+      {savedExport ? (
+        <p aria-live="polite">
+          Saved export to <strong>{savedExport.path}</strong> (
+          {savedExport.bytes_written} bytes).
         </p>
       ) : null}
       {preview ? (

@@ -130,6 +130,12 @@ describe('MoleculeExportPreviewPanel', () => {
       within(panel).getByRole('button', { name: 'Preview XYZ Export' }),
     ).toBeDisabled();
     expect(
+      within(panel).getByRole('textbox', { name: 'Backend target path' }),
+    ).toBeDisabled();
+    expect(
+      within(panel).getByRole('button', { name: 'Save Export' }),
+    ).toBeDisabled();
+    expect(
       within(panel).getByText('No molecule document loaded.'),
     ).toBeInTheDocument();
     expect(
@@ -408,6 +414,80 @@ describe('MoleculeExportPreviewPanel', () => {
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:water-gjf-preview');
   });
 
+  it('saves the selected XYZ export to a backend target path', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        filename: 'water-copy.xyz',
+        filetype: 'xyz',
+        path: '/tmp/water-copy.xyz',
+        bytes_written: 128,
+      }),
+    );
+
+    render(<MoleculeExportPreviewPanel document={WATER_DOCUMENT} />);
+
+    fireEvent.change(screen.getByLabelText('Backend target path'), {
+      target: { value: '/tmp/water-copy.xyz' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Export' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('/tmp/water-copy.xyz')).toBeInTheDocument();
+    });
+    expect(
+      screen.getByText((content) => content.includes('128 bytes')),
+    ).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/api/documents/export',
+      {
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        body: JSON.stringify({
+          document: WATER_DOCUMENT,
+          filetype: 'xyz',
+          target_path: '/tmp/water-copy.xyz',
+        }),
+      },
+    );
+  });
+
+  it('saves the selected Gaussian input export', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        filename: 'water.gjf',
+        filetype: 'gjf',
+        path: '/tmp/water.gjf',
+        bytes_written: 256,
+      }),
+    );
+
+    render(<MoleculeExportPreviewPanel document={GAUSSIAN_DOCUMENT} />);
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Format' }), {
+      target: { value: 'gjf' },
+    });
+    fireEvent.change(screen.getByLabelText('Backend target path'), {
+      target: { value: '/tmp/water.gjf' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Export' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('/tmp/water.gjf')).toBeInTheDocument();
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/api/documents/export',
+      {
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        body: JSON.stringify({
+          document: GAUSSIAN_DOCUMENT,
+          filetype: 'gjf',
+          target_path: '/tmp/water.gjf',
+        }),
+      },
+    );
+  });
+
   it('shows loading state while requesting XYZ preview', async () => {
     let resolvePreview: (response: Response) => void = () => {};
     fetchMock.mockReturnValueOnce(
@@ -481,6 +561,46 @@ describe('MoleculeExportPreviewPanel', () => {
     });
   });
 
+  it('shows loading state while saving an export', async () => {
+    let resolveSave: (response: Response) => void = () => {};
+    fetchMock.mockReturnValueOnce(
+      new Promise<Response>((resolve) => {
+        resolveSave = resolve;
+      }),
+    );
+
+    render(<MoleculeExportPreviewPanel document={WATER_DOCUMENT} />);
+
+    fireEvent.change(screen.getByLabelText('Backend target path'), {
+      target: { value: '/tmp/water-copy.xyz' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Export' }));
+
+    expect(
+      screen.getByRole('button', { name: 'Saving Export...' }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: 'Preview XYZ Export' }),
+    ).toBeDisabled();
+
+    await act(async () => {
+      resolveSave(
+        jsonResponse({
+          filename: 'water-copy.xyz',
+          filetype: 'xyz',
+          path: '/tmp/water-copy.xyz',
+          bytes_written: 128,
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: 'Save Export' }),
+      ).toBeEnabled();
+    });
+  });
+
   it('shows backend export preview errors', async () => {
     fetchMock.mockResolvedValueOnce(
       jsonErrorResponse({
@@ -502,6 +622,50 @@ describe('MoleculeExportPreviewPanel', () => {
     expect(
       screen.queryByLabelText('XYZ export preview'),
     ).not.toBeInTheDocument();
+  });
+
+  it('shows backend export save errors without clearing preview content', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          filename: 'water.xyz',
+          filetype: 'xyz',
+          content: XYZ_PREVIEW_CONTENT,
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonErrorResponse(
+          {
+            detail: 'Export target already exists: /tmp/water.xyz',
+          },
+          { status: 409, statusText: 'Conflict' },
+        ),
+      );
+
+    render(<MoleculeExportPreviewPanel document={WATER_DOCUMENT} />);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Preview XYZ Export' }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('XYZ export preview').textContent).toBe(
+        XYZ_PREVIEW_CONTENT,
+      );
+    });
+    fireEvent.change(screen.getByLabelText('Backend target path'), {
+      target: { value: '/tmp/water.xyz' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Export' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'Export save error: Export target already exists: /tmp/water.xyz',
+      );
+    });
+    expect(screen.getByLabelText('XYZ export preview').textContent).toBe(
+      XYZ_PREVIEW_CONTENT,
+    );
   });
 
   it('clears preview state when the molecule document changes', async () => {
@@ -535,6 +699,35 @@ describe('MoleculeExportPreviewPanel', () => {
     expect(screen.queryByText('water.xyz')).not.toBeInTheDocument();
   });
 
+  it('clears save state when the molecule document changes', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        filename: 'water-copy.xyz',
+        filetype: 'xyz',
+        path: '/tmp/water-copy.xyz',
+        bytes_written: 128,
+      }),
+    );
+
+    const { rerender } = render(
+      <MoleculeExportPreviewPanel document={WATER_DOCUMENT} />,
+    );
+
+    fireEvent.change(screen.getByLabelText('Backend target path'), {
+      target: { value: '/tmp/water-copy.xyz' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Export' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('/tmp/water-copy.xyz')).toBeInTheDocument();
+    });
+
+    rerender(<MoleculeExportPreviewPanel document={HELIUM_DOCUMENT} />);
+
+    expect(screen.queryByText('/tmp/water-copy.xyz')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Backend target path')).toHaveValue('');
+  });
+
   it('clears preview state when the selected format changes', async () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse({
@@ -564,5 +757,34 @@ describe('MoleculeExportPreviewPanel', () => {
       screen.queryByLabelText('XYZ export preview'),
     ).not.toBeInTheDocument();
     expect(screen.queryByText('water.xyz')).not.toBeInTheDocument();
+  });
+
+  it('clears save state when the selected format changes', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        filename: 'water.xyz',
+        filetype: 'xyz',
+        path: '/tmp/water.xyz',
+        bytes_written: 128,
+      }),
+    );
+
+    render(<MoleculeExportPreviewPanel document={GAUSSIAN_DOCUMENT} />);
+
+    fireEvent.change(screen.getByLabelText('Backend target path'), {
+      target: { value: '/tmp/water.xyz' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Export' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('/tmp/water.xyz')).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Format' }), {
+      target: { value: 'gjf' },
+    });
+
+    expect(screen.queryByText('/tmp/water.xyz')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Backend target path')).toHaveValue('');
   });
 });

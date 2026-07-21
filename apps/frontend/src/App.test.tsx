@@ -481,6 +481,51 @@ describe('App', () => {
     );
   });
 
+  it('saves XYZ export content to a backend target path', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
+      .mockResolvedValueOnce(jsonResponse(WATER_DOCUMENT))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          filename: 'water-copy.xyz',
+          filetype: 'xyz',
+          path: '/tmp/water-copy.xyz',
+          bytes_written: 128,
+        }),
+      );
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(WATER_DOCUMENT),
+      );
+    });
+    fireEvent.change(screen.getByLabelText('Backend target path'), {
+      target: { value: '/tmp/water-copy.xyz' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Export' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('/tmp/water-copy.xyz')).toBeInTheDocument();
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      'http://127.0.0.1:8000/api/documents/export',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          document: WATER_DOCUMENT,
+          filetype: 'xyz',
+          target_path: '/tmp/water-copy.xyz',
+        }),
+      }),
+    );
+  });
+
   it('toggles the viewer bond display setting', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ status: 'ok' }));
 
