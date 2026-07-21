@@ -19,7 +19,21 @@ class SetAtomPositionCommand(BaseModel):
     coordinate_unit: Literal["angstrom"]
 
 
-MoleculeEditCommand = SetAtomPositionCommand
+class AddBondCommand(BaseModel):
+    command_type: Literal["add_bond"]
+    document_id: str = Field(min_length=1)
+    atom1_index: int = Field(ge=1)
+    atom2_index: int = Field(ge=1)
+
+
+class RemoveBondCommand(BaseModel):
+    command_type: Literal["remove_bond"]
+    document_id: str = Field(min_length=1)
+    atom1_index: int = Field(ge=1)
+    atom2_index: int = Field(ge=1)
+
+
+MoleculeEditCommand = SetAtomPositionCommand | AddBondCommand | RemoveBondCommand
 
 
 class ApplyMoleculeEditRequest(BaseModel):

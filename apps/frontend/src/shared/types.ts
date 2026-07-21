@@ -79,7 +79,10 @@ export interface CalculationResultDocument {
   provenance: Record<string, JsonValue>;
 }
 
-export type MoleculeEditCommandType = 'set_atom_position';
+export type MoleculeEditCommandType =
+  | 'set_atom_position'
+  | 'add_bond'
+  | 'remove_bond';
 
 export interface SetAtomPositionCommand {
   command_type: 'set_atom_position';
@@ -89,7 +92,24 @@ export interface SetAtomPositionCommand {
   coordinate_unit: 'angstrom';
 }
 
-export type MoleculeEditCommand = SetAtomPositionCommand;
+export interface AddBondCommand {
+  command_type: 'add_bond';
+  document_id: string;
+  atom1_index: number;
+  atom2_index: number;
+}
+
+export interface RemoveBondCommand {
+  command_type: 'remove_bond';
+  document_id: string;
+  atom1_index: number;
+  atom2_index: number;
+}
+
+export type MoleculeEditCommand =
+  | SetAtomPositionCommand
+  | AddBondCommand
+  | RemoveBondCommand;
 
 export interface ApplyMoleculeEditRequest {
   document: MoleculeDocument;

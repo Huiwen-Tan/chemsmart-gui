@@ -1,4 +1,5 @@
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -50,6 +51,15 @@ const EDITED_WATER_DOCUMENT = {
     { index: 1, element: 'O', x: 0.1, y: 0, z: 0 },
     { index: 2, element: 'H', x: 0.76, y: 0.58, z: 0 },
     { index: 3, element: 'H', x: -0.76, y: 0.58, z: 0 },
+  ],
+} satisfies MoleculeDocument;
+
+const BONDED_WATER_DOCUMENT = {
+  ...WATER_DOCUMENT,
+  id: 'bonded-water-document',
+  bonds: [
+    ...WATER_DOCUMENT.bonds,
+    { atom1: 2, atom2: 3 },
   ],
 } satisfies MoleculeDocument;
 
@@ -336,6 +346,60 @@ describe('App', () => {
       }),
     );
     expect(screen.getByText('No unsaved edits')).toBeInTheDocument();
+  });
+
+  it('adds a selected atom bond through edit controls', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
+      .mockResolvedValueOnce(jsonResponse(WATER_DOCUMENT))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          document: BONDED_WATER_DOCUMENT,
+          can_undo: true,
+          can_redo: false,
+        }),
+      );
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(WATER_DOCUMENT),
+      );
+    });
+    act(() => {
+      useViewerStore.setState({ selectedAtomIndices: [2, 3] });
+    });
+
+    expect(screen.getByText('Current bond: absent')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Add Bond' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(BONDED_WATER_DOCUMENT),
+      );
+    });
+    expect(screen.getByText('Unsaved edits')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Undo Edit' })).toBeEnabled();
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      'http://127.0.0.1:8000/api/documents/edit',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          document: WATER_DOCUMENT,
+          command: {
+            command_type: 'add_bond',
+            document_id: WATER_DOCUMENT.id,
+            atom1_index: 2,
+            atom2_index: 3,
+          },
+        }),
+      }),
+    );
   });
 
   it('preserves selection when sample molecule loading fails', async () => {

@@ -65,6 +65,26 @@ const EDIT_RESPONSE: MoleculeEditResponse = {
   can_redo: false,
 };
 
+const BOND_EDIT_REQUEST: ApplyMoleculeEditRequest = {
+  document: WATER_DOCUMENT,
+  command: {
+    command_type: 'remove_bond',
+    document_id: WATER_DOCUMENT.id,
+    atom1_index: 2,
+    atom2_index: 1,
+  },
+};
+
+const BOND_EDIT_RESPONSE: MoleculeEditResponse = {
+  document: {
+    ...WATER_DOCUMENT,
+    id: 'document-water-unbonded',
+    bonds: [],
+  },
+  can_undo: true,
+  can_redo: false,
+};
+
 const EXPORT_PREVIEW_REQUEST: MoleculeExportPreviewRequest = {
   document: WATER_DOCUMENT,
   filetype: 'xyz',
@@ -173,6 +193,23 @@ describe('api client', () => {
         headers: { 'Content-Type': 'application/json' },
         method: 'POST',
         body: JSON.stringify(EDIT_REQUEST),
+      },
+    );
+  });
+
+  it('posts molecule bond edit commands to the document edit API', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(BOND_EDIT_RESPONSE));
+
+    await expect(applyMoleculeEdit(BOND_EDIT_REQUEST)).resolves.toEqual(
+      BOND_EDIT_RESPONSE,
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/api/documents/edit',
+      {
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        body: JSON.stringify(BOND_EDIT_REQUEST),
       },
     );
   });

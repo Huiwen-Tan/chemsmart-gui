@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { MoleculeDocument, SetAtomPositionCommand } from '../shared/types';
+import type {
+  AddBondCommand,
+  MoleculeDocument,
+  SetAtomPositionCommand,
+} from '../shared/types';
 import { useViewerStore } from './useViewerStore';
 import { useDocumentStore } from './useDocumentStore';
 
@@ -55,12 +59,28 @@ const REEDITED_WATER: MoleculeDocument = {
   ],
 };
 
+const BONDED_WATER: MoleculeDocument = {
+  ...WATER,
+  id: 'bonded-water',
+  bonds: [
+    ...WATER.bonds,
+    { atom1: 2, atom2: 3 },
+  ],
+};
+
 const SET_ATOM_POSITION: SetAtomPositionCommand = {
   command_type: 'set_atom_position',
   document_id: WATER.id,
   atom_index: 2,
   position: { x: 1, y: 1.1, z: 1.2 },
   coordinate_unit: 'angstrom',
+};
+
+const ADD_BOND: AddBondCommand = {
+  command_type: 'add_bond',
+  document_id: WATER.id,
+  atom1_index: 2,
+  atom2_index: 3,
 };
 
 const SET_ATOM_POSITION_AGAIN: SetAtomPositionCommand = {
@@ -204,6 +224,43 @@ describe('useDocumentStore', () => {
         body: JSON.stringify({
           document: WATER,
           command: SET_ATOM_POSITION,
+        }),
+      },
+    );
+  });
+
+  it('applies molecule bond edit commands through the API client', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        document: BONDED_WATER,
+        can_undo: true,
+        can_redo: false,
+      }),
+    );
+    useDocumentStore.setState({ currentDocument: WATER });
+    useViewerStore.setState({ selectedAtomIndices: [2, 3] });
+
+    await useDocumentStore.getState().applyMoleculeEditCommand(ADD_BOND);
+
+    expect(useDocumentStore.getState().currentDocument).toEqual(BONDED_WATER);
+    expect(useDocumentStore.getState().canUndoMoleculeEdit).toBe(true);
+    expect(useDocumentStore.getState().canRedoMoleculeEdit).toBe(false);
+    expect(useDocumentStore.getState().hasUnsavedMoleculeEdits).toBe(true);
+    expect(useDocumentStore.getState().moleculeEditUndoStack).toEqual([
+      {
+        beforeDocument: WATER,
+        afterDocument: BONDED_WATER,
+      },
+    ]);
+    expect(useViewerStore.getState().selectedAtomIndices).toEqual([2, 3]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/api/documents/edit',
+      {
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        body: JSON.stringify({
+          document: WATER,
+          command: ADD_BOND,
         }),
       },
     );

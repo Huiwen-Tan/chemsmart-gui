@@ -42,6 +42,62 @@
         }
       },
       "additionalProperties": false
+    },
+    {
+      "title": "AddBondCommand",
+      "type": "object",
+      "required": [
+        "command_type",
+        "document_id",
+        "atom1_index",
+        "atom2_index"
+      ],
+      "properties": {
+        "command_type": {
+          "type": "string",
+          "const": "add_bond"
+        },
+        "document_id": { "type": "string", "minLength": 1 },
+        "atom1_index": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based first atom index in the target molecule document."
+        },
+        "atom2_index": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based second atom index in the target molecule document."
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "RemoveBondCommand",
+      "type": "object",
+      "required": [
+        "command_type",
+        "document_id",
+        "atom1_index",
+        "atom2_index"
+      ],
+      "properties": {
+        "command_type": {
+          "type": "string",
+          "const": "remove_bond"
+        },
+        "document_id": { "type": "string", "minLength": 1 },
+        "atom1_index": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based first atom index in the target molecule document."
+        },
+        "atom2_index": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based second atom index in the target molecule document."
+        }
+      },
+      "additionalProperties": false
     }
   ]
 }

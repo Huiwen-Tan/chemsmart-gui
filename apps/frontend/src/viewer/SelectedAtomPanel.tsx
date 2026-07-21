@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useState } from 'react';
 
-import type { Atom, MoleculeDocument } from '../shared/types';
+import type { Atom, Bond, MoleculeDocument } from '../shared/types';
 import { useDocumentStore } from '../state/useDocumentStore';
 import { useViewerStore } from '../state/useViewerStore';
 
@@ -117,6 +117,17 @@ function calculateDihedralDegrees(
     secondPlaneVector,
   );
   return Math.atan2(yValue, xValue) * RAD_TO_DEGREES;
+}
+
+function bondMatches(
+  bond: Bond,
+  atom1Index: number,
+  atom2Index: number,
+): boolean {
+  return (
+    (bond.atom1 === atom1Index && bond.atom2 === atom2Index) ||
+    (bond.atom1 === atom2Index && bond.atom2 === atom1Index)
+  );
 }
 
 export function SelectedAtomPanel({
@@ -254,6 +265,34 @@ export function SelectedAtomPanel({
         value: dihedralValue,
       }
     : null;
+  const selectedAtomPair = document && selectedAtoms.length === 2
+    ? {
+        firstAtom: selectedAtoms[0],
+        secondAtom: selectedAtoms[1],
+      }
+    : null;
+  const selectedBond = selectedAtomPair && document
+    ? document.bonds.find((bond) => bondMatches(
+        bond,
+        selectedAtomPair.firstAtom.index,
+        selectedAtomPair.secondAtom.index,
+      )) ?? null
+    : null;
+
+  const applyBondEdit = (
+    commandType: 'add_bond' | 'remove_bond',
+  ): void => {
+    if (!document || !selectedAtomPair) {
+      return;
+    }
+
+    void applyMoleculeEditCommand({
+      command_type: commandType,
+      document_id: document.id,
+      atom1_index: selectedAtomPair.firstAtom.index,
+      atom2_index: selectedAtomPair.secondAtom.index,
+    });
+  };
 
   return (
     <section
@@ -358,6 +397,41 @@ export function SelectedAtomPanel({
                 <p style={{ color: '#ff8080' }}>{moleculeEditError}</p>
               ) : null}
             </form>
+          ) : null}
+          {selectedAtomPair ? (
+            <section
+              aria-label="Edit selected atom bond"
+              style={{ marginTop: 12 }}
+            >
+              <h3>
+                Bond Between {selectedAtomPair.firstAtom.index}{' '}
+                {selectedAtomPair.firstAtom.element} and{' '}
+                {selectedAtomPair.secondAtom.index}{' '}
+                {selectedAtomPair.secondAtom.element}
+              </h3>
+              <p>
+                Current bond:{' '}
+                {selectedBond ? 'present' : 'absent'}
+              </p>
+              <button
+                disabled={isApplyingMoleculeEdit || selectedBond !== null}
+                onClick={() => applyBondEdit('add_bond')}
+                type="button"
+              >
+                {isApplyingMoleculeEdit ? 'Applying Bond...' : 'Add Bond'}
+              </button>
+              <button
+                disabled={isApplyingMoleculeEdit || selectedBond === null}
+                onClick={() => applyBondEdit('remove_bond')}
+                style={{ marginLeft: 8 }}
+                type="button"
+              >
+                {isApplyingMoleculeEdit ? 'Applying Bond...' : 'Remove Bond'}
+              </button>
+              {moleculeEditError ? (
+                <p style={{ color: '#ff8080' }}>{moleculeEditError}</p>
+              ) : null}
+            </section>
           ) : null}
         </>
       )}

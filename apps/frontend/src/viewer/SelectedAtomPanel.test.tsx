@@ -154,6 +154,64 @@ describe('SelectedAtomPanel', () => {
     expect(useViewerStore.getState().selectedAtomIndices).toEqual([3, 99, 1]);
   });
 
+  it('adds a bond between two selected atoms through the document store', () => {
+    const applyMoleculeEditCommand = vi.fn().mockResolvedValue(undefined);
+    useDocumentStore.setState({ applyMoleculeEditCommand });
+    useViewerStore.setState({ selectedAtomIndices: [2, 3] });
+
+    render(<SelectedAtomPanel document={WATER} />);
+
+    expect(
+      screen.getByRole('region', { name: 'Edit selected atom bond' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Bond Between 2 H and 3 H'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Current bond: absent')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add Bond' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Remove Bond' })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Bond' }));
+
+    expect(applyMoleculeEditCommand).toHaveBeenCalledWith({
+      command_type: 'add_bond',
+      document_id: 'water',
+      atom1_index: 2,
+      atom2_index: 3,
+    });
+  });
+
+  it('removes an existing bond between two selected atoms', () => {
+    const applyMoleculeEditCommand = vi.fn().mockResolvedValue(undefined);
+    useDocumentStore.setState({ applyMoleculeEditCommand });
+    useViewerStore.setState({ selectedAtomIndices: [2, 1] });
+
+    render(<SelectedAtomPanel document={WATER} />);
+
+    expect(screen.getByText('Current bond: present')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add Bond' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Remove Bond' })).toBeEnabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Bond' }));
+
+    expect(applyMoleculeEditCommand).toHaveBeenCalledWith({
+      command_type: 'remove_bond',
+      document_id: 'water',
+      atom1_index: 2,
+      atom2_index: 1,
+    });
+  });
+
+  it('does not show bond editing controls outside a two-atom selection', () => {
+    useViewerStore.setState({ selectedAtomIndices: [1, 2, 3] });
+
+    render(<SelectedAtomPanel document={WATER} />);
+
+    expect(
+      screen.queryByRole('region', { name: 'Edit selected atom bond' }),
+    ).not.toBeInTheDocument();
+  });
+
   it('shows coordinate inputs for one valid selected atom', () => {
     useViewerStore.setState({ selectedAtomIndices: [2] });
 
