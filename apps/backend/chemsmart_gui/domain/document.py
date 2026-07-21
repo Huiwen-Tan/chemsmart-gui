@@ -22,6 +22,8 @@ class DocumentSource(BaseModel):
     path: str = Field(min_length=1)
     filename: str = Field(min_length=1)
     filetype: str = Field(min_length=1)
+    size_bytes: int | None = Field(default=None, ge=0)
+    modified_time_ns: int | None = Field(default=None, ge=0)
 
 
 class CalculationMetadata(BaseModel):

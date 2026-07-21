@@ -36,10 +36,15 @@ def _safe_filename_stem(name: str) -> str:
 
 def document_source_from_path(path: str) -> DocumentSource:
     source_path = Path(path)
+    source_stat = source_path.stat() if source_path.exists() else None
     return DocumentSource(
         path=path,
         filename=source_path.name,
         filetype=source_path.suffix.lower().removeprefix("."),
+        size_bytes=source_stat.st_size if source_stat is not None else None,
+        modified_time_ns=(
+            source_stat.st_mtime_ns if source_stat is not None else None
+        ),
     )
 
 

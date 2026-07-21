@@ -31,6 +31,8 @@ export interface DocumentSource {
   path: string;
   filename: string;
   filetype: string;
+  size_bytes?: number | null;
+  modified_time_ns?: number | null;
 }
 
 export type CalculationProgram = 'gaussian' | 'orca';

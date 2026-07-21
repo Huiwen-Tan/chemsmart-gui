@@ -14,6 +14,15 @@ WATER_LOG_PATH = REPOSITORY_ROOT / "sample-data" / "water.log"
 WATER_OUT_PATH = REPOSITORY_ROOT / "sample-data" / "water.out"
 
 
+def assert_source_matches_file(path: Path, source) -> None:
+    source_stat = path.stat()
+    assert source.path == str(path)
+    assert source.filename == path.name
+    assert source.filetype == path.suffix.lower().removeprefix(".")
+    assert source.size_bytes == source_stat.st_size
+    assert source.modified_time_ns == source_stat.st_mtime_ns
+
+
 def test_open_molecule_from_path_returns_normalized_document() -> None:
     document = ChemsmartAdapter().open_molecule_from_path(str(WATER_PATH))
 
@@ -23,9 +32,7 @@ def test_open_molecule_from_path_returns_normalized_document() -> None:
     assert document.name == "str-H2O-102b86d02472"
     assert document.document_kind == "structure"
     assert document.source is not None
-    assert document.source.path == str(WATER_PATH)
-    assert document.source.filename == "water.xyz"
-    assert document.source.filetype == "xyz"
+    assert_source_matches_file(WATER_PATH, document.source)
     assert document.calculation is None
     assert document.coordinate_unit == "angstrom"
     assert [atom.index for atom in document.atoms] == [1, 2, 3]

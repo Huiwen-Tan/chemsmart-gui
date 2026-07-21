@@ -12,6 +12,8 @@ const WATER_DOCUMENT: MoleculeDocument = {
     path: 'sample-data/water.xyz',
     filename: 'water.xyz',
     filetype: 'xyz',
+    size_bytes: 86,
+    modified_time_ns: 123456789,
   },
   calculation: null,
   coordinate_unit: 'angstrom',
@@ -67,6 +69,12 @@ describe('DocumentSummaryPanel', () => {
     expect(
       within(panel).getByText('sample-data/water.xyz'),
     ).toBeInTheDocument();
+    expect(within(panel).getByText('Source size')).toBeInTheDocument();
+    expect(within(panel).getByText('86 bytes')).toBeInTheDocument();
+    expect(
+      within(panel).getByText('Source modified timestamp'),
+    ).toBeInTheDocument();
+    expect(within(panel).getByText('123456789 ns')).toBeInTheDocument();
     expect(within(panel).getByText('Calculation program')).toBeInTheDocument();
     expect(within(panel).getByText('normal_termination')).toBeInTheDocument();
     expect(within(panel).getByText('Calculation state')).toBeInTheDocument();
@@ -98,7 +106,27 @@ describe('DocumentSummaryPanel', () => {
     );
 
     const panel = screen.getByRole('region', { name: 'Current Document' });
-    expect(within(panel).getAllByText('Unavailable')).toHaveLength(6);
+    expect(within(panel).getAllByText('Unavailable')).toHaveLength(8);
+  });
+
+  it('shows unavailable source revision when source lacks file metadata', () => {
+    render(
+      <DocumentSummaryPanel
+        document={{
+          ...WATER_DOCUMENT,
+          source: {
+            path: 'sample-data/water.xyz',
+            filename: 'water.xyz',
+            filetype: 'xyz',
+            size_bytes: null,
+            modified_time_ns: null,
+          },
+        }}
+      />,
+    );
+
+    const panel = screen.getByRole('region', { name: 'Current Document' });
+    expect(within(panel).getAllByText('Unavailable')).toHaveLength(5);
   });
 
   it('shows calculation metadata for output documents', () => {

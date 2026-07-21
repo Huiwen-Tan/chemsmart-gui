@@ -18,6 +18,21 @@ WATER_STRUCTURE_ID = (
 )
 
 
+def expected_source_payload(
+    path: str,
+    filename: str,
+    filetype: str,
+) -> dict[str, int | str]:
+    source_stat = Path(path).stat()
+    return {
+        "path": path,
+        "filename": filename,
+        "filetype": filetype,
+        "size_bytes": source_stat.st_size,
+        "modified_time_ns": source_stat.st_mtime_ns,
+    }
+
+
 def test_default_document_service_is_chemsmart_backed() -> None:
     assert isinstance(get_document_service(), ChemsmartDocumentService)
 
@@ -33,11 +48,11 @@ def test_open_document_returns_molecule_document() -> None:
     assert body["id"] == WATER_STRUCTURE_ID
     assert body["name"] == "str-H2O-102b86d02472"
     assert body["document_kind"] == "structure"
-    assert body["source"] == {
-        "path": "sample-data/water.xyz",
-        "filename": "water.xyz",
-        "filetype": "xyz",
-    }
+    assert body["source"] == expected_source_payload(
+        "sample-data/water.xyz",
+        "water.xyz",
+        "xyz",
+    )
     assert body["calculation"] is None
     assert body["coordinate_unit"] == "angstrom"
     assert body["charge"] is None
@@ -68,11 +83,11 @@ def test_open_document_parses_requested_xyz(tmp_path: Path) -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["document_kind"] == "structure"
-    assert body["source"] == {
-        "path": str(helium_path),
-        "filename": "helium.xyz",
-        "filetype": "xyz",
-    }
+    assert body["source"] == expected_source_payload(
+        str(helium_path),
+        "helium.xyz",
+        "xyz",
+    )
     assert body["calculation"] is None
     assert body["name"].startswith("str-He-")
     assert body["atoms"] == [
@@ -98,11 +113,11 @@ def test_open_document_parses_gaussian_input(
     assert response.status_code == 200
     body = response.json()
     assert body["document_kind"] == "structure"
-    assert body["source"] == {
-        "path": path,
-        "filename": filename,
-        "filetype": filetype,
-    }
+    assert body["source"] == expected_source_payload(
+        path,
+        filename,
+        filetype,
+    )
     assert body["calculation"] is None
     assert body["charge"] == 0
     assert body["multiplicity"] == 1
@@ -122,11 +137,11 @@ def test_open_document_parses_orca_input() -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["document_kind"] == "structure"
-    assert body["source"] == {
-        "path": "sample-data/water.inp",
-        "filename": "water.inp",
-        "filetype": "inp",
-    }
+    assert body["source"] == expected_source_payload(
+        "sample-data/water.inp",
+        "water.inp",
+        "inp",
+    )
     assert body["calculation"] is None
     assert body["charge"] == 0
     assert body["multiplicity"] == 1
@@ -146,11 +161,11 @@ def test_open_document_parses_gaussian_output() -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["document_kind"] == "structure"
-    assert body["source"] == {
-        "path": "sample-data/water.log",
-        "filename": "water.log",
-        "filetype": "log",
-    }
+    assert body["source"] == expected_source_payload(
+        "sample-data/water.log",
+        "water.log",
+        "log",
+    )
     assert body["calculation"] == {
         "program": "gaussian",
         "normal_termination": True,
@@ -185,11 +200,11 @@ def test_open_document_parses_orca_output() -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["document_kind"] == "structure"
-    assert body["source"] == {
-        "path": "sample-data/water.out",
-        "filename": "water.out",
-        "filetype": "out",
-    }
+    assert body["source"] == expected_source_payload(
+        "sample-data/water.out",
+        "water.out",
+        "out",
+    )
     assert body["calculation"] == {
         "program": "orca",
         "normal_termination": True,

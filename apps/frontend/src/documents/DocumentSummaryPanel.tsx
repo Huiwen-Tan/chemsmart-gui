@@ -17,6 +17,25 @@ function formatCalculationState(
     : 'Incomplete or failed';
 }
 
+function formatSourceSize(source: MoleculeDocument['source']): string {
+  if (source?.size_bytes === undefined || source.size_bytes === null) {
+    return 'Unavailable';
+  }
+  return `${source.size_bytes} bytes`;
+}
+
+function formatSourceModifiedTime(
+  source: MoleculeDocument['source'],
+): string {
+  if (
+    source?.modified_time_ns === undefined ||
+    source.modified_time_ns === null
+  ) {
+    return 'Unavailable';
+  }
+  return `${source.modified_time_ns} ns`;
+}
+
 export function DocumentSummaryPanel({
   document,
   hasUnsavedMoleculeEdits = false,
@@ -39,6 +58,10 @@ export function DocumentSummaryPanel({
           <dd>{document.source?.filetype ?? 'Unavailable'}</dd>
           <dt>Source path</dt>
           <dd>{document.source?.path ?? 'Unavailable'}</dd>
+          <dt>Source size</dt>
+          <dd>{formatSourceSize(document.source)}</dd>
+          <dt>Source modified timestamp</dt>
+          <dd>{formatSourceModifiedTime(document.source)}</dd>
           <dt>Molecule edit state</dt>
           <dd>
             {hasUnsavedMoleculeEdits
