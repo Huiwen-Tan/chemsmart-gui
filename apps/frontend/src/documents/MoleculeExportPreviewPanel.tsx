@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { previewMoleculeExport } from '../api/client';
 import type {
   MoleculeDocument,
+  MoleculeExportPreviewFiletype,
   MoleculeExportPreviewResponse,
 } from '../shared/types';
 
@@ -10,13 +11,85 @@ interface MoleculeExportPreviewPanelProps {
   document: MoleculeDocument | null;
 }
 
+interface ExportFormatOption {
+  filetype: MoleculeExportPreviewFiletype;
+  label: string;
+  previewButtonLabel: string;
+  previewingButtonLabel: string;
+  downloadButtonLabel: string;
+  previewAriaLabel: string;
+  contentType: string;
+}
+
+const XYZ_EXPORT_OPTION: ExportFormatOption = {
+  filetype: 'xyz',
+  label: 'XYZ coordinates (.xyz)',
+  previewButtonLabel: 'Preview XYZ Export',
+  previewingButtonLabel: 'Previewing XYZ Export...',
+  downloadButtonLabel: 'Download XYZ Export',
+  previewAriaLabel: 'XYZ export preview',
+  contentType: 'chemical/x-xyz;charset=utf-8',
+};
+
+const GJF_EXPORT_OPTION: ExportFormatOption = {
+  filetype: 'gjf',
+  label: 'Gaussian input (.gjf)',
+  previewButtonLabel: 'Preview Gaussian Input',
+  previewingButtonLabel: 'Previewing Gaussian Input...',
+  downloadButtonLabel: 'Download Gaussian Input',
+  previewAriaLabel: 'GJF export preview',
+  contentType: 'text/plain;charset=utf-8',
+};
+
+const INP_EXPORT_OPTION: ExportFormatOption = {
+  filetype: 'inp',
+  label: 'ORCA input (.inp)',
+  previewButtonLabel: 'Preview ORCA Input',
+  previewingButtonLabel: 'Previewing ORCA Input...',
+  downloadButtonLabel: 'Download ORCA Input',
+  previewAriaLabel: 'INP export preview',
+  contentType: 'text/plain;charset=utf-8',
+};
+
+function exportFormatsForDocument(
+  document: MoleculeDocument | null,
+): ExportFormatOption[] {
+  const sourceFiletype = document?.source?.filetype.toLowerCase();
+  const options = [XYZ_EXPORT_OPTION];
+
+  if (sourceFiletype === 'com' || sourceFiletype === 'gjf') {
+    options.push(GJF_EXPORT_OPTION);
+  }
+  if (sourceFiletype === 'inp') {
+    options.push(INP_EXPORT_OPTION);
+  }
+
+  return options;
+}
+
+function exportFormatOptionForFiletype(
+  filetype: MoleculeExportPreviewFiletype,
+): ExportFormatOption {
+  if (filetype === 'gjf') {
+    return GJF_EXPORT_OPTION;
+  }
+  if (filetype === 'inp') {
+    return INP_EXPORT_OPTION;
+  }
+  return XYZ_EXPORT_OPTION;
+}
+
 function messageFromUnknownError(error: unknown): string {
   return error instanceof Error ? error.message : 'Unknown error';
 }
 
-function downloadTextFile(filename: string, content: string): void {
+function downloadTextFile(
+  filename: string,
+  content: string,
+  contentType: string,
+): void {
   const blob = new Blob([content], {
-    type: 'chemical/x-xyz;charset=utf-8',
+    type: contentType,
   });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -41,15 +114,35 @@ export function MoleculeExportPreviewPanel({
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [preview, setPreview] =
     useState<MoleculeExportPreviewResponse | null>(null);
+  const [selectedFiletype, setSelectedFiletype] =
+    useState<MoleculeExportPreviewFiletype>('xyz');
+  const exportFormatOptions = useMemo(
+    () => exportFormatsForDocument(document),
+    [document],
+  );
+  const selectedOption =
+    exportFormatOptions.find(
+      (option) => option.filetype === selectedFiletype,
+    ) ?? exportFormatOptions[0];
+
+  useEffect(() => {
+    if (
+      !exportFormatOptions.some(
+        (option) => option.filetype === selectedFiletype,
+      )
+    ) {
+      setSelectedFiletype(exportFormatOptions[0].filetype);
+    }
+  }, [exportFormatOptions, selectedFiletype]);
 
   useEffect(() => {
     requestVersion.current += 1;
     setError(null);
     setIsPreviewing(false);
     setPreview(null);
-  }, [document]);
+  }, [document, selectedFiletype]);
 
-  const previewXyzExport = async (): Promise<void> => {
+  const previewSelectedExport = async (): Promise<void> => {
     if (!document) {
       setError('No molecule document is loaded.');
       return;
@@ -64,7 +157,7 @@ export function MoleculeExportPreviewPanel({
     try {
       const response = await previewMoleculeExport({
         document,
-        filetype: 'xyz',
+        filetype: selectedOption.filetype,
       });
       if (requestVersion.current === activeRequestVersion) {
         setPreview(response);
@@ -87,17 +180,39 @@ export function MoleculeExportPreviewPanel({
     >
       <h2 id="molecule-export-preview-heading">Export Preview</h2>
       <p>
-        Preview backend-generated XYZ content before adding download or
-        write-back behavior.
+        Preview backend-generated export content before write-back behavior.
       </p>
+      <label htmlFor="molecule-export-preview-filetype">
+        Format
+        <select
+          disabled={!document || isPreviewing}
+          id="molecule-export-preview-filetype"
+          onChange={(event) => {
+            setSelectedFiletype(
+              event.currentTarget.value as MoleculeExportPreviewFiletype,
+            );
+          }}
+          style={{ marginLeft: 6 }}
+          value={selectedOption.filetype}
+        >
+          {exportFormatOptions.map((option) => (
+            <option key={option.filetype} value={option.filetype}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </label>
       <button
         disabled={!document || isPreviewing}
         onClick={() => {
-          void previewXyzExport();
+          void previewSelectedExport();
         }}
+        style={{ marginLeft: 12 }}
         type="button"
       >
-        {isPreviewing ? 'Previewing XYZ Export...' : 'Preview XYZ Export'}
+        {isPreviewing
+          ? selectedOption.previewingButtonLabel
+          : selectedOption.previewButtonLabel}
       </button>
       {!document ? <p>No molecule document loaded.</p> : null}
       {error ? (
@@ -114,13 +229,25 @@ export function MoleculeExportPreviewPanel({
             Filetype: <strong>{preview.filetype}</strong>
           </p>
           <button
-            onClick={() => downloadTextFile(preview.filename, preview.content)}
+            onClick={() => {
+              const previewOption = exportFormatOptionForFiletype(
+                preview.filetype,
+              );
+              downloadTextFile(
+                preview.filename,
+                preview.content,
+                previewOption.contentType,
+              );
+            }}
             type="button"
           >
-            Download XYZ Export
+            {exportFormatOptionForFiletype(preview.filetype)
+              .downloadButtonLabel}
           </button>
           <pre
-            aria-label="XYZ export preview"
+            aria-label={
+              exportFormatOptionForFiletype(preview.filetype).previewAriaLabel
+            }
             style={{
               maxHeight: 240,
               overflow: 'auto',

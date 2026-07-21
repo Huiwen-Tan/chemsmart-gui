@@ -66,6 +66,18 @@ const HELIUM_DOCUMENT = {
   bonds: [],
 } satisfies MoleculeDocument;
 
+const GAUSSIAN_DOCUMENT = {
+  ...WATER_DOCUMENT,
+  id: 'gaussian-water-document',
+  source: {
+    path: 'sample-data/water.gjf',
+    filename: 'water.gjf',
+    filetype: 'gjf',
+  },
+  charge: 0,
+  multiplicity: 1,
+} satisfies MoleculeDocument;
+
 const fetchMock = vi.fn<typeof fetch>();
 
 function jsonResponse(body: unknown): Response {
@@ -407,6 +419,63 @@ describe('App', () => {
         body: JSON.stringify({
           document: WATER_DOCUMENT,
           filetype: 'xyz',
+        }),
+      }),
+    );
+  });
+
+  it('previews Gaussian input export content for a Gaussian document', async () => {
+    const gjfPreviewContent =
+      '%chk=water.chk\n%nprocshared=1\n%mem=1GB\n# hf/sto-3g opt\n\nwater\n\n0 1\nO 0 0 0\n';
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
+      .mockResolvedValueOnce(jsonResponse(GAUSSIAN_DOCUMENT))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          filename: 'water.gjf',
+          filetype: 'gjf',
+          content: gjfPreviewContent,
+        }),
+      );
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText('Document path'), {
+      target: { value: 'sample-data/water.gjf' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(GAUSSIAN_DOCUMENT),
+      );
+    });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Format' }), {
+      target: { value: 'gjf' },
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Preview Gaussian Input' }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('GJF export preview').textContent).toBe(
+        gjfPreviewContent,
+      );
+    });
+    expect(
+      within(
+        screen.getByRole('region', { name: 'Export Preview' }),
+      ).getByText('water.gjf'),
+    ).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      'http://127.0.0.1:8000/api/documents/export-preview',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          document: GAUSSIAN_DOCUMENT,
+          filetype: 'gjf',
         }),
       }),
     );
