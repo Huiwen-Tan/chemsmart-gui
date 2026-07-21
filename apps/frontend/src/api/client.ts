@@ -6,6 +6,8 @@ import type {
   MoleculeExportWriteRequest,
   MoleculeExportWriteResponse,
   MoleculeEditResponse,
+  MoleculeSourceWriteRequest,
+  MoleculeSourceWriteResponse,
   OpenDocumentRequest,
 } from '../shared/types';
 
@@ -78,6 +80,15 @@ export function writeMoleculeExport(
   payload: MoleculeExportWriteRequest,
 ): Promise<MoleculeExportWriteResponse> {
   return request('/api/documents/export', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function writeMoleculeSource(
+  payload: MoleculeSourceWriteRequest,
+): Promise<MoleculeSourceWriteResponse> {
+  return request('/api/documents/source-write', {
     method: 'POST',
     body: JSON.stringify(payload),
   });

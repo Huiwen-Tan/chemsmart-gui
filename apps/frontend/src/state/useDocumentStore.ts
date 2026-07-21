@@ -19,6 +19,7 @@ interface DocumentState {
   moleculeEditUndoStack: MoleculeEditSnapshot[];
   moleculeEditRedoStack: MoleculeEditSnapshot[];
   setCurrentDocument: (document: MoleculeDocument | null) => void;
+  markMoleculeDocumentSaved: (document: MoleculeDocument) => void;
   applyMoleculeEditCommand: (command: MoleculeEditCommand) => Promise<void>;
   undoMoleculeEdit: () => void;
   redoMoleculeEdit: () => void;
@@ -39,6 +40,32 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
   moleculeEditRedoStack: [],
   setCurrentDocument: (document) => {
     useViewerStore.getState().clearAtomSelection();
+    set({
+      currentDocument: document,
+      canUndoMoleculeEdit: false,
+      canRedoMoleculeEdit: false,
+      hasUnsavedMoleculeEdits: false,
+      isApplyingMoleculeEdit: false,
+      moleculeEditError: null,
+      moleculeEditUndoStack: [],
+      moleculeEditRedoStack: [],
+    });
+  },
+  markMoleculeDocumentSaved: (document) => {
+    const currentDocument = get().currentDocument;
+    if (!currentDocument) {
+      set({
+        moleculeEditError: 'No document is loaded.',
+      });
+      return;
+    }
+    if (currentDocument.id !== document.id) {
+      set({
+        moleculeEditError: 'Saved document does not match the active document.',
+      });
+      return;
+    }
+
     set({
       currentDocument: document,
       canUndoMoleculeEdit: false,

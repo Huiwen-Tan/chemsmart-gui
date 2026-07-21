@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from chemsmart_gui.domain.document import MoleculeDocument
 from chemsmart_gui.domain.export import (
     MoleculeExportFiletype,
     MoleculeExportWriteResponse,
@@ -59,3 +60,39 @@ def write_export_text(
         path=str(export_path),
         bytes_written=len(content.encode("utf-8")),
     )
+
+
+def validate_source_revision(
+    document: MoleculeDocument,
+    source_path: Path,
+) -> None:
+    if document.source is None:
+        raise ValueError("Source write-back requires an existing source file.")
+
+    if (
+        document.source.size_bytes is None
+        or document.source.modified_time_ns is None
+    ):
+        raise ValueError(
+            "Source write-back requires source revision metadata. "
+            "Reopen the source file and try again."
+        )
+
+    source_stat = source_path.stat()
+    if (
+        source_stat.st_size != document.source.size_bytes
+        or source_stat.st_mtime_ns != document.source.modified_time_ns
+    ):
+        raise ValueError(
+            "Source file changed since this document was opened. "
+            "Reopen the source file before writing source changes."
+        )
+
+
+def write_source_text(
+    *,
+    source_path: Path,
+    content: str,
+) -> int:
+    source_path.write_text(content, encoding="utf-8")
+    return len(content.encode("utf-8"))

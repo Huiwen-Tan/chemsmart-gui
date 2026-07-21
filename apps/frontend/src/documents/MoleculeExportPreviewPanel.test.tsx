@@ -69,6 +69,31 @@ const ORCA_DOCUMENT: MoleculeDocument = {
   multiplicity: 1,
 };
 
+const LOG_DOCUMENT: MoleculeDocument = {
+  ...WATER_DOCUMENT,
+  id: 'gaussian-log-document',
+  source: {
+    path: 'sample-data/water.log',
+    filename: 'water.log',
+    filetype: 'log',
+  },
+  calculation: {
+    program: 'gaussian',
+    normal_termination: true,
+  },
+};
+
+const SOURCE_WRITTEN_WATER_DOCUMENT: MoleculeDocument = {
+  ...WATER_DOCUMENT,
+  source: {
+    path: 'sample-data/water.xyz',
+    filename: 'water.xyz',
+    filetype: 'xyz',
+    size_bytes: 128,
+    modified_time_ns: 123,
+  },
+};
+
 const XYZ_PREVIEW_CONTENT =
   '2\nwater.xyz    Empirical formula: H2O\nO 0 0 0\nH 1 1 1\n';
 const GJF_PREVIEW_CONTENT =
@@ -134,6 +159,9 @@ describe('MoleculeExportPreviewPanel', () => {
     ).toBeDisabled();
     expect(
       within(panel).getByRole('button', { name: 'Save Export' }),
+    ).toBeDisabled();
+    expect(
+      within(panel).getByRole('button', { name: 'Update Source File' }),
     ).toBeDisabled();
     expect(
       within(panel).getByText('No molecule document loaded.'),
@@ -488,6 +516,85 @@ describe('MoleculeExportPreviewPanel', () => {
     );
   });
 
+  it('confirms and writes the current molecule back to its source file', async () => {
+    const onSourceWrite = vi.fn();
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        document: SOURCE_WRITTEN_WATER_DOCUMENT,
+        filename: 'water.xyz',
+        filetype: 'xyz',
+        path: 'sample-data/water.xyz',
+        bytes_written: 128,
+      }),
+    );
+
+    render(
+      <MoleculeExportPreviewPanel
+        document={WATER_DOCUMENT}
+        onSourceWrite={onSourceWrite}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Update Source File' }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('sample-data/water.xyz')).toBeInTheDocument();
+    });
+    expect(confirm).toHaveBeenCalledWith(
+      expect.stringContaining('sample-data/water.xyz'),
+    );
+    expect(onSourceWrite).toHaveBeenCalledWith(SOURCE_WRITTEN_WATER_DOCUMENT);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/api/documents/source-write',
+      {
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        body: JSON.stringify({
+          document: WATER_DOCUMENT,
+          confirmed: true,
+        }),
+      },
+    );
+  });
+
+  it('does not write the source file when confirmation is declined', () => {
+    const onSourceWrite = vi.fn();
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+
+    render(
+      <MoleculeExportPreviewPanel
+        document={WATER_DOCUMENT}
+        onSourceWrite={onSourceWrite}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Update Source File' }),
+    );
+
+    expect(confirm).toHaveBeenCalledWith(
+      expect.stringContaining('sample-data/water.xyz'),
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(onSourceWrite).not.toHaveBeenCalled();
+  });
+
+  it('disables source write-back for calculation output documents', () => {
+    render(<MoleculeExportPreviewPanel document={LOG_DOCUMENT} />);
+
+    expect(
+      screen.getByRole('button', { name: 'Update Source File' }),
+    ).toBeDisabled();
+    expect(
+      screen.getByText(
+        'Source write-back is not supported for this document.',
+      ),
+    ).toBeInTheDocument();
+  });
+
   it('shows loading state while requesting XYZ preview', async () => {
     let resolvePreview: (response: Response) => void = () => {};
     fetchMock.mockReturnValueOnce(
@@ -601,6 +708,47 @@ describe('MoleculeExportPreviewPanel', () => {
     });
   });
 
+  it('shows loading state while writing back to the source file', async () => {
+    let resolveWrite: (response: Response) => void = () => {};
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    fetchMock.mockReturnValueOnce(
+      new Promise<Response>((resolve) => {
+        resolveWrite = resolve;
+      }),
+    );
+
+    render(<MoleculeExportPreviewPanel document={WATER_DOCUMENT} />);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Update Source File' }),
+    );
+
+    expect(
+      screen.getByRole('button', { name: 'Updating Source File...' }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: 'Preview XYZ Export' }),
+    ).toBeDisabled();
+
+    await act(async () => {
+      resolveWrite(
+        jsonResponse({
+          document: SOURCE_WRITTEN_WATER_DOCUMENT,
+          filename: 'water.xyz',
+          filetype: 'xyz',
+          path: 'sample-data/water.xyz',
+          bytes_written: 128,
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: 'Update Source File' }),
+      ).toBeEnabled();
+    });
+  });
+
   it('shows backend export preview errors', async () => {
     fetchMock.mockResolvedValueOnce(
       jsonErrorResponse({
@@ -666,6 +814,27 @@ describe('MoleculeExportPreviewPanel', () => {
     expect(screen.getByLabelText('XYZ export preview').textContent).toBe(
       XYZ_PREVIEW_CONTENT,
     );
+  });
+
+  it('shows backend source write-back errors', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    fetchMock.mockResolvedValueOnce(
+      jsonErrorResponse({
+        detail: 'Source file changed since this document was opened.',
+      }),
+    );
+
+    render(<MoleculeExportPreviewPanel document={WATER_DOCUMENT} />);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Update Source File' }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'Source write-back error: Source file changed since this document was opened.',
+      );
+    });
   });
 
   it('clears preview state when the molecule document changes', async () => {

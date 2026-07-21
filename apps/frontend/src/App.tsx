@@ -31,6 +31,7 @@ export function App(): JSX.Element {
     canUndoMoleculeEdit,
     currentDocument,
     hasUnsavedMoleculeEdits,
+    markMoleculeDocumentSaved,
     redoMoleculeEdit,
     setCurrentDocument,
     undoMoleculeEdit,
@@ -182,7 +183,10 @@ export function App(): JSX.Element {
         document={currentDocument}
         hasUnsavedMoleculeEdits={hasUnsavedMoleculeEdits}
       />
-      <MoleculeExportPreviewPanel document={currentDocument} />
+      <MoleculeExportPreviewPanel
+        document={currentDocument}
+        onSourceWrite={markMoleculeDocumentSaved}
+      />
       <SelectedAtomPanel document={currentDocument} />
     </AppShell>
   );

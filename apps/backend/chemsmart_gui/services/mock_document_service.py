@@ -10,6 +10,8 @@ from chemsmart_gui.domain.export import (
     MoleculeExportPreviewResponse,
     MoleculeExportWriteRequest,
     MoleculeExportWriteResponse,
+    MoleculeSourceWriteRequest,
+    MoleculeSourceWriteResponse,
 )
 from chemsmart_gui.domain.molecule import Atom, Bond
 from chemsmart_gui.services.document_service import DocumentService
@@ -97,4 +99,46 @@ class MockDocumentService(DocumentService):
             target_path=request.target_path,
             filetype=request.filetype,
             content=preview.content,
+        )
+
+    def write_molecule_source(
+        self,
+        request: MoleculeSourceWriteRequest,
+    ) -> MoleculeSourceWriteResponse:
+        if not request.confirmed:
+            raise ValueError(
+                "Source write-back requires explicit overwrite confirmation."
+            )
+        if request.document.source is None:
+            raise ValueError("Source write-back requires an existing source.")
+
+        preview = self.preview_molecule_export(
+            MoleculeExportPreviewRequest(
+                document=request.document,
+                filetype="xyz",
+            ),
+        )
+        source_path = Path(request.document.source.path)
+        source_path.write_text(preview.content, encoding="utf-8")
+        source_stat = source_path.stat()
+        updated_document = request.document.model_copy(
+            update={
+                "source": DocumentSource(
+                    path=str(source_path),
+                    filename=source_path.name,
+                    filetype=(
+                        source_path.suffix.lower().removeprefix(".") or "xyz"
+                    ),
+                    size_bytes=source_stat.st_size,
+                    modified_time_ns=source_stat.st_mtime_ns,
+                ),
+            },
+        )
+        self._documents[updated_document.id] = updated_document
+        return MoleculeSourceWriteResponse(
+            document=updated_document,
+            filename=source_path.name,
+            filetype="xyz",
+            path=str(source_path),
+            bytes_written=len(preview.content.encode("utf-8")),
         )

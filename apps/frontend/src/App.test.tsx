@@ -53,6 +53,17 @@ const EDITED_WATER_DOCUMENT = {
   ],
 } satisfies MoleculeDocument;
 
+const SAVED_EDITED_WATER_DOCUMENT = {
+  ...EDITED_WATER_DOCUMENT,
+  source: {
+    path: 'sample-data/water.xyz',
+    filename: 'water.xyz',
+    filetype: 'xyz',
+    size_bytes: 128,
+    modified_time_ns: 123,
+  },
+} satisfies MoleculeDocument;
+
 const HELIUM_DOCUMENT = {
   ...WATER_DOCUMENT,
   id: 'helium-document',
@@ -521,6 +532,53 @@ describe('App', () => {
           document: WATER_DOCUMENT,
           filetype: 'xyz',
           target_path: '/tmp/water-copy.xyz',
+        }),
+      }),
+    );
+  });
+
+  it('writes source changes back and clears unsaved edit state', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          document: SAVED_EDITED_WATER_DOCUMENT,
+          filename: 'water.xyz',
+          filetype: 'xyz',
+          path: 'sample-data/water.xyz',
+          bytes_written: 128,
+        }),
+      );
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    setUndoHistory();
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    expect(screen.getByText('Unsaved edits')).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Update Source File' }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('No unsaved edits')).toBeInTheDocument();
+    });
+    expect(confirm).toHaveBeenCalledWith(
+      expect.stringContaining('sample-data/water.xyz'),
+    );
+    expect(screen.getByRole('button', { name: 'Undo Edit' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Redo Edit' })).toBeDisabled();
+    expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+      JSON.stringify(SAVED_EDITED_WATER_DOCUMENT),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'http://127.0.0.1:8000/api/documents/source-write',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          document: EDITED_WATER_DOCUMENT,
+          confirmed: true,
         }),
       }),
     );

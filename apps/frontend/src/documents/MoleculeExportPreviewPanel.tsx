@@ -1,15 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { previewMoleculeExport, writeMoleculeExport } from '../api/client';
+import {
+  previewMoleculeExport,
+  writeMoleculeExport,
+  writeMoleculeSource,
+} from '../api/client';
 import type {
   MoleculeDocument,
   MoleculeExportPreviewFiletype,
   MoleculeExportPreviewResponse,
   MoleculeExportWriteResponse,
+  MoleculeSourceWriteFiletype,
+  MoleculeSourceWriteResponse,
 } from '../shared/types';
 
 interface MoleculeExportPreviewPanelProps {
   document: MoleculeDocument | null;
+  onSourceWrite?: (document: MoleculeDocument) => void;
 }
 
 interface ExportFormatOption {
@@ -52,6 +59,8 @@ const INP_EXPORT_OPTION: ExportFormatOption = {
   contentType: 'text/plain;charset=utf-8',
 };
 
+const SOURCE_WRITE_FILETYPES = new Set(['xyz', 'com', 'gjf', 'inp']);
+
 function exportFormatsForDocument(
   document: MoleculeDocument | null,
 ): ExportFormatOption[] {
@@ -78,6 +87,16 @@ function exportFormatOptionForFiletype(
     return INP_EXPORT_OPTION;
   }
   return XYZ_EXPORT_OPTION;
+}
+
+function sourceWriteFiletypeForDocument(
+  document: MoleculeDocument | null,
+): MoleculeSourceWriteFiletype | null {
+  const sourceFiletype = document?.source?.filetype.toLowerCase();
+  if (!sourceFiletype || !SOURCE_WRITE_FILETYPES.has(sourceFiletype)) {
+    return null;
+  }
+  return sourceFiletype as MoleculeSourceWriteFiletype;
 }
 
 function messageFromUnknownError(error: unknown): string {
@@ -109,17 +128,25 @@ function downloadTextFile(
 
 export function MoleculeExportPreviewPanel({
   document,
+  onSourceWrite,
 }: MoleculeExportPreviewPanelProps): JSX.Element {
   const previewRequestVersion = useRef(0);
   const saveRequestVersion = useRef(0);
+  const sourceWriteRequestVersion = useRef(0);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [sourceWriteError, setSourceWriteError] = useState<string | null>(
+    null,
+  );
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isWritingSource, setIsWritingSource] = useState(false);
   const [preview, setPreview] =
     useState<MoleculeExportPreviewResponse | null>(null);
   const [savedExport, setSavedExport] =
     useState<MoleculeExportWriteResponse | null>(null);
+  const [sourceWriteResult, setSourceWriteResult] =
+    useState<MoleculeSourceWriteResponse | null>(null);
   const [saveTargetPath, setSaveTargetPath] = useState('');
   const [selectedFiletype, setSelectedFiletype] =
     useState<MoleculeExportPreviewFiletype>('xyz');
@@ -131,7 +158,8 @@ export function MoleculeExportPreviewPanel({
     exportFormatOptions.find(
       (option) => option.filetype === selectedFiletype,
     ) ?? exportFormatOptions[0];
-  const isBusy = isPreviewing || isSaving;
+  const sourceWriteFiletype = sourceWriteFiletypeForDocument(document);
+  const isBusy = isPreviewing || isSaving || isWritingSource;
 
   useEffect(() => {
     if (
@@ -146,14 +174,18 @@ export function MoleculeExportPreviewPanel({
   useEffect(() => {
     previewRequestVersion.current += 1;
     saveRequestVersion.current += 1;
+    sourceWriteRequestVersion.current += 1;
     setPreviewError(null);
     setSaveError(null);
+    setSourceWriteError(null);
     setIsPreviewing(false);
     setIsSaving(false);
+    setIsWritingSource(false);
     setPreview(null);
     setSavedExport(null);
+    setSourceWriteResult(null);
     setSaveTargetPath('');
-  }, [document, selectedFiletype]);
+  }, [document?.id, selectedFiletype]);
 
   const previewSelectedExport = async (): Promise<void> => {
     if (!document) {
@@ -220,6 +252,62 @@ export function MoleculeExportPreviewPanel({
     } finally {
       if (saveRequestVersion.current === activeRequestVersion) {
         setIsSaving(false);
+      }
+    }
+  };
+
+  const writeBackToSource = async (): Promise<void> => {
+    if (!document) {
+      setSourceWriteError('No molecule document is loaded.');
+      return;
+    }
+    if (!sourceWriteFiletype) {
+      setSourceWriteError(
+        'Source write-back is not supported for this document.',
+      );
+      return;
+    }
+    const sourcePath = document.source?.path;
+    if (!sourcePath) {
+      setSourceWriteError('Source write-back requires an existing source.');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      [
+        'Write current molecule edits back to the source file?',
+        '',
+        sourcePath,
+        '',
+        'This overwrites the source file after backend freshness checks.',
+      ].join('\n'),
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    const activeRequestVersion = sourceWriteRequestVersion.current + 1;
+    sourceWriteRequestVersion.current = activeRequestVersion;
+    setSourceWriteError(null);
+    setIsWritingSource(true);
+    setSourceWriteResult(null);
+
+    try {
+      const response = await writeMoleculeSource({
+        document,
+        confirmed: true,
+      });
+      if (sourceWriteRequestVersion.current === activeRequestVersion) {
+        setSourceWriteResult(response);
+        onSourceWrite?.(response.document);
+      }
+    } catch (err: unknown) {
+      if (sourceWriteRequestVersion.current === activeRequestVersion) {
+        setSourceWriteError(messageFromUnknownError(err));
+      }
+    } finally {
+      if (sourceWriteRequestVersion.current === activeRequestVersion) {
+        setIsWritingSource(false);
       }
     }
   };
@@ -297,6 +385,24 @@ export function MoleculeExportPreviewPanel({
           {isSaving ? 'Saving Export...' : 'Save Export'}
         </button>
       </div>
+      <div style={{ marginTop: 12 }}>
+        <p>
+          Update the original source file after explicit confirmation. This is
+          available only for supported source inputs and coordinates.
+        </p>
+        <button
+          disabled={!document || isBusy || !sourceWriteFiletype}
+          onClick={() => {
+            void writeBackToSource();
+          }}
+          type="button"
+        >
+          {isWritingSource ? 'Updating Source File...' : 'Update Source File'}
+        </button>
+        {document && !sourceWriteFiletype ? (
+          <p>Source write-back is not supported for this document.</p>
+        ) : null}
+      </div>
       {!document ? <p>No molecule document loaded.</p> : null}
       {previewError ? (
         <p role="alert" style={{ color: '#ff8080' }}>
@@ -308,10 +414,21 @@ export function MoleculeExportPreviewPanel({
           Export save error: {saveError}
         </p>
       ) : null}
+      {sourceWriteError ? (
+        <p role="alert" style={{ color: '#ff8080' }}>
+          Source write-back error: {sourceWriteError}
+        </p>
+      ) : null}
       {savedExport ? (
         <p aria-live="polite">
           Saved export to <strong>{savedExport.path}</strong> (
           {savedExport.bytes_written} bytes).
+        </p>
+      ) : null}
+      {sourceWriteResult ? (
+        <p aria-live="polite">
+          Updated source file <strong>{sourceWriteResult.path}</strong> (
+          {sourceWriteResult.bytes_written} bytes).
         </p>
       ) : null}
       {preview ? (

@@ -10,6 +10,8 @@ from chemsmart_gui.domain.export import (
     MoleculeExportPreviewResponse,
     MoleculeExportWriteRequest,
     MoleculeExportWriteResponse,
+    MoleculeSourceWriteRequest,
+    MoleculeSourceWriteResponse,
 )
 from chemsmart_gui.services.chemsmart_document_service import (
     ChemsmartDocumentService,
@@ -92,6 +94,25 @@ def write_document_export(
             status_code=status.HTTP_409_CONFLICT,
             detail=str(exc),
         ) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+
+@router.post("/source-write", response_model=MoleculeSourceWriteResponse)
+def write_document_source(
+    request: MoleculeSourceWriteRequest,
+    document_service: DocumentService = Depends(get_document_service),
+) -> MoleculeSourceWriteResponse:
+    try:
+        return document_service.write_molecule_source(request)
     except FileNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

@@ -8,12 +8,15 @@ import type {
   MoleculeExportWriteRequest,
   MoleculeExportWriteResponse,
   MoleculeEditResponse,
+  MoleculeSourceWriteRequest,
+  MoleculeSourceWriteResponse,
 } from '../shared/types';
 import {
   applyMoleculeEdit,
   openDocument,
   previewMoleculeExport,
   writeMoleculeExport,
+  writeMoleculeSource,
 } from './client';
 
 const fetchMock = vi.fn<typeof fetch>();
@@ -83,6 +86,28 @@ const EXPORT_WRITE_RESPONSE: MoleculeExportWriteResponse = {
   filename: 'water.xyz',
   filetype: 'xyz',
   path: '/tmp/water.xyz',
+  bytes_written: 64,
+};
+
+const SOURCE_WRITE_REQUEST: MoleculeSourceWriteRequest = {
+  document: WATER_DOCUMENT,
+  confirmed: true,
+};
+
+const SOURCE_WRITE_RESPONSE: MoleculeSourceWriteResponse = {
+  document: {
+    ...WATER_DOCUMENT,
+    source: {
+      path: 'sample-data/water.xyz',
+      filename: 'water.xyz',
+      filetype: 'xyz',
+      size_bytes: 64,
+      modified_time_ns: 123,
+    },
+  },
+  filename: 'water.xyz',
+  filetype: 'xyz',
+  path: 'sample-data/water.xyz',
   bytes_written: 64,
 };
 
@@ -230,5 +255,37 @@ describe('api client', () => {
     await expect(
       writeMoleculeExport(EXPORT_WRITE_REQUEST),
     ).rejects.toThrow('Export target already exists: /tmp/water.xyz');
+  });
+
+  it('posts molecule source write-back to the source-write API', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(SOURCE_WRITE_RESPONSE));
+
+    await expect(
+      writeMoleculeSource(SOURCE_WRITE_REQUEST),
+    ).resolves.toEqual(SOURCE_WRITE_RESPONSE);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/api/documents/source-write',
+      {
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        body: JSON.stringify(SOURCE_WRITE_REQUEST),
+      },
+    );
+  });
+
+  it('throws backend source write detail from JSON errors', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(
+        {
+          detail: 'Source file changed since this document was opened.',
+        },
+        { status: 400, statusText: 'Bad Request' },
+      ),
+    );
+
+    await expect(
+      writeMoleculeSource(SOURCE_WRITE_REQUEST),
+    ).rejects.toThrow('Source file changed since this document was opened.');
   });
 });

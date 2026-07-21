@@ -6,6 +6,8 @@ from chemsmart_gui.domain.export import (
     MoleculeExportPreviewResponse,
     MoleculeExportWriteRequest,
     MoleculeExportWriteResponse,
+    MoleculeSourceWriteRequest,
+    MoleculeSourceWriteResponse,
 )
 
 
@@ -33,3 +35,10 @@ class DocumentService(ABC):
         request: MoleculeExportWriteRequest,
     ) -> MoleculeExportWriteResponse:
         """Write a molecule export to a new target file."""
+
+    @abstractmethod
+    def write_molecule_source(
+        self,
+        request: MoleculeSourceWriteRequest,
+    ) -> MoleculeSourceWriteResponse:
+        """Write a molecule document back to its existing source file."""

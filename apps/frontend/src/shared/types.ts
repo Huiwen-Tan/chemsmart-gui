@@ -104,6 +104,7 @@ export interface MoleculeEditResponse {
 
 export type MoleculeExportFiletype = 'xyz' | 'gjf' | 'inp';
 export type MoleculeExportPreviewFiletype = MoleculeExportFiletype;
+export type MoleculeSourceWriteFiletype = 'xyz' | 'com' | 'gjf' | 'inp';
 
 export interface MoleculeExportPreviewRequest {
   document: MoleculeDocument;
@@ -125,6 +126,19 @@ export interface MoleculeExportWriteRequest {
 export interface MoleculeExportWriteResponse {
   filename: string;
   filetype: MoleculeExportFiletype;
+  path: string;
+  bytes_written: number;
+}
+
+export interface MoleculeSourceWriteRequest {
+  document: MoleculeDocument;
+  confirmed: boolean;
+}
+
+export interface MoleculeSourceWriteResponse {
+  document: MoleculeDocument;
+  filename: string;
+  filetype: MoleculeSourceWriteFiletype;
   path: string;
   bytes_written: number;
 }

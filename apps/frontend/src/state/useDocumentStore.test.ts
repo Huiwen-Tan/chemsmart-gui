@@ -34,6 +34,17 @@ const EDITED_WATER: MoleculeDocument = {
   ],
 };
 
+const SAVED_EDITED_WATER: MoleculeDocument = {
+  ...EDITED_WATER,
+  source: {
+    path: 'sample-data/water.xyz',
+    filename: 'water.xyz',
+    filetype: 'xyz',
+    size_bytes: 128,
+    modified_time_ns: 123,
+  },
+};
+
 const REEDITED_WATER: MoleculeDocument = {
   ...WATER,
   id: 'reedited-water',
@@ -284,6 +295,59 @@ describe('useDocumentStore', () => {
 
     expect(useDocumentStore.getState().moleculeEditError).toBe(
       'No molecule edit is available to redo.',
+    );
+  });
+
+  it('marks a saved molecule document as the clean edit baseline', () => {
+    useDocumentStore.setState({
+      currentDocument: EDITED_WATER,
+      canUndoMoleculeEdit: true,
+      canRedoMoleculeEdit: true,
+      hasUnsavedMoleculeEdits: true,
+      isApplyingMoleculeEdit: true,
+      moleculeEditError: 'Previous error',
+      moleculeEditUndoStack: [
+        {
+          beforeDocument: WATER,
+          afterDocument: EDITED_WATER,
+        },
+      ],
+      moleculeEditRedoStack: [
+        {
+          beforeDocument: WATER,
+          afterDocument: EDITED_WATER,
+        },
+      ],
+    });
+    useViewerStore.setState({ selectedAtomIndices: [2] });
+
+    useDocumentStore.getState().markMoleculeDocumentSaved(SAVED_EDITED_WATER);
+
+    expect(useDocumentStore.getState().currentDocument).toEqual(
+      SAVED_EDITED_WATER,
+    );
+    expect(useDocumentStore.getState().canUndoMoleculeEdit).toBe(false);
+    expect(useDocumentStore.getState().canRedoMoleculeEdit).toBe(false);
+    expect(useDocumentStore.getState().hasUnsavedMoleculeEdits).toBe(false);
+    expect(useDocumentStore.getState().isApplyingMoleculeEdit).toBe(false);
+    expect(useDocumentStore.getState().moleculeEditError).toBeNull();
+    expect(useDocumentStore.getState().moleculeEditUndoStack).toEqual([]);
+    expect(useDocumentStore.getState().moleculeEditRedoStack).toEqual([]);
+    expect(useViewerStore.getState().selectedAtomIndices).toEqual([2]);
+  });
+
+  it('records an error when saving a different active document', () => {
+    useDocumentStore.setState({
+      currentDocument: WATER,
+      hasUnsavedMoleculeEdits: true,
+    });
+
+    useDocumentStore.getState().markMoleculeDocumentSaved(SAVED_EDITED_WATER);
+
+    expect(useDocumentStore.getState().currentDocument).toBe(WATER);
+    expect(useDocumentStore.getState().hasUnsavedMoleculeEdits).toBe(true);
+    expect(useDocumentStore.getState().moleculeEditError).toBe(
+      'Saved document does not match the active document.',
     );
   });
 
