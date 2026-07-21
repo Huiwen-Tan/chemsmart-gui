@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 
 import pytest
@@ -208,6 +209,31 @@ def test_preview_molecule_export_does_not_overwrite_source_file(
     ]
 
 
+def test_preview_xyz_export_allows_changed_source_revision(
+    tmp_path: Path,
+) -> None:
+    source_path = tmp_path / "helium.xyz"
+    source_path.write_text("1\nHelium\nHe 1.5 0.0 0.0\n", encoding="utf-8")
+    document = ChemsmartAdapter().open_molecule_from_path(str(source_path))
+    source_path.write_text(
+        "1\nHelium changed\nHe 9.0 9.0 9.0\n",
+        encoding="utf-8",
+    )
+
+    filename, content = ChemsmartAdapter().preview_molecule_export(
+        document,
+        "xyz",
+    )
+
+    assert filename == "helium.xyz"
+    assert content.splitlines()[2].split() == [
+        "He",
+        "1.5000000000",
+        "0.0000000000",
+        "0.0000000000",
+    ]
+
+
 def test_preview_molecule_export_rejects_unsupported_filetype() -> None:
     document = ChemsmartAdapter().open_molecule_from_path(str(WATER_PATH))
 
@@ -320,3 +346,48 @@ def test_preview_input_export_rejects_mismatched_input_source() -> None:
 
     with pytest.raises(ValueError, match="requires a Gaussian"):
         ChemsmartAdapter().preview_molecule_export(orca_document, "gjf")
+
+
+@pytest.mark.parametrize(
+    ("source_fixture", "filetype"),
+    [
+        (WATER_GJF_PATH, "gjf"),
+        (WATER_INP_PATH, "inp"),
+    ],
+)
+def test_preview_input_export_rejects_changed_source_revision(
+    source_fixture: Path,
+    filetype: str,
+    tmp_path: Path,
+) -> None:
+    source_path = tmp_path / source_fixture.name
+    shutil.copyfile(source_fixture, source_path)
+    document = ChemsmartAdapter().open_molecule_from_path(str(source_path))
+    source_path.write_text(
+        source_path.read_text(encoding="utf-8") + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="changed since this document"):
+        ChemsmartAdapter().preview_molecule_export(document, filetype)
+
+
+def test_preview_input_export_requires_source_revision_metadata() -> None:
+    document = ChemsmartAdapter().open_molecule_from_path(str(WATER_GJF_PATH))
+    assert document.source is not None
+    document_without_revision = document.model_copy(
+        update={
+            "source": document.source.model_copy(
+                update={
+                    "size_bytes": None,
+                    "modified_time_ns": None,
+                },
+            ),
+        },
+    )
+
+    with pytest.raises(ValueError, match="requires source revision metadata"):
+        ChemsmartAdapter().preview_molecule_export(
+            document_without_revision,
+            "gjf",
+        )

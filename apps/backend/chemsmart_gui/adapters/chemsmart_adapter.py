@@ -176,7 +176,36 @@ class ChemsmartAdapter:
                 ".inp source document."
             )
 
+        self._validate_source_revision(document, source_path)
+
         return source_path
+
+    @staticmethod
+    def _validate_source_revision(
+        document: MoleculeDocument,
+        source_path: Path,
+    ) -> None:
+        if document.source is None:
+            return
+
+        if (
+            document.source.size_bytes is None
+            or document.source.modified_time_ns is None
+        ):
+            raise ValueError(
+                "Input export preview requires source revision metadata. "
+                "Reopen the source file and try again."
+            )
+
+        source_stat = source_path.stat()
+        if (
+            source_stat.st_size != document.source.size_bytes
+            or source_stat.st_mtime_ns != document.source.modified_time_ns
+        ):
+            raise ValueError(
+                "Source file changed since this document was opened. "
+                "Reopen the source file before previewing input export."
+            )
 
     @staticmethod
     def _apply_document_electronic_state(

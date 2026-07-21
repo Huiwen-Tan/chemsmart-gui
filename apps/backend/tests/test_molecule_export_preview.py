@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -162,3 +163,28 @@ def test_preview_molecule_export_returns_bad_request_for_wrong_source() -> None:
 
     assert response.status_code == 400
     assert "requires a Gaussian" in response.json()["detail"]
+
+
+def test_preview_molecule_export_returns_bad_request_for_stale_source(
+    tmp_path: Path,
+) -> None:
+    source_path = tmp_path / "water.gjf"
+    shutil.copyfile(WATER_GJF_PATH, source_path)
+    document = ChemsmartAdapter().open_molecule_from_path(str(source_path))
+    source_path.write_text(
+        source_path.read_text(encoding="utf-8") + "\n",
+        encoding="utf-8",
+    )
+
+    response = client.post(
+        "/api/documents/export-preview",
+        json={
+            "document": document.model_dump(),
+            "filetype": "gjf",
+        },
+    )
+
+    assert response.status_code == 400
+    assert "changed since this document was opened" in response.json()[
+        "detail"
+    ]
