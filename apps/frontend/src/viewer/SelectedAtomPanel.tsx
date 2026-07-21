@@ -20,6 +20,13 @@ interface CoordinateDraft {
   z: string;
 }
 
+interface AddAtomDraft {
+  element: string;
+  x: string;
+  y: string;
+  z: string;
+}
+
 const GEOMETRY_EPSILON = 1e-12;
 const RAD_TO_DEGREES = 180 / Math.PI;
 
@@ -166,6 +173,13 @@ export function SelectedAtomPanel({
   const [coordinateEditError, setCoordinateEditError] = useState<string | null>(
     null,
   );
+  const [addAtomDraft, setAddAtomDraft] = useState<AddAtomDraft>({
+    element: 'H',
+    x: '0',
+    y: '0',
+    z: '0',
+  });
+  const [atomEditError, setAtomEditError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!singleSelectedAtom) {
@@ -224,6 +238,50 @@ export function SelectedAtomPanel({
       ...draft,
       [field]: value,
     }));
+  };
+  const updateAddAtomDraft = (
+    field: keyof AddAtomDraft,
+    value: string,
+  ): void => {
+    setAddAtomDraft((draft) => ({
+      ...draft,
+      [field]: value,
+    }));
+  };
+  const submitAddAtomEdit = (event: FormEvent<HTMLFormElement>): void => {
+    event.preventDefault();
+    if (!document) {
+      return;
+    }
+
+    const element = addAtomDraft.element.trim();
+    if (!element) {
+      setAtomEditError('Atom element is required.');
+      return;
+    }
+
+    const position = {
+      x: Number(addAtomDraft.x),
+      y: Number(addAtomDraft.y),
+      z: Number(addAtomDraft.z),
+    };
+    if (
+      !Number.isFinite(position.x) ||
+      !Number.isFinite(position.y) ||
+      !Number.isFinite(position.z)
+    ) {
+      setAtomEditError('Coordinates must be finite numbers.');
+      return;
+    }
+
+    setAtomEditError(null);
+    void applyMoleculeEditCommand({
+      command_type: 'add_atom',
+      document_id: document.id,
+      element,
+      position,
+      coordinate_unit: document.coordinate_unit,
+    });
   };
   const distanceMeasurement = document && selectedAtoms.length === 2
     ? {
@@ -293,6 +351,24 @@ export function SelectedAtomPanel({
       atom2_index: selectedAtomPair.secondAtom.index,
     });
   };
+  const deleteSelectedAtoms = (): void => {
+    if (!document || selectedAtoms.length === 0) {
+      return;
+    }
+
+    setAtomEditError(null);
+    void applyMoleculeEditCommand({
+      command_type: 'delete_atoms',
+      document_id: document.id,
+      atom_indices: selectedAtoms.map((atom) => atom.index),
+    });
+  };
+  const deleteSelectionDisabled = Boolean(
+    !document ||
+    selectedAtoms.length === 0 ||
+    selectedAtoms.length >= document.atoms.length ||
+    isApplyingMoleculeEdit,
+  );
 
   return (
     <section
@@ -393,9 +469,6 @@ export function SelectedAtomPanel({
               {coordinateEditError ? (
                 <p style={{ color: '#ff8080' }}>{coordinateEditError}</p>
               ) : null}
-              {moleculeEditError ? (
-                <p style={{ color: '#ff8080' }}>{moleculeEditError}</p>
-              ) : null}
             </form>
           ) : null}
           {selectedAtomPair ? (
@@ -428,13 +501,105 @@ export function SelectedAtomPanel({
               >
                 {isApplyingMoleculeEdit ? 'Applying Bond...' : 'Remove Bond'}
               </button>
-              {moleculeEditError ? (
-                <p style={{ color: '#ff8080' }}>{moleculeEditError}</p>
+            </section>
+          ) : null}
+          {document ? (
+            <section
+              aria-label="Delete selected atoms"
+              style={{ marginTop: 12 }}
+            >
+              <h3>Delete Selected Atoms</h3>
+              <p>
+                Selected atom indices:{' '}
+                {selectedAtoms.map((atom) => atom.index).join(', ')}
+              </p>
+              <button
+                disabled={deleteSelectionDisabled}
+                onClick={deleteSelectedAtoms}
+                type="button"
+              >
+                {isApplyingMoleculeEdit
+                  ? 'Deleting Atoms...'
+                  : 'Delete Selected Atoms'}
+              </button>
+              {selectedAtoms.length >= document.atoms.length ? (
+                <p>Cannot delete every atom from a molecule document.</p>
               ) : null}
             </section>
           ) : null}
         </>
       )}
+      {document ? (
+        <form
+          aria-label="Add atom"
+          onSubmit={submitAddAtomEdit}
+          style={{ marginTop: 12 }}
+        >
+          <fieldset disabled={isApplyingMoleculeEdit}>
+            <legend>Add Atom</legend>
+            <label style={{ display: 'inline-flex', gap: 6 }}>
+              Element
+              <input
+                aria-label="New atom element"
+                onChange={(event) => updateAddAtomDraft(
+                  'element',
+                  event.currentTarget.value,
+                )}
+                type="text"
+                value={addAtomDraft.element}
+              />
+            </label>
+            <label style={{ display: 'inline-flex', gap: 6, marginLeft: 8 }}>
+              X
+              <input
+                aria-label="New atom X coordinate"
+                inputMode="decimal"
+                onChange={(event) => updateAddAtomDraft(
+                  'x',
+                  event.currentTarget.value,
+                )}
+                type="text"
+                value={addAtomDraft.x}
+              />
+            </label>
+            <label style={{ display: 'inline-flex', gap: 6, marginLeft: 8 }}>
+              Y
+              <input
+                aria-label="New atom Y coordinate"
+                inputMode="decimal"
+                onChange={(event) => updateAddAtomDraft(
+                  'y',
+                  event.currentTarget.value,
+                )}
+                type="text"
+                value={addAtomDraft.y}
+              />
+            </label>
+            <label style={{ display: 'inline-flex', gap: 6, marginLeft: 8 }}>
+              Z
+              <input
+                aria-label="New atom Z coordinate"
+                inputMode="decimal"
+                onChange={(event) => updateAddAtomDraft(
+                  'z',
+                  event.currentTarget.value,
+                )}
+                type="text"
+                value={addAtomDraft.z}
+              />
+            </label>
+            <button style={{ marginLeft: 8 }} type="submit">
+              {isApplyingMoleculeEdit ? 'Adding Atom...' : 'Add Atom'}
+            </button>
+          </fieldset>
+          {atomEditError ? (
+            <p style={{ color: '#ff8080' }}>{atomEditError}</p>
+          ) : null}
+        </form>
+      ) : null}
+      {moleculeEditError ? (
+        <p style={{ color: '#ff8080' }}>{moleculeEditError}</p>
+      ) : null}
       {distanceMeasurement ? (
         <p>
           <strong>Distance:</strong>{' '}

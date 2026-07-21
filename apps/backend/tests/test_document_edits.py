@@ -5,8 +5,10 @@ from fastapi.testclient import TestClient
 from chemsmart_gui.adapters.chemsmart_adapter import ChemsmartAdapter
 from chemsmart_gui.domain.document import MoleculeDocument
 from chemsmart_gui.domain.edit import (
+    AddAtomCommand,
     AddBondCommand,
     CartesianPosition,
+    DeleteAtomsCommand,
     RemoveBondCommand,
     SetAtomPositionCommand,
 )
@@ -52,6 +54,24 @@ def remove_bond_command(document: MoleculeDocument) -> RemoveBondCommand:
         document_id=document.id,
         atom1_index=2,
         atom2_index=1,
+    )
+
+
+def add_atom_command(document: MoleculeDocument) -> AddAtomCommand:
+    return AddAtomCommand(
+        command_type="add_atom",
+        document_id=document.id,
+        element="He",
+        position=CartesianPosition(x=1.0, y=1.1, z=1.2),
+        coordinate_unit="angstrom",
+    )
+
+
+def delete_atoms_command(document: MoleculeDocument) -> DeleteAtomsCommand:
+    return DeleteAtomsCommand(
+        command_type="delete_atoms",
+        document_id=document.id,
+        atom_indices=[2],
     )
 
 
@@ -128,6 +148,62 @@ def test_apply_remove_bond_command_returns_updated_document() -> None:
     assert body["document"]["bonds"] == [{"atom1": 1, "atom2": 3}]
 
 
+def test_apply_add_atom_command_returns_updated_document() -> None:
+    document = open_water_document()
+    command = add_atom_command(document)
+
+    response = client.post(
+        "/api/documents/edit",
+        json={
+            "document": document.model_dump(),
+            "command": command.model_dump(),
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["can_undo"] is True
+    assert body["can_redo"] is False
+    assert body["document"]["id"] != document.id
+    assert body["document"]["source"] == document.source.model_dump()
+    assert body["document"]["calculation"] is None
+    assert body["document"]["atoms"][-1] == {
+        "index": 4,
+        "element": "He",
+        "x": 1.0,
+        "y": 1.1,
+        "z": 1.2,
+    }
+    assert body["document"]["bonds"] == [
+        {"atom1": 1, "atom2": 2},
+        {"atom1": 1, "atom2": 3},
+    ]
+
+
+def test_apply_delete_atoms_command_returns_updated_document() -> None:
+    document = open_water_document()
+    command = delete_atoms_command(document)
+
+    response = client.post(
+        "/api/documents/edit",
+        json={
+            "document": document.model_dump(),
+            "command": command.model_dump(),
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["can_undo"] is True
+    assert body["can_redo"] is False
+    assert body["document"]["id"] != document.id
+    assert body["document"]["atoms"] == [
+        {"index": 1, "element": "O", "x": 0.0, "y": 0.0, "z": 0.0},
+        {"index": 2, "element": "H", "x": -0.76, "y": 0.58, "z": 0.0},
+    ]
+    assert body["document"]["bonds"] == [{"atom1": 1, "atom2": 2}]
+
+
 def test_apply_molecule_edit_command_rejects_document_mismatch() -> None:
     document = open_water_document()
     command = set_atom_position_command(
@@ -182,3 +258,23 @@ def test_apply_bond_edit_rejects_duplicate_bond() -> None:
 
     assert response.status_code == 400
     assert "already exists" in response.json()["detail"]
+
+
+def test_apply_delete_atoms_rejects_deleting_every_atom() -> None:
+    document = open_water_document()
+    command = DeleteAtomsCommand(
+        command_type="delete_atoms",
+        document_id=document.id,
+        atom_indices=[1, 2, 3],
+    )
+
+    response = client.post(
+        "/api/documents/edit",
+        json={
+            "document": document.model_dump(),
+            "command": command.model_dump(),
+        },
+    )
+
+    assert response.status_code == 400
+    assert "Cannot delete every atom" in response.json()["detail"]

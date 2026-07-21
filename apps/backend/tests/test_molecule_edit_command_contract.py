@@ -5,8 +5,10 @@ import pytest
 from pydantic import ValidationError
 
 from chemsmart_gui.domain.edit import (
+    AddAtomCommand,
     AddBondCommand,
     CartesianPosition,
+    DeleteAtomsCommand,
     RemoveBondCommand,
     SetAtomPositionCommand,
 )
@@ -100,6 +102,67 @@ def test_bond_commands_require_1_based_atom_indices() -> None:
         )
 
 
+def test_add_atom_command_serializes_contract() -> None:
+    command = AddAtomCommand(
+        command_type="add_atom",
+        document_id="document-water",
+        element="He",
+        position=CartesianPosition(x=1.0, y=1.1, z=1.2),
+        coordinate_unit="angstrom",
+    )
+
+    assert command.model_dump() == {
+        "command_type": "add_atom",
+        "document_id": "document-water",
+        "element": "He",
+        "position": {"x": 1.0, "y": 1.1, "z": 1.2},
+        "coordinate_unit": "angstrom",
+    }
+
+
+def test_add_atom_command_requires_element() -> None:
+    with pytest.raises(ValidationError):
+        AddAtomCommand(
+            command_type="add_atom",
+            document_id="document-water",
+            element="",
+            position=CartesianPosition(x=1.0, y=1.1, z=1.2),
+            coordinate_unit="angstrom",
+        )
+
+
+def test_delete_atoms_command_serializes_contract() -> None:
+    command = DeleteAtomsCommand(
+        command_type="delete_atoms",
+        document_id="document-water",
+        atom_indices=[2, 3],
+    )
+
+    assert command.model_dump() == {
+        "command_type": "delete_atoms",
+        "document_id": "document-water",
+        "atom_indices": [2, 3],
+    }
+
+
+def test_delete_atoms_command_requires_1_based_atom_indices() -> None:
+    with pytest.raises(ValidationError):
+        DeleteAtomsCommand(
+            command_type="delete_atoms",
+            document_id="document-water",
+            atom_indices=[0],
+        )
+
+
+def test_delete_atoms_command_requires_non_empty_selection() -> None:
+    with pytest.raises(ValidationError):
+        DeleteAtomsCommand(
+            command_type="delete_atoms",
+            document_id="document-water",
+            atom_indices=[],
+        )
+
+
 def test_shared_schema_expresses_edit_command_contract() -> None:
     schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
     command_schemas = {
@@ -109,6 +172,8 @@ def test_shared_schema_expresses_edit_command_contract() -> None:
     set_atom_schema = command_schemas["SetAtomPositionCommand"]
     add_bond_schema = command_schemas["AddBondCommand"]
     remove_bond_schema = command_schemas["RemoveBondCommand"]
+    add_atom_schema = command_schemas["AddAtomCommand"]
+    delete_atoms_schema = command_schemas["DeleteAtomsCommand"]
     properties = set_atom_schema["properties"]
 
     assert schema["title"] == "MoleculeEditCommand"
@@ -116,6 +181,8 @@ def test_shared_schema_expresses_edit_command_contract() -> None:
         "SetAtomPositionCommand",
         "AddBondCommand",
         "RemoveBondCommand",
+        "AddAtomCommand",
+        "DeleteAtomsCommand",
     }
     assert set_atom_schema["required"] == [
         "command_type",
@@ -152,3 +219,35 @@ def test_shared_schema_expresses_edit_command_contract() -> None:
     assert remove_bond_schema["properties"]["document_id"]["minLength"] == 1
     assert remove_bond_schema["properties"]["atom1_index"]["minimum"] == 1
     assert remove_bond_schema["properties"]["atom2_index"]["minimum"] == 1
+    assert add_atom_schema["required"] == [
+        "command_type",
+        "document_id",
+        "element",
+        "position",
+        "coordinate_unit",
+    ]
+    assert add_atom_schema["properties"]["command_type"]["const"] == "add_atom"
+    assert add_atom_schema["properties"]["document_id"]["minLength"] == 1
+    assert add_atom_schema["properties"]["element"]["minLength"] == 1
+    assert add_atom_schema["properties"]["position"]["required"] == [
+        "x",
+        "y",
+        "z",
+    ]
+    assert add_atom_schema["properties"]["coordinate_unit"]["const"] == (
+        "angstrom"
+    )
+    assert delete_atoms_schema["required"] == [
+        "command_type",
+        "document_id",
+        "atom_indices",
+    ]
+    assert delete_atoms_schema["properties"]["command_type"]["const"] == (
+        "delete_atoms"
+    )
+    assert delete_atoms_schema["properties"]["document_id"]["minLength"] == 1
+    assert delete_atoms_schema["properties"]["atom_indices"]["minItems"] == 1
+    assert (
+        delete_atoms_schema["properties"]["atom_indices"]["items"]["minimum"]
+        == 1
+    )

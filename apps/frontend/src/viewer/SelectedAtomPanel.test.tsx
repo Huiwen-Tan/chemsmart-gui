@@ -114,6 +114,67 @@ describe('SelectedAtomPanel', () => {
     expect(screen.queryByText('Distance:')).not.toBeInTheDocument();
     expect(screen.queryByText('Angle:')).not.toBeInTheDocument();
     expect(screen.queryByText('Dihedral:')).not.toBeInTheDocument();
+    expect(screen.getByRole('form', { name: 'Add atom' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add Atom' })).toBeEnabled();
+  });
+
+  it('submits add atom edits through the document store', () => {
+    const applyMoleculeEditCommand = vi.fn().mockResolvedValue(undefined);
+    useDocumentStore.setState({ applyMoleculeEditCommand });
+
+    render(<SelectedAtomPanel document={WATER} />);
+
+    fireEvent.change(screen.getByLabelText('New atom element'), {
+      target: { value: 'He' },
+    });
+    fireEvent.change(screen.getByLabelText('New atom X coordinate'), {
+      target: { value: '1' },
+    });
+    fireEvent.change(screen.getByLabelText('New atom Y coordinate'), {
+      target: { value: '1.1' },
+    });
+    fireEvent.change(screen.getByLabelText('New atom Z coordinate'), {
+      target: { value: '1.2' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add Atom' }));
+
+    expect(applyMoleculeEditCommand).toHaveBeenCalledWith({
+      command_type: 'add_atom',
+      document_id: 'water',
+      element: 'He',
+      position: { x: 1, y: 1.1, z: 1.2 },
+      coordinate_unit: 'angstrom',
+    });
+  });
+
+  it.each([
+    {
+      field: 'New atom element',
+      value: ' ',
+      error: 'Atom element is required.',
+    },
+    {
+      field: 'New atom X coordinate',
+      value: 'not-a-number',
+      error: 'Coordinates must be finite numbers.',
+    },
+  ])('shows a local error for invalid add atom field $field', ({
+    error,
+    field,
+    value,
+  }) => {
+    const applyMoleculeEditCommand = vi.fn().mockResolvedValue(undefined);
+    useDocumentStore.setState({ applyMoleculeEditCommand });
+
+    render(<SelectedAtomPanel document={WATER} />);
+
+    fireEvent.change(screen.getByLabelText(field), {
+      target: { value },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add Atom' }));
+
+    expect(screen.getByText(error)).toBeInTheDocument();
+    expect(applyMoleculeEditCommand).not.toHaveBeenCalled();
   });
 
   it('clears selected atoms from the panel control', () => {
@@ -210,6 +271,41 @@ describe('SelectedAtomPanel', () => {
     expect(
       screen.queryByRole('region', { name: 'Edit selected atom bond' }),
     ).not.toBeInTheDocument();
+  });
+
+  it('deletes selected atoms through the document store', () => {
+    const applyMoleculeEditCommand = vi.fn().mockResolvedValue(undefined);
+    useDocumentStore.setState({ applyMoleculeEditCommand });
+    useViewerStore.setState({ selectedAtomIndices: [2, 99] });
+
+    render(<SelectedAtomPanel document={WATER} />);
+
+    expect(
+      screen.getByRole('region', { name: 'Delete selected atoms' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Selected atom indices: 2')).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Delete Selected Atoms' }),
+    );
+
+    expect(applyMoleculeEditCommand).toHaveBeenCalledWith({
+      command_type: 'delete_atoms',
+      document_id: 'water',
+      atom_indices: [2],
+    });
+  });
+
+  it('disables selected atom deletion when every atom is selected', () => {
+    useViewerStore.setState({ selectedAtomIndices: [1, 2, 3] });
+
+    render(<SelectedAtomPanel document={WATER} />);
+
+    expect(
+      screen.getByRole('button', { name: 'Delete Selected Atoms' }),
+    ).toBeDisabled();
+    expect(
+      screen.getByText('Cannot delete every atom from a molecule document.'),
+    ).toBeInTheDocument();
   });
 
   it('shows coordinate inputs for one valid selected atom', () => {

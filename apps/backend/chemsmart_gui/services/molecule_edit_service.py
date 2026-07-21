@@ -1,12 +1,14 @@
 from chemsmart_gui.adapters.chemsmart_adapter import ChemsmartAdapter
 from chemsmart_gui.domain.document import MoleculeDocument
 from chemsmart_gui.domain.edit import (
+    AddAtomCommand,
     AddBondCommand,
+    DeleteAtomsCommand,
     MoleculeEditCommand,
     RemoveBondCommand,
     SetAtomPositionCommand,
 )
-from chemsmart_gui.domain.molecule import Bond
+from chemsmart_gui.domain.molecule import Atom, Bond
 
 
 class MoleculeEditService:
@@ -26,6 +28,10 @@ class MoleculeEditService:
             return self._apply_add_bond(document, command)
         if isinstance(command, RemoveBondCommand):
             return self._apply_remove_bond(document, command)
+        if isinstance(command, AddAtomCommand):
+            return self._apply_add_atom(document, command)
+        if isinstance(command, DeleteAtomsCommand):
+            return self._apply_delete_atoms(document, command)
 
         raise ValueError(
             f"Unsupported molecule edit command: {command.command_type}"
@@ -48,6 +54,29 @@ class MoleculeEditService:
         return tuple(sorted((atom1_index, atom2_index)))
 
     @staticmethod
+    def _validate_atom_indices(
+        document: MoleculeDocument,
+        atom_indices: list[int] | tuple[int, ...],
+    ) -> None:
+        if not atom_indices:
+            raise ValueError("Atom edit requires at least one atom index.")
+
+        existing_atom_indices = {atom.index for atom in document.atoms}
+        missing_atoms = [
+            atom_index
+            for atom_index in atom_indices
+            if atom_index not in existing_atom_indices
+        ]
+        if missing_atoms:
+            missing_atom_list = ", ".join(
+                str(index) for index in sorted(set(missing_atoms))
+            )
+            raise ValueError(
+                f"Atom index {missing_atom_list} was not found in document "
+                f"'{document.id}'."
+            )
+
+    @staticmethod
     def _validate_bond_atoms(
         document: MoleculeDocument,
         *,
@@ -57,29 +86,34 @@ class MoleculeEditService:
         if atom1_index == atom2_index:
             raise ValueError("Bond edit requires two different atoms.")
 
-        atom_indices = {atom.index for atom in document.atoms}
-        missing_atoms = [
-            atom_index
-            for atom_index in (atom1_index, atom2_index)
-            if atom_index not in atom_indices
-        ]
-        if missing_atoms:
-            missing_atom_list = ", ".join(str(index) for index in missing_atoms)
-            raise ValueError(
-                f"Atom index {missing_atom_list} was not found in document "
-                f"'{document.id}'."
-            )
+        MoleculeEditService._validate_atom_indices(
+            document,
+            (atom1_index, atom2_index),
+        )
 
-    def _document_with_bonds(
+    def _refresh_structure_document(
         self,
         document: MoleculeDocument,
+        *,
+        atoms: list[Atom],
         bonds: list[Bond],
     ) -> MoleculeDocument:
-        return document.model_copy(
+        edited_document = document.model_copy(
             update={
+                "atoms": atoms,
                 "bonds": bonds,
                 "calculation": None,
             },
+            deep=True,
+        )
+        molecule = self._adapter.to_molecule(edited_document)
+        refreshed_document = self._adapter.to_document(
+            molecule,
+            source=document.source,
+            calculation=None,
+        )
+        return refreshed_document.model_copy(
+            update={"bonds": bonds},
             deep=True,
         )
 
@@ -112,22 +146,10 @@ class MoleculeEditService:
             else atom
             for atom in document.atoms
         ]
-        edited_document = document.model_copy(
-            update={
-                "atoms": updated_atoms,
-                "calculation": None,
-            },
-            deep=True,
-        )
-        molecule = self._adapter.to_molecule(edited_document)
-        refreshed_document = self._adapter.to_document(
-            molecule,
-            source=document.source,
-            calculation=None,
-        )
-        return refreshed_document.model_copy(
-            update={"bonds": document.bonds},
-            deep=True,
+        return self._refresh_structure_document(
+            document,
+            atoms=updated_atoms,
+            bonds=document.bonds,
         )
 
     def _apply_add_bond(
@@ -152,9 +174,10 @@ class MoleculeEditService:
                 f"{target_key[0]} and {target_key[1]} already exists."
             )
 
-        return self._document_with_bonds(
+        return self._refresh_structure_document(
             document,
-            [
+            atoms=document.atoms,
+            bonds=[
                 *document.bonds,
                 Bond(atom1=target_key[0], atom2=target_key[1]),
             ],
@@ -184,4 +207,73 @@ class MoleculeEditService:
                 f"{target_key[0]} and {target_key[1]} does not exist."
             )
 
-        return self._document_with_bonds(document, updated_bonds)
+        return self._refresh_structure_document(
+            document,
+            atoms=document.atoms,
+            bonds=updated_bonds,
+        )
+
+    def _apply_add_atom(
+        self,
+        document: MoleculeDocument,
+        command: AddAtomCommand,
+    ) -> MoleculeDocument:
+        self._validate_document_id(document, command)
+
+        element = command.element.strip()
+        if not element:
+            raise ValueError("Atom element is required.")
+
+        next_index = max((atom.index for atom in document.atoms), default=0) + 1
+        updated_atoms = [
+            *document.atoms,
+            Atom(
+                index=next_index,
+                element=element,
+                x=command.position.x,
+                y=command.position.y,
+                z=command.position.z,
+            ),
+        ]
+        return self._refresh_structure_document(
+            document,
+            atoms=updated_atoms,
+            bonds=document.bonds,
+        )
+
+    def _apply_delete_atoms(
+        self,
+        document: MoleculeDocument,
+        command: DeleteAtomsCommand,
+    ) -> MoleculeDocument:
+        self._validate_document_id(document, command)
+        atom_indices_to_delete = set(command.atom_indices)
+        self._validate_atom_indices(document, command.atom_indices)
+        if len(atom_indices_to_delete) >= len(document.atoms):
+            raise ValueError("Cannot delete every atom from a molecule document.")
+
+        old_to_new_index: dict[int, int] = {}
+        updated_atoms: list[Atom] = []
+        for atom in document.atoms:
+            if atom.index in atom_indices_to_delete:
+                continue
+            new_index = len(updated_atoms) + 1
+            old_to_new_index[atom.index] = new_index
+            updated_atoms.append(atom.model_copy(update={"index": new_index}))
+
+        updated_bonds = [
+            Bond(
+                atom1=old_to_new_index[bond.atom1],
+                atom2=old_to_new_index[bond.atom2],
+            )
+            for bond in document.bonds
+            if (
+                bond.atom1 in old_to_new_index
+                and bond.atom2 in old_to_new_index
+            )
+        ]
+        return self._refresh_structure_document(
+            document,
+            atoms=updated_atoms,
+            bonds=updated_bonds,
+        )

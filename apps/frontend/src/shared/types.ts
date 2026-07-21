@@ -82,7 +82,9 @@ export interface CalculationResultDocument {
 export type MoleculeEditCommandType =
   | 'set_atom_position'
   | 'add_bond'
-  | 'remove_bond';
+  | 'remove_bond'
+  | 'add_atom'
+  | 'delete_atoms';
 
 export interface SetAtomPositionCommand {
   command_type: 'set_atom_position';
@@ -106,10 +108,26 @@ export interface RemoveBondCommand {
   atom2_index: number;
 }
 
+export interface AddAtomCommand {
+  command_type: 'add_atom';
+  document_id: string;
+  element: string;
+  position: CartesianPosition;
+  coordinate_unit: 'angstrom';
+}
+
+export interface DeleteAtomsCommand {
+  command_type: 'delete_atoms';
+  document_id: string;
+  atom_indices: number[];
+}
+
 export type MoleculeEditCommand =
   | SetAtomPositionCommand
   | AddBondCommand
-  | RemoveBondCommand;
+  | RemoveBondCommand
+  | AddAtomCommand
+  | DeleteAtomsCommand;
 
 export interface ApplyMoleculeEditRequest {
   document: MoleculeDocument;

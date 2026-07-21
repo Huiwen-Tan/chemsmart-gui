@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type {
+  AddAtomCommand,
   AddBondCommand,
+  DeleteAtomsCommand,
   MoleculeDocument,
   SetAtomPositionCommand,
 } from '../shared/types';
@@ -68,6 +70,25 @@ const BONDED_WATER: MoleculeDocument = {
   ],
 };
 
+const ADDED_ATOM_WATER: MoleculeDocument = {
+  ...WATER,
+  id: 'added-atom-water',
+  atoms: [
+    ...WATER.atoms,
+    { index: 4, element: 'He', x: 1, y: 1.1, z: 1.2 },
+  ],
+};
+
+const DELETED_ATOM_WATER: MoleculeDocument = {
+  ...WATER,
+  id: 'deleted-atom-water',
+  atoms: [
+    WATER.atoms[0],
+    { ...WATER.atoms[2], index: 2 },
+  ],
+  bonds: [{ atom1: 1, atom2: 2 }],
+};
+
 const SET_ATOM_POSITION: SetAtomPositionCommand = {
   command_type: 'set_atom_position',
   document_id: WATER.id,
@@ -81,6 +102,20 @@ const ADD_BOND: AddBondCommand = {
   document_id: WATER.id,
   atom1_index: 2,
   atom2_index: 3,
+};
+
+const ADD_ATOM: AddAtomCommand = {
+  command_type: 'add_atom',
+  document_id: WATER.id,
+  element: 'He',
+  position: { x: 1, y: 1.1, z: 1.2 },
+  coordinate_unit: 'angstrom',
+};
+
+const DELETE_ATOMS: DeleteAtomsCommand = {
+  command_type: 'delete_atoms',
+  document_id: WATER.id,
+  atom_indices: [2],
 };
 
 const SET_ATOM_POSITION_AGAIN: SetAtomPositionCommand = {
@@ -261,6 +296,78 @@ describe('useDocumentStore', () => {
         body: JSON.stringify({
           document: WATER,
           command: ADD_BOND,
+        }),
+      },
+    );
+  });
+
+  it('applies molecule add atom commands through the API client', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        document: ADDED_ATOM_WATER,
+        can_undo: true,
+        can_redo: false,
+      }),
+    );
+    useDocumentStore.setState({ currentDocument: WATER });
+
+    await useDocumentStore.getState().applyMoleculeEditCommand(ADD_ATOM);
+
+    expect(useDocumentStore.getState().currentDocument).toEqual(
+      ADDED_ATOM_WATER,
+    );
+    expect(useDocumentStore.getState().hasUnsavedMoleculeEdits).toBe(true);
+    expect(useDocumentStore.getState().moleculeEditUndoStack).toEqual([
+      {
+        beforeDocument: WATER,
+        afterDocument: ADDED_ATOM_WATER,
+      },
+    ]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/api/documents/edit',
+      {
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        body: JSON.stringify({
+          document: WATER,
+          command: ADD_ATOM,
+        }),
+      },
+    );
+  });
+
+  it('applies molecule delete atom commands and clears selection', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        document: DELETED_ATOM_WATER,
+        can_undo: true,
+        can_redo: false,
+      }),
+    );
+    useDocumentStore.setState({ currentDocument: WATER });
+    useViewerStore.setState({ selectedAtomIndices: [2] });
+
+    await useDocumentStore.getState().applyMoleculeEditCommand(DELETE_ATOMS);
+
+    expect(useDocumentStore.getState().currentDocument).toEqual(
+      DELETED_ATOM_WATER,
+    );
+    expect(useDocumentStore.getState().hasUnsavedMoleculeEdits).toBe(true);
+    expect(useDocumentStore.getState().moleculeEditUndoStack).toEqual([
+      {
+        beforeDocument: WATER,
+        afterDocument: DELETED_ATOM_WATER,
+      },
+    ]);
+    expect(useViewerStore.getState().selectedAtomIndices).toEqual([]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/api/documents/edit',
+      {
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        body: JSON.stringify({
+          document: WATER,
+          command: DELETE_ATOMS,
         }),
       },
     );

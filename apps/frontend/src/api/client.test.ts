@@ -85,6 +85,30 @@ const BOND_EDIT_RESPONSE: MoleculeEditResponse = {
   can_redo: false,
 };
 
+const ADD_ATOM_EDIT_REQUEST: ApplyMoleculeEditRequest = {
+  document: WATER_DOCUMENT,
+  command: {
+    command_type: 'add_atom',
+    document_id: WATER_DOCUMENT.id,
+    element: 'He',
+    position: { x: 1, y: 1.1, z: 1.2 },
+    coordinate_unit: 'angstrom',
+  },
+};
+
+const ADD_ATOM_EDIT_RESPONSE: MoleculeEditResponse = {
+  document: {
+    ...WATER_DOCUMENT,
+    id: 'document-water-with-helium',
+    atoms: [
+      ...WATER_DOCUMENT.atoms,
+      { index: 3, element: 'He', x: 1, y: 1.1, z: 1.2 },
+    ],
+  },
+  can_undo: true,
+  can_redo: false,
+};
+
 const EXPORT_PREVIEW_REQUEST: MoleculeExportPreviewRequest = {
   document: WATER_DOCUMENT,
   filetype: 'xyz',
@@ -210,6 +234,23 @@ describe('api client', () => {
         headers: { 'Content-Type': 'application/json' },
         method: 'POST',
         body: JSON.stringify(BOND_EDIT_REQUEST),
+      },
+    );
+  });
+
+  it('posts molecule atom edit commands to the document edit API', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(ADD_ATOM_EDIT_RESPONSE));
+
+    await expect(applyMoleculeEdit(ADD_ATOM_EDIT_REQUEST)).resolves.toEqual(
+      ADD_ATOM_EDIT_RESPONSE,
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/api/documents/edit',
+      {
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        body: JSON.stringify(ADD_ATOM_EDIT_REQUEST),
       },
     );
   });

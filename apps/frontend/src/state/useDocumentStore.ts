@@ -115,6 +115,9 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
         moleculeEditUndoStack: undoStack,
         moleculeEditRedoStack: [],
       });
+      if (command.command_type === 'delete_atoms') {
+        useViewerStore.getState().clearAtomSelection();
+      }
     } catch (error: unknown) {
       set({
         isApplyingMoleculeEdit: false,

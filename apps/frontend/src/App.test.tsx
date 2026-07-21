@@ -63,6 +63,25 @@ const BONDED_WATER_DOCUMENT = {
   ],
 } satisfies MoleculeDocument;
 
+const ADDED_ATOM_WATER_DOCUMENT = {
+  ...WATER_DOCUMENT,
+  id: 'added-atom-water-document',
+  atoms: [
+    ...WATER_DOCUMENT.atoms,
+    { index: 4, element: 'He', x: 1, y: 1.1, z: 1.2 },
+  ],
+} satisfies MoleculeDocument;
+
+const DELETED_ATOM_WATER_DOCUMENT = {
+  ...WATER_DOCUMENT,
+  id: 'deleted-atom-water-document',
+  atoms: [
+    WATER_DOCUMENT.atoms[0],
+    { ...WATER_DOCUMENT.atoms[2], index: 2 },
+  ],
+  bonds: [{ atom1: 1, atom2: 2 }],
+} satisfies MoleculeDocument;
+
 const SAVED_EDITED_WATER_DOCUMENT = {
   ...EDITED_WATER_DOCUMENT,
   source: {
@@ -396,6 +415,120 @@ describe('App', () => {
             document_id: WATER_DOCUMENT.id,
             atom1_index: 2,
             atom2_index: 3,
+          },
+        }),
+      }),
+    );
+  });
+
+  it('adds an atom through edit controls', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
+      .mockResolvedValueOnce(jsonResponse(WATER_DOCUMENT))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          document: ADDED_ATOM_WATER_DOCUMENT,
+          can_undo: true,
+          can_redo: false,
+        }),
+      );
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(WATER_DOCUMENT),
+      );
+    });
+    fireEvent.change(screen.getByLabelText('New atom element'), {
+      target: { value: 'He' },
+    });
+    fireEvent.change(screen.getByLabelText('New atom X coordinate'), {
+      target: { value: '1' },
+    });
+    fireEvent.change(screen.getByLabelText('New atom Y coordinate'), {
+      target: { value: '1.1' },
+    });
+    fireEvent.change(screen.getByLabelText('New atom Z coordinate'), {
+      target: { value: '1.2' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add Atom' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(ADDED_ATOM_WATER_DOCUMENT),
+      );
+    });
+    expect(screen.getByText('Unsaved edits')).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      'http://127.0.0.1:8000/api/documents/edit',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          document: WATER_DOCUMENT,
+          command: {
+            command_type: 'add_atom',
+            document_id: WATER_DOCUMENT.id,
+            element: 'He',
+            position: { x: 1, y: 1.1, z: 1.2 },
+            coordinate_unit: 'angstrom',
+          },
+        }),
+      }),
+    );
+  });
+
+  it('deletes a selected atom through edit controls', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
+      .mockResolvedValueOnce(jsonResponse(WATER_DOCUMENT))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          document: DELETED_ATOM_WATER_DOCUMENT,
+          can_undo: true,
+          can_redo: false,
+        }),
+      );
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(WATER_DOCUMENT),
+      );
+    });
+    act(() => {
+      useViewerStore.setState({ selectedAtomIndices: [2] });
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Delete Selected Atoms' }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(DELETED_ATOM_WATER_DOCUMENT),
+      );
+    });
+    expect(screen.getByText('Unsaved edits')).toBeInTheDocument();
+    expect(useViewerStore.getState().selectedAtomIndices).toEqual([]);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      'http://127.0.0.1:8000/api/documents/edit',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          document: WATER_DOCUMENT,
+          command: {
+            command_type: 'delete_atoms',
+            document_id: WATER_DOCUMENT.id,
+            atom_indices: [2],
           },
         }),
       }),

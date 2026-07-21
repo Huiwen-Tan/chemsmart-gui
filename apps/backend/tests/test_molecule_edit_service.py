@@ -5,8 +5,10 @@ import pytest
 from chemsmart_gui.adapters.chemsmart_adapter import ChemsmartAdapter
 from chemsmart_gui.domain.document import CalculationMetadata, MoleculeDocument
 from chemsmart_gui.domain.edit import (
+    AddAtomCommand,
     AddBondCommand,
     CartesianPosition,
+    DeleteAtomsCommand,
     RemoveBondCommand,
     SetAtomPositionCommand,
 )
@@ -64,6 +66,34 @@ def remove_bond_command(
         document_id=document_id or document.id,
         atom1_index=atom1_index,
         atom2_index=atom2_index,
+    )
+
+
+def add_atom_command(
+    document: MoleculeDocument,
+    *,
+    element: str = "He",
+    document_id: str | None = None,
+) -> AddAtomCommand:
+    return AddAtomCommand(
+        command_type="add_atom",
+        document_id=document_id or document.id,
+        element=element,
+        position=CartesianPosition(x=1.0, y=1.1, z=1.2),
+        coordinate_unit="angstrom",
+    )
+
+
+def delete_atoms_command(
+    document: MoleculeDocument,
+    *,
+    atom_indices: list[int] | None = None,
+    document_id: str | None = None,
+) -> DeleteAtomsCommand:
+    return DeleteAtomsCommand(
+        command_type="delete_atoms",
+        document_id=document_id or document.id,
+        atom_indices=atom_indices or [2],
     )
 
 
@@ -190,4 +220,110 @@ def test_apply_remove_bond_rejects_missing_bond() -> None:
     command = remove_bond_command(document, atom1_index=2, atom2_index=3)
 
     with pytest.raises(ValueError, match="does not exist"):
+        MoleculeEditService().apply_command(document, command)
+
+
+def test_apply_add_atom_appends_atom_and_refreshes_structure() -> None:
+    document = open_water_document().model_copy(
+        update={
+            "calculation": CalculationMetadata(
+                program="gaussian",
+                normal_termination=True,
+            )
+        },
+        deep=True,
+    )
+    command = add_atom_command(document)
+
+    updated = MoleculeEditService().apply_command(document, command)
+
+    assert updated.id != document.id
+    assert updated.source == document.source
+    assert updated.calculation is None
+    assert [(atom.index, atom.element) for atom in updated.atoms] == [
+        (1, "O"),
+        (2, "H"),
+        (3, "H"),
+        (4, "He"),
+    ]
+    assert [(atom.x, atom.y, atom.z) for atom in updated.atoms][-1] == (
+        1.0,
+        1.1,
+        1.2,
+    )
+    assert updated.bonds == document.bonds
+
+
+def test_apply_add_atom_strips_element() -> None:
+    document = open_water_document()
+    command = add_atom_command(document, element=" He ")
+
+    updated = MoleculeEditService().apply_command(document, command)
+
+    assert updated.atoms[-1].element == "He"
+
+
+def test_apply_add_atom_rejects_blank_element() -> None:
+    document = open_water_document()
+    command = add_atom_command(document, element=" ")
+
+    with pytest.raises(ValueError, match="Atom element is required"):
+        MoleculeEditService().apply_command(document, command)
+
+
+def test_apply_add_atom_rejects_document_mismatch() -> None:
+    document = open_water_document()
+    command = add_atom_command(document, document_id="other-document")
+
+    with pytest.raises(ValueError, match="targets document"):
+        MoleculeEditService().apply_command(document, command)
+
+
+def test_apply_delete_atoms_removes_atoms_and_remaps_bonds() -> None:
+    document = open_water_document()
+    command = delete_atoms_command(document, atom_indices=[2])
+
+    updated = MoleculeEditService().apply_command(document, command)
+
+    assert updated.id != document.id
+    assert updated.source == document.source
+    assert updated.calculation is None
+    assert [(atom.index, atom.element) for atom in updated.atoms] == [
+        (1, "O"),
+        (2, "H"),
+    ]
+    assert updated.bonds == [Bond(atom1=1, atom2=2)]
+
+
+def test_apply_delete_atoms_deletes_multiple_atoms() -> None:
+    document = open_water_document()
+    command = delete_atoms_command(document, atom_indices=[2, 3])
+
+    updated = MoleculeEditService().apply_command(document, command)
+
+    assert [(atom.index, atom.element) for atom in updated.atoms] == [(1, "O")]
+    assert updated.bonds == []
+
+
+def test_apply_delete_atoms_rejects_missing_atom() -> None:
+    document = open_water_document()
+    command = delete_atoms_command(document, atom_indices=[99])
+
+    with pytest.raises(ValueError, match="Atom index 99"):
+        MoleculeEditService().apply_command(document, command)
+
+
+def test_apply_delete_atoms_rejects_deleting_every_atom() -> None:
+    document = open_water_document()
+    command = delete_atoms_command(document, atom_indices=[1, 2, 3])
+
+    with pytest.raises(ValueError, match="Cannot delete every atom"):
+        MoleculeEditService().apply_command(document, command)
+
+
+def test_apply_delete_atoms_rejects_document_mismatch() -> None:
+    document = open_water_document()
+    command = delete_atoms_command(document, document_id="other-document")
+
+    with pytest.raises(ValueError, match="targets document"):
         MoleculeEditService().apply_command(document, command)

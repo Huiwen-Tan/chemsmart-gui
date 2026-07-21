@@ -1,8 +1,10 @@
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
 from chemsmart_gui.domain.document import MoleculeDocument
+
+AtomIndex = Annotated[int, Field(ge=1)]
 
 
 class CartesianPosition(BaseModel):
@@ -33,7 +35,27 @@ class RemoveBondCommand(BaseModel):
     atom2_index: int = Field(ge=1)
 
 
-MoleculeEditCommand = SetAtomPositionCommand | AddBondCommand | RemoveBondCommand
+class AddAtomCommand(BaseModel):
+    command_type: Literal["add_atom"]
+    document_id: str = Field(min_length=1)
+    element: str = Field(min_length=1)
+    position: CartesianPosition
+    coordinate_unit: Literal["angstrom"]
+
+
+class DeleteAtomsCommand(BaseModel):
+    command_type: Literal["delete_atoms"]
+    document_id: str = Field(min_length=1)
+    atom_indices: list[AtomIndex] = Field(min_length=1)
+
+
+MoleculeEditCommand = (
+    SetAtomPositionCommand
+    | AddBondCommand
+    | RemoveBondCommand
+    | AddAtomCommand
+    | DeleteAtomsCommand
+)
 
 
 class ApplyMoleculeEditRequest(BaseModel):
