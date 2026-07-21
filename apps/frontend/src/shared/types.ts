@@ -102,7 +102,8 @@ export interface MoleculeEditResponse {
   can_redo: boolean;
 }
 
-export type MoleculeExportPreviewFiletype = 'xyz' | 'gjf' | 'inp';
+export type MoleculeExportFiletype = 'xyz' | 'gjf' | 'inp';
+export type MoleculeExportPreviewFiletype = MoleculeExportFiletype;
 
 export interface MoleculeExportPreviewRequest {
   document: MoleculeDocument;
@@ -113,6 +114,19 @@ export interface MoleculeExportPreviewResponse {
   filename: string;
   filetype: MoleculeExportPreviewFiletype;
   content: string;
+}
+
+export interface MoleculeExportWriteRequest {
+  document: MoleculeDocument;
+  filetype: MoleculeExportFiletype;
+  target_path: string;
+}
+
+export interface MoleculeExportWriteResponse {
+  filename: string;
+  filetype: MoleculeExportFiletype;
+  path: string;
+  bytes_written: number;
 }
 
 export interface OpenDocumentRequest {

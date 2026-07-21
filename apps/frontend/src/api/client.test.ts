@@ -5,12 +5,15 @@ import type {
   MoleculeDocument,
   MoleculeExportPreviewRequest,
   MoleculeExportPreviewResponse,
+  MoleculeExportWriteRequest,
+  MoleculeExportWriteResponse,
   MoleculeEditResponse,
 } from '../shared/types';
 import {
   applyMoleculeEdit,
   openDocument,
   previewMoleculeExport,
+  writeMoleculeExport,
 } from './client';
 
 const fetchMock = vi.fn<typeof fetch>();
@@ -68,6 +71,19 @@ const EXPORT_PREVIEW_RESPONSE: MoleculeExportPreviewResponse = {
   filename: 'water.xyz',
   filetype: 'xyz',
   content: '2\nwater.xyz    Empirical formula: H2O\nO 0 0 0\nH 1 1 1\n',
+};
+
+const EXPORT_WRITE_REQUEST: MoleculeExportWriteRequest = {
+  document: WATER_DOCUMENT,
+  filetype: 'xyz',
+  target_path: '/tmp/water.xyz',
+};
+
+const EXPORT_WRITE_RESPONSE: MoleculeExportWriteResponse = {
+  filename: 'water.xyz',
+  filetype: 'xyz',
+  path: '/tmp/water.xyz',
+  bytes_written: 64,
 };
 
 function jsonResponse(
@@ -182,5 +198,37 @@ describe('api client', () => {
     await expect(
       previewMoleculeExport(EXPORT_PREVIEW_REQUEST),
     ).rejects.toThrow("Export preview filetype 'pdb' is not supported.");
+  });
+
+  it('posts molecule export writes to the document export API', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(EXPORT_WRITE_RESPONSE));
+
+    await expect(
+      writeMoleculeExport(EXPORT_WRITE_REQUEST),
+    ).resolves.toEqual(EXPORT_WRITE_RESPONSE);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/api/documents/export',
+      {
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        body: JSON.stringify(EXPORT_WRITE_REQUEST),
+      },
+    );
+  });
+
+  it('throws backend export write detail from JSON errors', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(
+        {
+          detail: 'Export target already exists: /tmp/water.xyz',
+        },
+        { status: 409, statusText: 'Conflict' },
+      ),
+    );
+
+    await expect(
+      writeMoleculeExport(EXPORT_WRITE_REQUEST),
+    ).rejects.toThrow('Export target already exists: /tmp/water.xyz');
   });
 });

@@ -3,6 +3,8 @@ import type {
   MoleculeDocument,
   MoleculeExportPreviewRequest,
   MoleculeExportPreviewResponse,
+  MoleculeExportWriteRequest,
+  MoleculeExportWriteResponse,
   MoleculeEditResponse,
   OpenDocumentRequest,
 } from '../shared/types';
@@ -67,6 +69,15 @@ export function previewMoleculeExport(
   payload: MoleculeExportPreviewRequest,
 ): Promise<MoleculeExportPreviewResponse> {
   return request('/api/documents/export-preview', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function writeMoleculeExport(
+  payload: MoleculeExportWriteRequest,
+): Promise<MoleculeExportWriteResponse> {
+  return request('/api/documents/export', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
