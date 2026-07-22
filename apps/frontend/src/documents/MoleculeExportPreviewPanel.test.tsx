@@ -536,15 +536,17 @@ describe('MoleculeExportPreviewPanel', () => {
   it('confirms and writes the current molecule back to its source file', async () => {
     const onSourceWrite = vi.fn();
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({
-        document: SOURCE_WRITTEN_WATER_DOCUMENT,
-        filename: 'water.xyz',
-        filetype: 'xyz',
-        path: 'sample-data/water.xyz',
-        bytes_written: 128,
-      }),
-    );
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(CURRENT_SOURCE_STATUS_RESPONSE))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          document: SOURCE_WRITTEN_WATER_DOCUMENT,
+          filename: 'water.xyz',
+          filetype: 'xyz',
+          path: 'sample-data/water.xyz',
+          bytes_written: 128,
+        }),
+      );
 
     render(
       <MoleculeExportPreviewPanel
@@ -564,7 +566,19 @@ describe('MoleculeExportPreviewPanel', () => {
       expect.stringContaining('sample-data/water.xyz'),
     );
     expect(onSourceWrite).toHaveBeenCalledWith(SOURCE_WRITTEN_WATER_DOCUMENT);
-    expect(fetchMock).toHaveBeenCalledWith(
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      'http://127.0.0.1:8000/api/documents/source-status',
+      {
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        body: JSON.stringify({
+          document: WATER_DOCUMENT,
+        }),
+      },
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
       'http://127.0.0.1:8000/api/documents/source-write',
       {
         headers: { 'Content-Type': 'application/json' },
@@ -662,9 +676,38 @@ describe('MoleculeExportPreviewPanel', () => {
     ).toBeDisabled();
   });
 
-  it('does not write the source file when confirmation is declined', () => {
+  it('blocks changed source write-back before confirmation', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        ...CURRENT_SOURCE_STATUS_RESPONSE,
+        status: 'changed',
+        message: 'Source file changed since this document was opened.',
+      }),
+    );
+
+    render(<MoleculeExportPreviewPanel document={WATER_DOCUMENT} />);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Update Source File' }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'Source status: Changed. Source file changed since this document was opened.',
+      );
+    });
+    expect(confirm).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByRole('button', { name: 'Update Source File' }),
+    ).toBeDisabled();
+  });
+
+  it('does not write the source file when confirmation is declined', async () => {
     const onSourceWrite = vi.fn();
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    fetchMock.mockResolvedValueOnce(jsonResponse(CURRENT_SOURCE_STATUS_RESPONSE));
 
     render(
       <MoleculeExportPreviewPanel
@@ -677,10 +720,22 @@ describe('MoleculeExportPreviewPanel', () => {
       screen.getByRole('button', { name: 'Update Source File' }),
     );
 
-    expect(confirm).toHaveBeenCalledWith(
-      expect.stringContaining('sample-data/water.xyz'),
+    await waitFor(() => {
+      expect(confirm).toHaveBeenCalledWith(
+        expect.stringContaining('sample-data/water.xyz'),
+      );
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/api/documents/source-status',
+      {
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        body: JSON.stringify({
+          document: WATER_DOCUMENT,
+        }),
+      },
     );
-    expect(fetchMock).not.toHaveBeenCalled();
     expect(onSourceWrite).not.toHaveBeenCalled();
   });
 
@@ -813,11 +868,13 @@ describe('MoleculeExportPreviewPanel', () => {
   it('shows loading state while writing back to the source file', async () => {
     let resolveWrite: (response: Response) => void = () => {};
     vi.spyOn(window, 'confirm').mockReturnValue(true);
-    fetchMock.mockReturnValueOnce(
-      new Promise<Response>((resolve) => {
-        resolveWrite = resolve;
-      }),
-    );
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(CURRENT_SOURCE_STATUS_RESPONSE))
+      .mockReturnValueOnce(
+        new Promise<Response>((resolve) => {
+          resolveWrite = resolve;
+        }),
+      );
 
     render(<MoleculeExportPreviewPanel document={WATER_DOCUMENT} />);
 
@@ -920,11 +977,13 @@ describe('MoleculeExportPreviewPanel', () => {
 
   it('shows backend source write-back errors', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
-    fetchMock.mockResolvedValueOnce(
-      jsonErrorResponse({
-        detail: 'Source file changed since this document was opened.',
-      }),
-    );
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(CURRENT_SOURCE_STATUS_RESPONSE))
+      .mockResolvedValueOnce(
+        jsonErrorResponse({
+          detail: 'Source file changed since this document was opened.',
+        }),
+      );
 
     render(<MoleculeExportPreviewPanel document={WATER_DOCUMENT} />);
 

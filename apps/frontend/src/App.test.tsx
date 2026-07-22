@@ -149,6 +149,13 @@ const SAVED_EDITED_WATER_DOCUMENT = {
   },
 } satisfies MoleculeDocument;
 
+const CURRENT_EDITED_SOURCE_STATUS_RESPONSE = {
+  status: 'current',
+  message: 'Source file matches the opened revision.',
+  opened_source: EDITED_WATER_DOCUMENT.source,
+  current_source: SAVED_EDITED_WATER_DOCUMENT.source,
+};
+
 const HELIUM_DOCUMENT = {
   ...WATER_DOCUMENT,
   id: 'helium-document',
@@ -1015,6 +1022,7 @@ describe('App', () => {
   it('writes source changes back and clears unsaved edit state', async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
+      .mockResolvedValueOnce(jsonResponse(CURRENT_EDITED_SOURCE_STATUS_RESPONSE))
       .mockResolvedValueOnce(
         jsonResponse({
           document: SAVED_EDITED_WATER_DOCUMENT,
@@ -1048,6 +1056,16 @@ describe('App', () => {
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
+      'http://127.0.0.1:8000/api/documents/source-status',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          document: EDITED_WATER_DOCUMENT,
+        }),
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
       'http://127.0.0.1:8000/api/documents/source-write',
       expect.objectContaining({
         method: 'POST',

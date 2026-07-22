@@ -286,6 +286,38 @@ export function MoleculeExportPreviewPanel({
     }
   };
 
+  const loadSourceStatus =
+    async (): Promise<MoleculeSourceStatusResponse | null> => {
+      if (!document) {
+        setSourceStatusError('No molecule document is loaded.');
+        return null;
+      }
+      if (!document.source) {
+        setSourceStatusError(
+          'Source status requires an existing source file.',
+        );
+        return null;
+      }
+
+      const activeRequestVersion = sourceStatusRequestVersion.current + 1;
+      sourceStatusRequestVersion.current = activeRequestVersion;
+      setSourceStatusError(null);
+      setSourceStatus(null);
+
+      try {
+        const response = await checkMoleculeSourceStatus({ document });
+        if (sourceStatusRequestVersion.current === activeRequestVersion) {
+          setSourceStatus(response);
+          return response;
+        }
+      } catch (err: unknown) {
+        if (sourceStatusRequestVersion.current === activeRequestVersion) {
+          setSourceStatusError(messageFromUnknownError(err));
+        }
+      }
+      return null;
+    };
+
   const checkSourceStatus = async (): Promise<void> => {
     if (!document) {
       setSourceStatusError('No molecule document is loaded.');
@@ -298,25 +330,11 @@ export function MoleculeExportPreviewPanel({
       return;
     }
 
-    const activeRequestVersion = sourceStatusRequestVersion.current + 1;
-    sourceStatusRequestVersion.current = activeRequestVersion;
-    setSourceStatusError(null);
     setIsCheckingSource(true);
-    setSourceStatus(null);
-
     try {
-      const response = await checkMoleculeSourceStatus({ document });
-      if (sourceStatusRequestVersion.current === activeRequestVersion) {
-        setSourceStatus(response);
-      }
-    } catch (err: unknown) {
-      if (sourceStatusRequestVersion.current === activeRequestVersion) {
-        setSourceStatusError(messageFromUnknownError(err));
-      }
+      await loadSourceStatus();
     } finally {
-      if (sourceStatusRequestVersion.current === activeRequestVersion) {
-        setIsCheckingSource(false);
-      }
+      setIsCheckingSource(false);
     }
   };
 
@@ -343,19 +361,6 @@ export function MoleculeExportPreviewPanel({
       return;
     }
 
-    const confirmed = window.confirm(
-      [
-        'Write current molecule edits back to the source file?',
-        '',
-        sourcePath,
-        '',
-        'This overwrites the source file after backend freshness checks.',
-      ].join('\n'),
-    );
-    if (!confirmed) {
-      return;
-    }
-
     const activeRequestVersion = sourceWriteRequestVersion.current + 1;
     sourceWriteRequestVersion.current = activeRequestVersion;
     setSourceWriteError(null);
@@ -363,6 +368,30 @@ export function MoleculeExportPreviewPanel({
     setSourceWriteResult(null);
 
     try {
+      const preflightStatus = await loadSourceStatus();
+      if (sourceWriteRequestVersion.current !== activeRequestVersion) {
+        return;
+      }
+      if (!preflightStatus) {
+        return;
+      }
+      if (preflightStatus.status !== 'current') {
+        return;
+      }
+
+      const confirmed = window.confirm(
+        [
+          'Write current molecule edits back to the source file?',
+          '',
+          sourcePath,
+          '',
+          'This overwrites the source file after backend freshness checks.',
+        ].join('\n'),
+      );
+      if (!confirmed) {
+        return;
+      }
+
       const response = await writeMoleculeSource({
         document,
         confirmed: true,
