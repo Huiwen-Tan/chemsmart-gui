@@ -330,6 +330,33 @@ def test_preview_molecule_export_returns_gjf_from_gaussian_input() -> None:
     ]
 
 
+@pytest.mark.parametrize(
+    "source_path",
+    [
+        WATER_COM_PATH,
+        WATER_GJF_PATH,
+    ],
+)
+def test_preview_molecule_export_returns_com_from_gaussian_input(
+    source_path: Path,
+) -> None:
+    document = ChemsmartAdapter().open_molecule_from_path(str(source_path))
+
+    filename, content = ChemsmartAdapter().preview_molecule_export(
+        document,
+        "com",
+    )
+
+    lines = content.splitlines()
+    assert filename == "water.com"
+    assert lines[0] == "%chk=water.chk"
+    assert lines[1] == "%nprocshared=1"
+    assert lines[2] == "%mem=1GB"
+    assert lines[3] == "# hf/sto-3g opt"
+    assert lines[5] == "water"
+    assert lines[7] == "0 1"
+
+
 def test_preview_input_export_writes_frozen_atoms() -> None:
     gaussian_document = ChemsmartAdapter().open_molecule_from_path(
         str(WATER_GJF_PATH),
@@ -409,6 +436,9 @@ def test_preview_input_export_rejects_xyz_source() -> None:
     document = ChemsmartAdapter().open_molecule_from_path(str(WATER_PATH))
 
     with pytest.raises(ValueError, match="requires a Gaussian"):
+        ChemsmartAdapter().preview_molecule_export(document, "com")
+
+    with pytest.raises(ValueError, match="requires a Gaussian"):
         ChemsmartAdapter().preview_molecule_export(document, "gjf")
 
     with pytest.raises(ValueError, match="requires an ORCA"):
@@ -429,10 +459,14 @@ def test_preview_input_export_rejects_mismatched_input_source() -> None:
     with pytest.raises(ValueError, match="requires a Gaussian"):
         ChemsmartAdapter().preview_molecule_export(orca_document, "gjf")
 
+    with pytest.raises(ValueError, match="requires a Gaussian"):
+        ChemsmartAdapter().preview_molecule_export(orca_document, "com")
+
 
 @pytest.mark.parametrize(
     ("source_fixture", "filetype"),
     [
+        (WATER_GJF_PATH, "com"),
         (WATER_GJF_PATH, "gjf"),
         (WATER_INP_PATH, "inp"),
     ],

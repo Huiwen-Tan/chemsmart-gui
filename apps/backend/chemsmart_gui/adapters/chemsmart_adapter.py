@@ -264,8 +264,8 @@ class ChemsmartAdapter:
         """Generate molecule export text using CHEMSMART writer behavior."""
         if filetype == "xyz":
             return self._preview_xyz_export(document, filetype)
-        if filetype == "gjf":
-            return self._preview_gaussian_input_export(document)
+        if filetype in {"com", "gjf"}:
+            return self._preview_gaussian_input_export(document, filetype)
         if filetype == "inp":
             return self._preview_orca_input_export(document)
 
@@ -306,10 +306,13 @@ class ChemsmartAdapter:
             )
 
         source_filetype = source_path.suffix.lower().removeprefix(".")
-        if filetype == "gjf" and source_filetype not in {"com", "gjf"}:
+        if (
+            filetype in {"com", "gjf"}
+            and source_filetype not in {"com", "gjf"}
+        ):
             raise ValueError(
-                "Input export preview for 'gjf' requires a Gaussian "
-                ".com or .gjf source document."
+                f"Input export preview for '{filetype}' requires a "
+                "Gaussian .com or .gjf source document."
             )
         if filetype == "inp" and source_filetype != "inp":
             raise ValueError(
@@ -375,8 +378,9 @@ class ChemsmartAdapter:
     def _preview_gaussian_input_export(
         self,
         document: MoleculeDocument,
+        filetype: str,
     ) -> tuple[str, str]:
-        source_path = self._source_path_for_input_preview(document, "gjf")
+        source_path = self._source_path_for_input_preview(document, filetype)
         parser = Gaussian16Input(filename=str(source_path))
         settings = GaussianJobSettings.from_filepath(str(source_path))
         settings.route_to_be_written = parser.route_string
@@ -385,7 +389,7 @@ class ChemsmartAdapter:
             settings.title = title
         self._apply_document_electronic_state(settings, document)
 
-        filename = self.suggested_export_filename(document, "gjf")
+        filename = self.suggested_export_filename(document, filetype)
         label = Path(filename).stem
         molecule = self.to_molecule(document)
         molecule.charge = settings.charge

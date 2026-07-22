@@ -31,7 +31,7 @@ SOURCE_WRITE_EXPORT_FILETYPES: dict[
     MoleculeExportFiletype,
 ] = {
     "xyz": "xyz",
-    "com": "gjf",
+    "com": "com",
     "gjf": "gjf",
     "inp": "inp",
 }

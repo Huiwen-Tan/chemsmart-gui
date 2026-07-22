@@ -43,6 +43,16 @@ const XYZ_EXPORT_OPTION: ExportFormatOption = {
   contentType: 'chemical/x-xyz;charset=utf-8',
 };
 
+const COM_EXPORT_OPTION: ExportFormatOption = {
+  filetype: 'com',
+  label: 'Gaussian input (.com)',
+  previewButtonLabel: 'Preview Gaussian Input',
+  previewingButtonLabel: 'Previewing Gaussian Input...',
+  downloadButtonLabel: 'Download Gaussian Input',
+  previewAriaLabel: 'COM export preview',
+  contentType: 'text/plain;charset=utf-8',
+};
+
 const GJF_EXPORT_OPTION: ExportFormatOption = {
   filetype: 'gjf',
   label: 'Gaussian input (.gjf)',
@@ -71,8 +81,12 @@ function exportFormatsForDocument(
   const sourceFiletype = document?.source?.filetype.toLowerCase();
   const options = [XYZ_EXPORT_OPTION];
 
-  if (sourceFiletype === 'com' || sourceFiletype === 'gjf') {
+  if (sourceFiletype === 'com') {
+    options.push(COM_EXPORT_OPTION, GJF_EXPORT_OPTION);
+  }
+  if (sourceFiletype === 'gjf') {
     options.push(GJF_EXPORT_OPTION);
+    options.push(COM_EXPORT_OPTION);
   }
   if (sourceFiletype === 'inp') {
     options.push(INP_EXPORT_OPTION);
@@ -84,6 +98,9 @@ function exportFormatsForDocument(
 function exportFormatOptionForFiletype(
   filetype: MoleculeExportPreviewFiletype,
 ): ExportFormatOption {
+  if (filetype === 'com') {
+    return COM_EXPORT_OPTION;
+  }
   if (filetype === 'gjf') {
     return GJF_EXPORT_OPTION;
   }

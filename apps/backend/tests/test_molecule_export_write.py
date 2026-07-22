@@ -11,6 +11,7 @@ from chemsmart_gui.main import app
 client = TestClient(app)
 REPOSITORY_ROOT = Path(__file__).parents[3]
 WATER_PATH = REPOSITORY_ROOT / "sample-data" / "water.xyz"
+WATER_COM_PATH = REPOSITORY_ROOT / "sample-data" / "water.com"
 WATER_GJF_PATH = REPOSITORY_ROOT / "sample-data" / "water.gjf"
 WATER_INP_PATH = REPOSITORY_ROOT / "sample-data" / "water.inp"
 
@@ -89,6 +90,53 @@ def test_write_molecule_export_writes_gjf_to_new_target(
     lines = target_path.read_text(encoding="utf-8").splitlines()
     assert body["filename"] == "water-edited.gjf"
     assert body["filetype"] == "gjf"
+    assert body["path"] == str(target_path)
+    assert lines[3] == "# hf/sto-3g opt"
+    assert lines[9].split() == [
+        "H",
+        "1.0000000000",
+        "1.1000000000",
+        "1.2000000000",
+    ]
+
+
+def test_write_molecule_export_writes_com_to_new_target(
+    tmp_path: Path,
+) -> None:
+    source_path = tmp_path / "water.com"
+    target_path = tmp_path / "water-edited.com"
+    shutil.copyfile(WATER_COM_PATH, source_path)
+    document = ChemsmartAdapter().open_molecule_from_path(str(source_path))
+    edited_document = document.model_copy(
+        update={
+            "atoms": [
+                document.atoms[0],
+                document.atoms[1].model_copy(
+                    update={
+                        "x": 1.0,
+                        "y": 1.1,
+                        "z": 1.2,
+                    },
+                ),
+                document.atoms[2],
+            ],
+        },
+    )
+
+    response = client.post(
+        "/api/documents/export",
+        json={
+            "document": edited_document.model_dump(),
+            "filetype": "com",
+            "target_path": str(target_path),
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    lines = target_path.read_text(encoding="utf-8").splitlines()
+    assert body["filename"] == "water-edited.com"
+    assert body["filetype"] == "com"
     assert body["path"] == str(target_path)
     assert lines[3] == "# hf/sto-3g opt"
     assert lines[9].split() == [

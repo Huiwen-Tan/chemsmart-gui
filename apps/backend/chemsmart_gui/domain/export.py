@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 from chemsmart_gui.domain.document import DocumentSource, MoleculeDocument
 
-MoleculeExportFiletype = Literal["xyz", "gjf", "inp"]
+MoleculeExportFiletype = Literal["xyz", "com", "gjf", "inp"]
 MoleculeSourceWriteFiletype = Literal["xyz", "com", "gjf", "inp"]
 MoleculeSourceStatusValue = Literal[
     "current",

@@ -11,6 +11,7 @@ from chemsmart_gui.main import app
 client = TestClient(app)
 REPOSITORY_ROOT = Path(__file__).parents[3]
 WATER_XYZ_PATH = REPOSITORY_ROOT / "sample-data" / "water.xyz"
+WATER_COM_PATH = REPOSITORY_ROOT / "sample-data" / "water.com"
 WATER_GJF_PATH = REPOSITORY_ROOT / "sample-data" / "water.gjf"
 WATER_INP_PATH = REPOSITORY_ROOT / "sample-data" / "water.inp"
 WATER_LOG_PATH = REPOSITORY_ROOT / "sample-data" / "water.log"
@@ -104,6 +105,41 @@ def test_write_molecule_source_updates_gjf_source(
     lines = content.splitlines()
     assert body["filename"] == "water.gjf"
     assert body["filetype"] == "gjf"
+    assert body["path"] == str(source_path)
+    assert body["bytes_written"] == len(content.encode("utf-8"))
+    assert_response_source_matches_file(body["document"]["source"], source_path)
+    assert lines[0] == "%chk=water.chk"
+    assert lines[3] == "# hf/sto-3g opt"
+    assert lines[9].split() == [
+        "H",
+        "1.0000000000",
+        "1.1000000000",
+        "1.2000000000",
+    ]
+
+
+def test_write_molecule_source_updates_com_source(
+    tmp_path: Path,
+) -> None:
+    source_path = tmp_path / "water.com"
+    shutil.copyfile(WATER_COM_PATH, source_path)
+    document = ChemsmartAdapter().open_molecule_from_path(str(source_path))
+    edited = edited_document(document, atom_index=2, x=1.0, y=1.1, z=1.2)
+
+    response = client.post(
+        "/api/documents/source-write",
+        json={
+            "document": edited.model_dump(),
+            "confirmed": True,
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    content = source_path.read_text(encoding="utf-8")
+    lines = content.splitlines()
+    assert body["filename"] == "water.com"
+    assert body["filetype"] == "com"
     assert body["path"] == str(source_path)
     assert body["bytes_written"] == len(content.encode("utf-8"))
     assert_response_source_matches_file(body["document"]["source"], source_path)

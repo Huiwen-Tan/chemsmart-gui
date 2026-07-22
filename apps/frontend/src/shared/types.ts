@@ -205,7 +205,7 @@ export interface MoleculeEditResponse {
   can_redo: boolean;
 }
 
-export type MoleculeExportFiletype = 'xyz' | 'gjf' | 'inp';
+export type MoleculeExportFiletype = 'xyz' | 'com' | 'gjf' | 'inp';
 export type MoleculeExportPreviewFiletype = MoleculeExportFiletype;
 export type MoleculeSourceWriteFiletype = 'xyz' | 'com' | 'gjf' | 'inp';
 

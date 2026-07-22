@@ -59,6 +59,16 @@ const GAUSSIAN_DOCUMENT: MoleculeDocument = {
   multiplicity: 1,
 };
 
+const GAUSSIAN_COM_DOCUMENT: MoleculeDocument = {
+  ...GAUSSIAN_DOCUMENT,
+  id: 'gaussian-com-water-document',
+  source: {
+    path: 'sample-data/water.com',
+    filename: 'water.com',
+    filetype: 'com',
+  },
+};
+
 const ORCA_DOCUMENT: MoleculeDocument = {
   ...WATER_DOCUMENT,
   id: 'orca-water-document',
@@ -113,6 +123,7 @@ const XYZ_PREVIEW_CONTENT =
   '2\nwater.xyz    Empirical formula: H2O\nO 0 0 0\nH 1 1 1\n';
 const GJF_PREVIEW_CONTENT =
   '%chk=water.chk\n%nprocshared=1\n%mem=1GB\n# hf/sto-3g opt\n\nwater\n\n0 1\nO 0 0 0\n';
+const COM_PREVIEW_CONTENT = GJF_PREVIEW_CONTENT;
 const INP_PREVIEW_CONTENT =
   '! hf def2-svp\n# Number of processors\n%pal nprocs 1 end\n* xyz 0 1\nO 0 0 0\n*\n';
 
@@ -202,7 +213,7 @@ describe('MoleculeExportPreviewPanel', () => {
     ).toEqual(['XYZ coordinates (.xyz)']);
   });
 
-  it('offers Gaussian input preview for Gaussian input documents', () => {
+  it('offers Gaussian input previews for GJF input documents', () => {
     render(<MoleculeExportPreviewPanel document={GAUSSIAN_DOCUMENT} />);
 
     const formatSelector = screen.getByRole('combobox', { name: 'Format' });
@@ -211,7 +222,27 @@ describe('MoleculeExportPreviewPanel', () => {
       within(formatSelector).getAllByRole('option').map(
         (option) => option.textContent,
       ),
-    ).toEqual(['XYZ coordinates (.xyz)', 'Gaussian input (.gjf)']);
+    ).toEqual([
+      'XYZ coordinates (.xyz)',
+      'Gaussian input (.gjf)',
+      'Gaussian input (.com)',
+    ]);
+  });
+
+  it('offers Gaussian input previews for COM input documents', () => {
+    render(<MoleculeExportPreviewPanel document={GAUSSIAN_COM_DOCUMENT} />);
+
+    const formatSelector = screen.getByRole('combobox', { name: 'Format' });
+
+    expect(
+      within(formatSelector).getAllByRole('option').map(
+        (option) => option.textContent,
+      ),
+    ).toEqual([
+      'XYZ coordinates (.xyz)',
+      'Gaussian input (.com)',
+      'Gaussian input (.gjf)',
+    ]);
   });
 
   it('offers ORCA input preview for ORCA input documents', () => {
@@ -300,6 +331,47 @@ describe('MoleculeExportPreviewPanel', () => {
         body: JSON.stringify({
           document: GAUSSIAN_DOCUMENT,
           filetype: 'gjf',
+        }),
+      },
+    );
+  });
+
+  it('previews backend-generated Gaussian COM input content', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        filename: 'water.com',
+        filetype: 'com',
+        content: COM_PREVIEW_CONTENT,
+      }),
+    );
+
+    render(<MoleculeExportPreviewPanel document={GAUSSIAN_COM_DOCUMENT} />);
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Format' }), {
+      target: { value: 'com' },
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Preview Gaussian Input' }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('water.com')).toBeInTheDocument();
+    });
+    expect(screen.getByText('com')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Download Gaussian Input' }),
+    ).toBeEnabled();
+    expect(screen.getByLabelText('COM export preview').textContent).toBe(
+      COM_PREVIEW_CONTENT,
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/api/documents/export-preview',
+      {
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        body: JSON.stringify({
+          document: GAUSSIAN_COM_DOCUMENT,
+          filetype: 'com',
         }),
       },
     );
@@ -529,6 +601,43 @@ describe('MoleculeExportPreviewPanel', () => {
           document: GAUSSIAN_DOCUMENT,
           filetype: 'gjf',
           target_path: '/tmp/water.gjf',
+        }),
+      },
+    );
+  });
+
+  it('saves the selected Gaussian COM input export', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        filename: 'water.com',
+        filetype: 'com',
+        path: '/tmp/water.com',
+        bytes_written: 256,
+      }),
+    );
+
+    render(<MoleculeExportPreviewPanel document={GAUSSIAN_COM_DOCUMENT} />);
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Format' }), {
+      target: { value: 'com' },
+    });
+    fireEvent.change(screen.getByLabelText('Backend target path'), {
+      target: { value: '/tmp/water.com' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Export' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('/tmp/water.com')).toBeInTheDocument();
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/api/documents/export',
+      {
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        body: JSON.stringify({
+          document: GAUSSIAN_COM_DOCUMENT,
+          filetype: 'com',
+          target_path: '/tmp/water.com',
         }),
       },
     );

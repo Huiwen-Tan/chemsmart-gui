@@ -1,6 +1,7 @@
 import shutil
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from chemsmart_gui.adapters.chemsmart_adapter import ChemsmartAdapter
@@ -11,6 +12,7 @@ from chemsmart_gui.main import app
 client = TestClient(app)
 REPOSITORY_ROOT = Path(__file__).parents[3]
 WATER_PATH = REPOSITORY_ROOT / "sample-data" / "water.xyz"
+WATER_COM_PATH = REPOSITORY_ROOT / "sample-data" / "water.com"
 WATER_GJF_PATH = REPOSITORY_ROOT / "sample-data" / "water.gjf"
 WATER_INP_PATH = REPOSITORY_ROOT / "sample-data" / "water.inp"
 
@@ -21,6 +23,10 @@ def open_water_document() -> MoleculeDocument:
 
 def open_gaussian_document() -> MoleculeDocument:
     return ChemsmartAdapter().open_molecule_from_path(str(WATER_GJF_PATH))
+
+
+def open_gaussian_com_document() -> MoleculeDocument:
+    return ChemsmartAdapter().open_molecule_from_path(str(WATER_COM_PATH))
 
 
 def open_orca_document() -> MoleculeDocument:
@@ -127,6 +133,25 @@ def test_preview_molecule_export_returns_gjf_payload() -> None:
     assert "0 1" in body["content"].splitlines()
 
 
+def test_preview_molecule_export_returns_com_payload() -> None:
+    document = open_gaussian_com_document()
+
+    response = client.post(
+        "/api/documents/export-preview",
+        json={
+            "document": document.model_dump(),
+            "filetype": "com",
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["filename"] == "water.com"
+    assert body["filetype"] == "com"
+    assert "# hf/sto-3g opt" in body["content"]
+    assert "0 1" in body["content"].splitlines()
+
+
 def test_preview_molecule_export_returns_frozen_gjf_payload() -> None:
     document = open_gaussian_document().model_copy(
         update={"frozen_atom_indices": [1, 3]},
@@ -197,14 +222,17 @@ def test_preview_molecule_export_returns_frozen_inp_payload() -> None:
     assert "{ C 1 C }" not in content
 
 
-def test_preview_molecule_export_returns_bad_request_for_wrong_source() -> None:
+@pytest.mark.parametrize("filetype", ["com", "gjf"])
+def test_preview_molecule_export_returns_bad_request_for_wrong_source(
+    filetype: str,
+) -> None:
     document = open_water_document()
 
     response = client.post(
         "/api/documents/export-preview",
         json={
             "document": document.model_dump(),
-            "filetype": "gjf",
+            "filetype": filetype,
         },
     )
 
