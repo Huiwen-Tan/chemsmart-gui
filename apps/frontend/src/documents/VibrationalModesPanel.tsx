@@ -4,6 +4,8 @@ import type { MoleculeDocument, VibrationalMode } from '../shared/types';
 
 interface VibrationalModesPanelProps {
   document: MoleculeDocument | null;
+  selectedModeIndex?: number | null;
+  onSelectedModeIndexChange?: (modeIndex: number) => void;
 }
 
 function formatNumber(value: number): string {
@@ -31,17 +33,27 @@ function selectedModeFromIndex(
 
 export function VibrationalModesPanel({
   document,
+  selectedModeIndex,
+  onSelectedModeIndexChange,
 }: VibrationalModesPanelProps): JSX.Element {
   const modes = document?.vibrational_modes ?? [];
-  const [selectedModeIndex, setSelectedModeIndex] = useState<number | null>(
-    null,
-  );
+  const [
+    internalSelectedModeIndex,
+    setInternalSelectedModeIndex,
+  ] = useState<number | null>(null);
   const modeIndexSignature = modes.map((mode) => mode.index).join(',');
-  const selectedMode = selectedModeFromIndex(modes, selectedModeIndex);
+  const activeSelectedModeIndex =
+    selectedModeIndex ?? internalSelectedModeIndex;
+  const selectedMode = selectedModeFromIndex(modes, activeSelectedModeIndex);
 
   useEffect(() => {
-    setSelectedModeIndex(modes[0]?.index ?? null);
+    setInternalSelectedModeIndex(modes[0]?.index ?? null);
   }, [document?.id, modeIndexSignature]);
+
+  const selectMode = (modeIndex: number): void => {
+    setInternalSelectedModeIndex(modeIndex);
+    onSelectedModeIndexChange?.(modeIndex);
+  };
 
   return (
     <section
@@ -76,7 +88,7 @@ export function VibrationalModesPanel({
                 <th scope="row">
                   <button
                     aria-pressed={selectedMode?.index === mode.index}
-                    onClick={() => setSelectedModeIndex(mode.index)}
+                    onClick={() => selectMode(mode.index)}
                     type="button"
                   >
                     Select mode {mode.index}

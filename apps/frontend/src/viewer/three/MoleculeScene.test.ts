@@ -26,6 +26,36 @@ const WATER: MoleculeDocument = {
   vibrational_modes: [],
 };
 
+const WATER_WITH_VIBRATIONAL_MODES: MoleculeDocument = {
+  ...WATER,
+  id: 'water-with-vibrational-modes',
+  vibrational_modes: [
+    {
+      index: 7,
+      frequency_cm_minus_1: -530.2,
+      is_imaginary: true,
+      reduced_mass_amu: 1.2,
+      force_constant_mdyne_per_angstrom: 0.3,
+      ir_intensity_km_per_mol: 12.3,
+      symmetry: 'A1',
+      displacements: [
+        { atom_index: 1, x: 0, y: 0, z: -0.1 },
+        { atom_index: 2, x: 0.2, y: 0, z: 0.1 },
+      ],
+    },
+    {
+      index: 8,
+      frequency_cm_minus_1: 1628.3334,
+      is_imaginary: false,
+      reduced_mass_amu: null,
+      force_constant_mdyne_per_angstrom: null,
+      ir_intensity_km_per_mol: null,
+      symmetry: null,
+      displacements: [],
+    },
+  ],
+};
+
 const HELIUM: MoleculeDocument = {
   id: '4054373538ed8c659cd165de0c57822be13073206e4305ddc5dc6937fb2cd65b',
   name: 'str-He-4054373538ed',
@@ -101,6 +131,12 @@ function atomLabelElements(scene: THREE.Scene): HTMLElement[] {
 
 function bondObjects(scene: THREE.Scene): THREE.Object3D[] {
   return moleculeObjects(scene).filter((object) => object.userData.bondObject);
+}
+
+function modeDisplacementObjects(scene: THREE.Scene): THREE.Object3D[] {
+  return moleculeObjects(scene).filter(
+    (object) => object.userData.modeDisplacementObject,
+  );
 }
 
 function atomMaterials(scene: THREE.Scene): THREE.MeshStandardMaterial[] {
@@ -281,6 +317,72 @@ describe('MoleculeScene', () => {
 
     expect(bonds.every((object) => object.visible)).toBe(true);
     expect(atoms.every((object) => object.visible)).toBe(true);
+  });
+
+  it('shows selected mode displacement arrows from vibration vectors', () => {
+    const moleculeScene = new MoleculeScene();
+    moleculeScene.setMolecule(WATER_WITH_VIBRATIONAL_MODES);
+    const scene = moleculeScene.getScene();
+    const boxBefore = moleculeScene.computeBoundingBox();
+    if (!boxBefore) {
+      throw new Error('Expected a molecule bounding box');
+    }
+
+    moleculeScene.setModeDisplacementVectors(
+      WATER_WITH_VIBRATIONAL_MODES.vibrational_modes[0],
+    );
+
+    const arrows = modeDisplacementObjects(scene);
+    expect(arrows).toHaveLength(2);
+    expect(
+      arrows.every((object) => object instanceof THREE.ArrowHelper),
+    ).toBe(true);
+    expect(
+      arrows.map((object) => object.userData.modeDisplacementAtomIndex),
+    ).toEqual([1, 2]);
+    expect(arrows.map((object) => object.userData.modeIndex)).toEqual([7, 7]);
+    expect(arrows.map((object) => object.position.toArray())).toEqual([
+      [0, 0, 0],
+      [0.8, 0.6, 0],
+    ]);
+    expect(moleculeScene.computeBoundingBox()?.equals(boxBefore)).toBe(true);
+  });
+
+  it('replaces and clears selected mode displacement arrows', () => {
+    const moleculeScene = new MoleculeScene();
+    moleculeScene.setMolecule(WATER_WITH_VIBRATIONAL_MODES);
+    const scene = moleculeScene.getScene();
+
+    moleculeScene.setModeDisplacementVectors(
+      WATER_WITH_VIBRATIONAL_MODES.vibrational_modes[0],
+    );
+    const disposableArrowChildren = modeDisplacementObjects(scene).flatMap(
+      (object) => object.children.filter((child) => (
+        child instanceof THREE.Mesh || child instanceof THREE.Line
+      )),
+    );
+    const arrowDisposal = disposableArrowChildren.map(spyOnDisposal);
+
+    moleculeScene.setModeDisplacementVectors(
+      WATER_WITH_VIBRATIONAL_MODES.vibrational_modes[1],
+    );
+
+    expect(modeDisplacementObjects(scene)).toHaveLength(0);
+    for (const disposal of arrowDisposal) {
+      expect(disposal.geometry).toHaveBeenCalled();
+      for (const material of disposal.materials) {
+        expect(material).toHaveBeenCalled();
+      }
+    }
+
+    moleculeScene.setModeDisplacementVectors(
+      WATER_WITH_VIBRATIONAL_MODES.vibrational_modes[0],
+    );
+    expect(modeDisplacementObjects(scene)).toHaveLength(2);
+
+    moleculeScene.setMolecule(null);
+
+    expect(modeDisplacementObjects(scene)).toHaveLength(0);
   });
 
   it('picks atom identity from normalized pointer input', () => {

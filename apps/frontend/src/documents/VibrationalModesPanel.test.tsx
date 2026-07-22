@@ -5,7 +5,7 @@ import {
   screen,
   within,
 } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { MoleculeDocument } from '../shared/types';
 import { VibrationalModesPanel } from './VibrationalModesPanel';
@@ -173,6 +173,27 @@ describe('VibrationalModesPanel', () => {
     expect(
       screen.getByText('No displacement vectors available for selected mode.'),
     ).toBeInTheDocument();
+  });
+
+  it('can receive selected mode state from its parent', () => {
+    const onSelectedModeIndexChange = vi.fn();
+    render(
+      <VibrationalModesPanel
+        document={GAUSSIAN_OUTPUT_DOCUMENT}
+        onSelectedModeIndexChange={onSelectedModeIndexChange}
+        selectedModeIndex={2}
+      />,
+    );
+
+    expect(screen.getByRole('heading', { name: 'Selected Mode 2' }))
+      .toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Select mode 2' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Select mode 1' }));
+
+    expect(onSelectedModeIndexChange).toHaveBeenCalledWith(1);
   });
 
   it('resets selected mode when the active document changes', () => {

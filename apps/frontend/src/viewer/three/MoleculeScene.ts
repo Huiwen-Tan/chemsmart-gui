@@ -1,11 +1,17 @@
 import * as THREE from 'three';
 import { CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 
-import type { MoleculeDocument } from '../../shared/types';
+import type { MoleculeDocument, VibrationalMode } from '../../shared/types';
 import { DEFAULT_ELEMENT_COLOR, ELEMENT_COLORS } from './elementColors';
 
 const ATOM_RADIUS = 0.2;
 const LABEL_OFFSET = ATOM_RADIUS * 1.8;
+const MODE_DISPLACEMENT_ARROW_COLOR = 0xf97316;
+const MODE_DISPLACEMENT_ARROW_SCALE = 2.5;
+const MODE_DISPLACEMENT_ARROW_MIN_LENGTH = 0.25;
+const MODE_DISPLACEMENT_ARROW_MAX_LENGTH = 1.2;
+const MODE_DISPLACEMENT_ARROW_HEAD_LENGTH = 0.16;
+const MODE_DISPLACEMENT_ARROW_HEAD_WIDTH = 0.08;
 const SELECTED_ATOM_EMISSIVE_COLOR = 0xffb300;
 const SELECTED_ATOM_EMISSIVE_INTENSITY = 0.8;
 const FROZEN_ATOM_EMISSIVE_COLOR = 0x38bdf8;
@@ -56,9 +62,28 @@ function applyAtomMaterialState(
   material.emissiveIntensity = DEFAULT_ATOM_EMISSIVE_INTENSITY;
 }
 
+function disposeObjectResources(object: THREE.Object3D): void {
+  object.traverse((child) => {
+    if (child instanceof THREE.Mesh || child instanceof THREE.Line) {
+      child.geometry.dispose();
+      const material = child.material;
+      if (Array.isArray(material)) {
+        material.forEach((mat) => mat.dispose());
+      } else {
+        material.dispose();
+      }
+    }
+
+    if (child instanceof CSS2DObject) {
+      child.element.remove();
+    }
+  });
+}
+
 export class MoleculeScene {
   private readonly scene = new THREE.Scene();
   private readonly raycaster = new THREE.Raycaster();
+  private readonly atomPositions = new Map<number, THREE.Vector3>();
 
   constructor() {
     this.scene.background = new THREE.Color(0x141922);
@@ -70,17 +95,17 @@ export class MoleculeScene {
 
   public setMolecule(document: MoleculeDocument | null): void {
     this.clearMoleculeObjects();
+    this.atomPositions.clear();
 
     if (!document) {
       return;
     }
 
-    const atomPositions = new Map<number, THREE.Vector3>();
     const frozenAtomIndices = new Set(document.frozen_atom_indices);
 
     for (const atom of document.atoms) {
       const position = new THREE.Vector3(atom.x, atom.y, atom.z);
-      atomPositions.set(atom.index, position);
+      this.atomPositions.set(atom.index, position);
 
       const geometry = new THREE.SphereGeometry(ATOM_RADIUS, 24, 24);
       const color = ELEMENT_COLORS[atom.element] ?? DEFAULT_ELEMENT_COLOR;
@@ -98,8 +123,8 @@ export class MoleculeScene {
     }
 
     for (const bond of document.bonds) {
-      const start = atomPositions.get(bond.atom1);
-      const end = atomPositions.get(bond.atom2);
+      const start = this.atomPositions.get(bond.atom1);
+      const end = this.atomPositions.get(bond.atom2);
       if (!start || !end) {
         continue;
       }
@@ -112,9 +137,57 @@ export class MoleculeScene {
     }
   }
 
+  public setModeDisplacementVectors(mode: VibrationalMode | null): void {
+    this.clearModeDisplacementObjects();
+
+    if (!mode) {
+      return;
+    }
+
+    for (const displacement of mode.displacements) {
+      const origin = this.atomPositions.get(displacement.atom_index);
+      if (!origin) {
+        continue;
+      }
+
+      const vector = new THREE.Vector3(
+        displacement.x,
+        displacement.y,
+        displacement.z,
+      );
+      const vectorLength = vector.length();
+      if (vectorLength === 0) {
+        continue;
+      }
+
+      const arrowLength = Math.min(
+        MODE_DISPLACEMENT_ARROW_MAX_LENGTH,
+        Math.max(
+          MODE_DISPLACEMENT_ARROW_MIN_LENGTH,
+          vectorLength * MODE_DISPLACEMENT_ARROW_SCALE,
+        ),
+      );
+      const arrow = new THREE.ArrowHelper(
+        vector.normalize(),
+        origin,
+        arrowLength,
+        MODE_DISPLACEMENT_ARROW_COLOR,
+        Math.min(arrowLength * 0.45, MODE_DISPLACEMENT_ARROW_HEAD_LENGTH),
+        MODE_DISPLACEMENT_ARROW_HEAD_WIDTH,
+      );
+      arrow.userData.moleculeObject = true;
+      arrow.userData.modeDisplacementObject = true;
+      arrow.userData.modeDisplacementAtomIndex = displacement.atom_index;
+      arrow.userData.modeIndex = mode.index;
+      this.scene.add(arrow);
+    }
+  }
+
   public computeBoundingBox(): THREE.Box3 | null {
     const moleculeObjects = this.scene.children.filter((child: THREE.Object3D) => (
-      child.userData.moleculeObject && !child.userData.atomLabel
+      child.userData.moleculeObject &&
+      !child.userData.atomLabel &&
+      !child.userData.modeDisplacementObject
     ));
     if (moleculeObjects.length === 0) {
       return null;
@@ -185,17 +258,18 @@ export class MoleculeScene {
 
     for (const object of toRemove) {
       this.scene.remove(object);
-      if (object instanceof THREE.Mesh || object instanceof THREE.Line) {
-        object.geometry.dispose();
-        const material = object.material;
-        if (Array.isArray(material)) {
-          material.forEach((mat) => mat.dispose());
-        } else {
-          material.dispose();
-        }
-      } else if (object instanceof CSS2DObject) {
-        object.element.remove();
-      }
+      disposeObjectResources(object);
+    }
+  }
+
+  private clearModeDisplacementObjects(): void {
+    const toRemove = this.scene.children.filter((child: THREE.Object3D) => (
+      child.userData.modeDisplacementObject
+    ));
+
+    for (const object of toRemove) {
+      this.scene.remove(object);
+      disposeObjectResources(object);
     }
   }
 }

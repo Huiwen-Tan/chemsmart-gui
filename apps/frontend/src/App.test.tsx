@@ -9,14 +9,25 @@ import {
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { MoleculeDocument } from './shared/types';
+import type { MoleculeDocument, VibrationalMode } from './shared/types';
 import { useDocumentStore } from './state/useDocumentStore';
 import { useViewerStore } from './state/useViewerStore';
 import { App } from './App';
 
 vi.mock('./viewer/MolecularViewer', () => ({
-  MolecularViewer: ({ document }: { document: MoleculeDocument | null }) => (
-    <output data-testid="viewer-document">{JSON.stringify(document)}</output>
+  MolecularViewer: ({
+    document,
+    selectedVibrationalMode,
+  }: {
+    document: MoleculeDocument | null;
+    selectedVibrationalMode: VibrationalMode | null;
+  }) => (
+    <>
+      <output data-testid="viewer-document">{JSON.stringify(document)}</output>
+      <output data-testid="viewer-mode">
+        {JSON.stringify(selectedVibrationalMode)}
+      </output>
+    </>
   ),
 }));
 
@@ -944,6 +955,9 @@ describe('App', () => {
         JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT),
       );
     });
+    expect(screen.getByTestId('viewer-mode')).toHaveTextContent(
+      JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT.vibrational_modes[0]),
+    );
     const modesPanel = screen.getByRole('region', {
       name: 'Vibrational Modes',
     });
@@ -963,6 +977,17 @@ describe('App', () => {
     });
     expect(within(displacementTable).getByText('-0.1')).toBeInTheDocument();
     expect(within(displacementTable).getByText('0.2')).toBeInTheDocument();
+
+    fireEvent.click(
+      within(modesPanel).getByRole('button', { name: 'Select mode 2' }),
+    );
+
+    expect(screen.getByTestId('viewer-mode')).toHaveTextContent(
+      JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT.vibrational_modes[1]),
+    );
+    expect(
+      within(modesPanel).getByRole('heading', { name: 'Selected Mode 2' }),
+    ).toBeInTheDocument();
   });
 
   it('previews XYZ export content for the loaded document', async () => {

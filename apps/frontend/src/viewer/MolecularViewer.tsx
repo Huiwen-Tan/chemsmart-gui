@@ -3,12 +3,13 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 
-import type { MoleculeDocument } from '../shared/types';
+import type { MoleculeDocument, VibrationalMode } from '../shared/types';
 import { useViewerStore } from '../state/useViewerStore';
 import { MoleculeScene } from './three/MoleculeScene';
 
 interface MolecularViewerProps {
   document: MoleculeDocument | null;
+  selectedVibrationalMode: VibrationalMode | null;
 }
 
 interface AtomPicker {
@@ -199,13 +200,20 @@ export function connectAtomPicking(
   };
 }
 
-export function MolecularViewer({ document }: MolecularViewerProps): JSX.Element {
+export function MolecularViewer({
+  document,
+  selectedVibrationalMode,
+}: MolecularViewerProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const sceneRef = useRef<MoleculeScene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
   const labelRendererRef = useRef<CSS2DRenderer | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const selectedVibrationalModeRef = useRef<VibrationalMode | null>(
+    selectedVibrationalMode,
+  );
+  selectedVibrationalModeRef.current = selectedVibrationalMode;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -316,6 +324,7 @@ export function MolecularViewer({ document }: MolecularViewerProps): JSX.Element
     }
 
     sceneWrapper.setMolecule(document);
+    sceneWrapper.setModeDisplacementVectors(selectedVibrationalModeRef.current);
     applyAtomHighlights(
       sceneWrapper,
       useViewerStore.getState().selectedAtomIndices,
@@ -335,6 +344,19 @@ export function MolecularViewer({ document }: MolecularViewerProps): JSX.Element
     frameMolecule(sceneWrapper, camera, controls);
     labelRendererRef.current?.render(sceneWrapper.getScene(), camera);
   }, [document]);
+
+  useEffect(() => {
+    const sceneWrapper = sceneRef.current;
+    if (!sceneWrapper) {
+      return;
+    }
+
+    sceneWrapper.setModeDisplacementVectors(selectedVibrationalMode);
+    const camera = cameraRef.current;
+    if (camera) {
+      labelRendererRef.current?.render(sceneWrapper.getScene(), camera);
+    }
+  }, [selectedVibrationalMode]);
 
   return (
     <div

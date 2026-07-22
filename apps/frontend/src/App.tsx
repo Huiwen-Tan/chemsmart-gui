@@ -9,6 +9,7 @@ import { useDocumentStore } from './state/useDocumentStore';
 import { useViewerStore } from './state/useViewerStore';
 import { MolecularViewer } from './viewer/MolecularViewer';
 import { SelectedAtomPanel } from './viewer/SelectedAtomPanel';
+import type { VibrationalMode } from './shared/types';
 
 const REPLACE_UNSAVED_EDITS_MESSAGE =
   'Current molecule has unsaved edits. Open a different document and discard them?';
@@ -23,6 +24,17 @@ function isEditableShortcutTarget(target: EventTarget | null): boolean {
     target.tagName === 'INPUT' ||
     target.tagName === 'SELECT' ||
     target.tagName === 'TEXTAREA'
+  );
+}
+
+function selectedVibrationalModeFromIndex(
+  modes: VibrationalMode[],
+  selectedModeIndex: number | null,
+): VibrationalMode | null {
+  return (
+    modes.find((mode) => mode.index === selectedModeIndex) ??
+    modes[0] ??
+    null
   );
 }
 
@@ -47,6 +59,18 @@ export function App(): JSX.Element {
   const [healthStatus, setHealthStatus] = useState('checking...');
   const [error, setError] = useState<string | null>(null);
   const [documentPath, setDocumentPath] = useState('sample-data/water.xyz');
+  const [
+    selectedVibrationalModeIndex,
+    setSelectedVibrationalModeIndex,
+  ] = useState<number | null>(null);
+  const vibrationalModes = currentDocument?.vibrational_modes ?? [];
+  const vibrationalModeIndexSignature = vibrationalModes
+    .map((mode) => mode.index)
+    .join(',');
+  const selectedVibrationalMode = selectedVibrationalModeFromIndex(
+    vibrationalModes,
+    selectedVibrationalModeIndex,
+  );
 
   useEffect(() => {
     healthCheck()
@@ -94,6 +118,10 @@ export function App(): JSX.Element {
     redoMoleculeEdit,
     undoMoleculeEdit,
   ]);
+
+  useEffect(() => {
+    setSelectedVibrationalModeIndex(vibrationalModes[0]?.index ?? null);
+  }, [currentDocument?.id, vibrationalModeIndexSignature]);
 
   const openDocumentPath = async (pathOverride?: string): Promise<void> => {
     setError(null);
@@ -186,12 +214,19 @@ export function App(): JSX.Element {
         Redo Edit
       </button>
       {error ? <p style={{ color: '#ff8080' }}>Error: {error}</p> : null}
-      <MolecularViewer document={currentDocument} />
+      <MolecularViewer
+        document={currentDocument}
+        selectedVibrationalMode={selectedVibrationalMode}
+      />
       <DocumentSummaryPanel
         document={currentDocument}
         hasUnsavedMoleculeEdits={hasUnsavedMoleculeEdits}
       />
-      <VibrationalModesPanel document={currentDocument} />
+      <VibrationalModesPanel
+        document={currentDocument}
+        onSelectedModeIndexChange={setSelectedVibrationalModeIndex}
+        selectedModeIndex={selectedVibrationalMode?.index ?? null}
+      />
       <MoleculeExportPreviewPanel
         document={currentDocument}
         onReopenSource={openDocumentPath}
