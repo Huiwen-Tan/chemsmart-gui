@@ -48,6 +48,31 @@ def document_source_from_path(path: str) -> DocumentSource:
     )
 
 
+def _frozen_atom_indices_from_molecule(molecule: Molecule) -> list[int]:
+    frozen_atoms = getattr(molecule, "frozen_atoms", None)
+    if not frozen_atoms:
+        return []
+
+    return [
+        atom_index
+        for atom_index, frozen_value in enumerate(frozen_atoms, start=1)
+        if frozen_value == -1
+    ]
+
+
+def _frozen_atom_mask_from_document(
+    document: MoleculeDocument,
+) -> list[int] | None:
+    if not document.frozen_atom_indices:
+        return None
+
+    frozen_atom_indices = set(document.frozen_atom_indices)
+    return [
+        -1 if atom.index in frozen_atom_indices else 0
+        for atom in document.atoms
+    ]
+
+
 @dataclass(frozen=True)
 class _PreviewJobRunner:
     num_cores: int = 1
@@ -92,15 +117,26 @@ class ChemsmartAdapter:
                 Bond(atom1=atom1 + 1, atom2=atom2 + 1)
                 for atom1, atom2 in edges
             ],
+            frozen_atom_indices=_frozen_atom_indices_from_molecule(molecule),
         )
 
-    def to_molecule(self, document: MoleculeDocument) -> Molecule:
+    def to_molecule(
+        self,
+        document: MoleculeDocument,
+        *,
+        include_frozen_atoms: bool = True,
+    ) -> Molecule:
         """Create a CHEMSMART molecule from a normalized GUI document."""
         return Molecule(
             symbols=[atom.element for atom in document.atoms],
             positions=[[atom.x, atom.y, atom.z] for atom in document.atoms],
             charge=document.charge,
             multiplicity=document.multiplicity,
+            frozen_atoms=(
+                _frozen_atom_mask_from_document(document)
+                if include_frozen_atoms
+                else None
+            ),
         )
 
     def suggested_export_filename(
@@ -138,7 +174,7 @@ class ChemsmartAdapter:
         filetype: str,
     ) -> tuple[str, str]:
         filename = self.suggested_export_filename(document, filetype)
-        molecule = self.to_molecule(document)
+        molecule = self.to_molecule(document, include_frozen_atoms=False)
         with TemporaryDirectory() as temporary_directory:
             preview_path = Path(temporary_directory) / filename
             molecule.write(str(preview_path), format=filetype, mode="w")
@@ -246,7 +282,7 @@ class ChemsmartAdapter:
 
         filename = self.suggested_export_filename(document, "gjf")
         label = Path(filename).stem
-        molecule = self.to_molecule(document)
+        molecule = self.to_molecule(document, include_frozen_atoms=False)
         molecule.charge = settings.charge
         molecule.multiplicity = settings.multiplicity
         job = GaussianJob(
@@ -279,7 +315,7 @@ class ChemsmartAdapter:
 
         filename = self.suggested_export_filename(document, "inp")
         label = Path(filename).stem
-        molecule = self.to_molecule(document)
+        molecule = self.to_molecule(document, include_frozen_atoms=False)
         molecule.charge = settings.charge
         molecule.multiplicity = settings.multiplicity
         job = ORCAJob(

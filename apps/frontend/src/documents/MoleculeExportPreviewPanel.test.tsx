@@ -30,6 +30,7 @@ const WATER_DOCUMENT: MoleculeDocument = {
     { index: 2, element: 'H', x: 0.76, y: 0.58, z: 0 },
   ],
   bonds: [{ atom1: 1, atom2: 2 }],
+  frozen_atom_indices: [],
 };
 
 const HELIUM_DOCUMENT: MoleculeDocument = {

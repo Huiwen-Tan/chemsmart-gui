@@ -12,6 +12,7 @@ from chemsmart_gui.domain.edit import (
     SetAtomDihedralCommand,
     SetAtomDistanceCommand,
     SetAtomPositionCommand,
+    SetFrozenAtomsCommand,
 )
 from chemsmart_gui.domain.molecule import Atom, Bond
 
@@ -165,6 +166,8 @@ class MoleculeEditService:
             return self._apply_set_atom_angle(document, command)
         if isinstance(command, SetAtomDihedralCommand):
             return self._apply_set_atom_dihedral(document, command)
+        if isinstance(command, SetFrozenAtomsCommand):
+            return self._apply_set_frozen_atoms(document, command)
         if isinstance(command, AddBondCommand):
             return self._apply_add_bond(document, command)
         if isinstance(command, RemoveBondCommand):
@@ -249,12 +252,19 @@ class MoleculeEditService:
         *,
         atoms: list[Atom],
         bonds: list[Bond],
+        frozen_atom_indices: list[int] | None = None,
     ) -> MoleculeDocument:
+        updated_frozen_atom_indices = (
+            document.frozen_atom_indices
+            if frozen_atom_indices is None
+            else frozen_atom_indices
+        )
         edited_document = document.model_copy(
             update={
                 "atoms": atoms,
                 "bonds": bonds,
                 "calculation": None,
+                "frozen_atom_indices": updated_frozen_atom_indices,
             },
             deep=True,
         )
@@ -265,7 +275,10 @@ class MoleculeEditService:
             calculation=None,
         )
         return refreshed_document.model_copy(
-            update={"bonds": bonds},
+            update={
+                "bonds": bonds,
+                "frozen_atom_indices": updated_frozen_atom_indices,
+            },
             deep=True,
         )
 
@@ -488,6 +501,36 @@ class MoleculeEditService:
             bonds=document.bonds,
         )
 
+    def _apply_set_frozen_atoms(
+        self,
+        document: MoleculeDocument,
+        command: SetFrozenAtomsCommand,
+    ) -> MoleculeDocument:
+        self._validate_document_id(document, command)
+        if command.action != "replace" and not command.atom_indices:
+            raise ValueError(
+                "Frozen atom edit requires at least one atom index."
+            )
+        if command.atom_indices:
+            self._validate_atom_indices(document, command.atom_indices)
+
+        frozen_atom_indices = set(document.frozen_atom_indices)
+        target_atom_indices = set(command.atom_indices)
+        if command.action == "freeze":
+            updated_atom_indices = frozen_atom_indices | target_atom_indices
+        elif command.action == "unfreeze":
+            updated_atom_indices = frozen_atom_indices - target_atom_indices
+        else:
+            updated_atom_indices = target_atom_indices
+
+        return document.model_copy(
+            update={
+                "calculation": None,
+                "frozen_atom_indices": sorted(updated_atom_indices),
+            },
+            deep=True,
+        )
+
     def _apply_add_bond(
         self,
         document: MoleculeDocument,
@@ -612,8 +655,14 @@ class MoleculeEditService:
                 and bond.atom2 in old_to_new_index
             )
         ]
+        updated_frozen_atom_indices = [
+            old_to_new_index[atom_index]
+            for atom_index in document.frozen_atom_indices
+            if atom_index in old_to_new_index
+        ]
         return self._refresh_structure_document(
             document,
             atoms=updated_atoms,
             bonds=updated_bonds,
+            frozen_atom_indices=updated_frozen_atom_indices,
         )

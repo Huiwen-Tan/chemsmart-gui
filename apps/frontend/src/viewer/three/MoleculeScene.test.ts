@@ -22,6 +22,7 @@ const WATER: MoleculeDocument = {
     { atom1: 1, atom2: 2 },
     { atom1: 1, atom2: 3 },
   ],
+  frozen_atom_indices: [],
 };
 
 const HELIUM: MoleculeDocument = {
@@ -35,6 +36,7 @@ const HELIUM: MoleculeDocument = {
   multiplicity: 1,
   atoms: [{ index: 1, element: 'He', x: 0, y: 0, z: 0 }],
   bonds: [],
+  frozen_atom_indices: [],
 };
 
 const MEDIUM_FIXTURE_ATOM_COUNT = 64;
@@ -64,6 +66,7 @@ function createMediumFixture(): MoleculeDocument {
         atom2: index + 2,
       }),
     ),
+    frozen_atom_indices: [],
   };
 }
 

@@ -9,6 +9,7 @@ import type {
   SetAtomDihedralCommand,
   SetAtomDistanceCommand,
   SetAtomPositionCommand,
+  SetFrozenAtomsCommand,
 } from '../shared/types';
 import { useViewerStore } from './useViewerStore';
 import { useDocumentStore } from './useDocumentStore';
@@ -31,6 +32,7 @@ const WATER: MoleculeDocument = {
     { atom1: 1, atom2: 2 },
     { atom1: 1, atom2: 3 },
   ],
+  frozen_atom_indices: [],
 };
 
 const EDITED_WATER: MoleculeDocument = {
@@ -118,6 +120,7 @@ const DIHEDRAL_FRAGMENT: MoleculeDocument = {
     { index: 4, element: 'H', x: 0, y: 1, z: 1 },
   ],
   bonds: [],
+  frozen_atom_indices: [],
 };
 
 const DIHEDRAL_EDITED_FRAGMENT: MoleculeDocument = {
@@ -139,6 +142,11 @@ const DELETED_ATOM_WATER: MoleculeDocument = {
     { ...WATER.atoms[2], index: 2 },
   ],
   bonds: [{ atom1: 1, atom2: 2 }],
+};
+
+const FROZEN_WATER: MoleculeDocument = {
+  ...WATER,
+  frozen_atom_indices: [1, 3],
 };
 
 const SET_ATOM_POSITION: SetAtomPositionCommand = {
@@ -196,6 +204,13 @@ const DELETE_ATOMS: DeleteAtomsCommand = {
   command_type: 'delete_atoms',
   document_id: WATER.id,
   atom_indices: [2],
+};
+
+const SET_FROZEN_ATOMS: SetFrozenAtomsCommand = {
+  command_type: 'set_frozen_atoms',
+  document_id: WATER.id,
+  atom_indices: [1, 3],
+  action: 'replace',
 };
 
 const SET_ATOM_POSITION_AGAIN: SetAtomPositionCommand = {
@@ -568,6 +583,45 @@ describe('useDocumentStore', () => {
         body: JSON.stringify({
           document: WATER,
           command: DELETE_ATOMS,
+        }),
+      },
+    );
+  });
+
+  it('applies molecule frozen atom edit commands through the API client', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        document: FROZEN_WATER,
+        can_undo: true,
+        can_redo: false,
+      }),
+    );
+    useDocumentStore.setState({ currentDocument: WATER });
+    useViewerStore.setState({ selectedAtomIndices: [1, 3] });
+
+    await useDocumentStore.getState().applyMoleculeEditCommand(
+      SET_FROZEN_ATOMS,
+    );
+
+    expect(useDocumentStore.getState().currentDocument).toEqual(FROZEN_WATER);
+    expect(useDocumentStore.getState().canUndoMoleculeEdit).toBe(true);
+    expect(useDocumentStore.getState().canRedoMoleculeEdit).toBe(false);
+    expect(useDocumentStore.getState().hasUnsavedMoleculeEdits).toBe(true);
+    expect(useDocumentStore.getState().moleculeEditUndoStack).toEqual([
+      {
+        beforeDocument: WATER,
+        afterDocument: FROZEN_WATER,
+      },
+    ]);
+    expect(useViewerStore.getState().selectedAtomIndices).toEqual([1, 3]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/api/documents/edit',
+      {
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        body: JSON.stringify({
+          document: WATER,
+          command: SET_FROZEN_ATOMS,
         }),
       },
     );

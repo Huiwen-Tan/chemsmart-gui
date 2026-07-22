@@ -30,6 +30,7 @@ const WATER: MoleculeDocument = {
     { atom1: 1, atom2: 2 },
     { atom1: 1, atom2: 3 },
   ],
+  frozen_atom_indices: [],
 };
 
 const WATER_WITH_EXTRA_ATOM: MoleculeDocument = {
@@ -38,6 +39,11 @@ const WATER_WITH_EXTRA_ATOM: MoleculeDocument = {
     ...WATER.atoms,
     { index: 4, element: 'H', x: 0, y: -0.58, z: 0 },
   ],
+};
+
+const FROZEN_WATER: MoleculeDocument = {
+  ...WATER,
+  frozen_atom_indices: [1, 3],
 };
 
 const DIHEDRAL_FRAGMENT: MoleculeDocument = {
@@ -56,6 +62,7 @@ const DIHEDRAL_FRAGMENT: MoleculeDocument = {
     { index: 4, element: 'H', x: 0, y: 1, z: 1 },
   ],
   bonds: [],
+  frozen_atom_indices: [],
 };
 
 const DIHEDRAL_FRAGMENT_WITH_EXTRA_ATOM: MoleculeDocument = {
@@ -116,6 +123,10 @@ describe('SelectedAtomPanel', () => {
     expect(screen.queryByText('Dihedral:')).not.toBeInTheDocument();
     expect(screen.getByRole('form', { name: 'Add atom' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add Atom' })).toBeEnabled();
+    expect(screen.getByText('Frozen atom indices: none')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Freeze Selected Atoms' }),
+    ).toBeDisabled();
   });
 
   it('submits add atom edits through the document store', () => {
@@ -192,6 +203,92 @@ describe('SelectedAtomPanel', () => {
       screen.getByText('Select an atom to inspect its metadata.'),
     ).toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
+
+  it('shows frozen atom state for the current selection', () => {
+    useViewerStore.setState({ selectedAtomIndices: [3, 2] });
+
+    render(<SelectedAtomPanel document={FROZEN_WATER} />);
+
+    expect(screen.getByText('Frozen atom indices: 1, 3')).toBeInTheDocument();
+    expect(
+      screen.getByText('Selected frozen atom indices: 3'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Selected unfrozen atom indices: 2'),
+    ).toBeInTheDocument();
+  });
+
+  it('freezes selected atoms through the document store', () => {
+    const applyMoleculeEditCommand = vi.fn().mockResolvedValue(undefined);
+    useDocumentStore.setState({ applyMoleculeEditCommand });
+    useViewerStore.setState({ selectedAtomIndices: [2, 99] });
+
+    render(<SelectedAtomPanel document={FROZEN_WATER} />);
+
+    expect(
+      screen.getByRole('button', { name: 'Freeze Selected Atoms' }),
+    ).toBeEnabled();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Freeze Selected Atoms' }),
+    );
+
+    expect(applyMoleculeEditCommand).toHaveBeenCalledWith({
+      command_type: 'set_frozen_atoms',
+      document_id: 'water',
+      atom_indices: [2],
+      action: 'freeze',
+    });
+  });
+
+  it('unfreezes selected atoms through the document store', () => {
+    const applyMoleculeEditCommand = vi.fn().mockResolvedValue(undefined);
+    useDocumentStore.setState({ applyMoleculeEditCommand });
+    useViewerStore.setState({ selectedAtomIndices: [1, 2] });
+
+    render(<SelectedAtomPanel document={FROZEN_WATER} />);
+
+    expect(
+      screen.getByRole('button', { name: 'Unfreeze Selected Atoms' }),
+    ).toBeEnabled();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Unfreeze Selected Atoms' }),
+    );
+
+    expect(applyMoleculeEditCommand).toHaveBeenCalledWith({
+      command_type: 'set_frozen_atoms',
+      document_id: 'water',
+      atom_indices: [1, 2],
+      action: 'unfreeze',
+    });
+  });
+
+  it('replaces and clears frozen atoms through the document store', () => {
+    const applyMoleculeEditCommand = vi.fn().mockResolvedValue(undefined);
+    useDocumentStore.setState({ applyMoleculeEditCommand });
+    useViewerStore.setState({ selectedAtomIndices: [2] });
+
+    render(<SelectedAtomPanel document={FROZEN_WATER} />);
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Replace Frozen Atoms With Selection',
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Clear Frozen Atoms' }));
+
+    expect(applyMoleculeEditCommand).toHaveBeenNthCalledWith(1, {
+      command_type: 'set_frozen_atoms',
+      document_id: 'water',
+      atom_indices: [2],
+      action: 'replace',
+    });
+    expect(applyMoleculeEditCommand).toHaveBeenNthCalledWith(2, {
+      command_type: 'set_frozen_atoms',
+      document_id: 'water',
+      atom_indices: [],
+      action: 'replace',
+    });
   });
 
   it('shows selected metadata and distance for two valid selected atoms', () => {

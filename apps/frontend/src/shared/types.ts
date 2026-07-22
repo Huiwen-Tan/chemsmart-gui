@@ -53,6 +53,7 @@ export interface MoleculeDocument {
   multiplicity: number | null;
   atoms: Atom[];
   bonds: Bond[];
+  frozen_atom_indices: number[];
 }
 
 export interface TrajectoryDocument {
@@ -84,6 +85,7 @@ export type MoleculeEditCommandType =
   | 'set_atom_distance'
   | 'set_atom_angle'
   | 'set_atom_dihedral'
+  | 'set_frozen_atoms'
   | 'add_bond'
   | 'remove_bond'
   | 'add_atom'
@@ -125,6 +127,15 @@ export interface SetAtomDihedralCommand {
   dihedral_degrees: number;
 }
 
+export type FrozenAtomAction = 'freeze' | 'unfreeze' | 'replace';
+
+export interface SetFrozenAtomsCommand {
+  command_type: 'set_frozen_atoms';
+  document_id: string;
+  atom_indices: number[];
+  action: FrozenAtomAction;
+}
+
 export interface AddBondCommand {
   command_type: 'add_bond';
   document_id: string;
@@ -158,6 +169,7 @@ export type MoleculeEditCommand =
   | SetAtomDistanceCommand
   | SetAtomAngleCommand
   | SetAtomDihedralCommand
+  | SetFrozenAtomsCommand
   | AddBondCommand
   | RemoveBondCommand
   | AddAtomCommand

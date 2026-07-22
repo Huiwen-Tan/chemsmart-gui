@@ -38,6 +38,7 @@ def test_water_mapping_contract() -> None:
             {"atom1": 1, "atom2": 2},
             {"atom1": 1, "atom2": 3},
         ],
+        "frozen_atom_indices": [],
     }
 
 
@@ -57,6 +58,24 @@ def test_mapping_preserves_explicit_electronic_state() -> None:
     assert document.calculation is None
 
 
+def test_mapping_preserves_frozen_atoms() -> None:
+    molecule = Molecule(
+        symbols=["O", "H", "H"],
+        positions=[
+            [0.0, 0.0, 0.0],
+            [0.76, 0.58, 0.0],
+            [-0.76, 0.58, 0.0],
+        ],
+        frozen_atoms=[-1, 0, -1],
+    )
+
+    document = ChemsmartAdapter().to_document(molecule)
+    mapped_molecule = ChemsmartAdapter().to_molecule(document)
+
+    assert document.frozen_atom_indices == [1, 3]
+    assert mapped_molecule.frozen_atoms == [-1, 0, -1]
+
+
 def test_shared_schema_expresses_mapping_contract() -> None:
     schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
     properties = schema["properties"]
@@ -72,6 +91,7 @@ def test_shared_schema_expresses_mapping_contract() -> None:
         "multiplicity",
         "atoms",
         "bonds",
+        "frozen_atom_indices",
     ]
     assert properties["document_kind"]["const"] == "structure"
     source_schema = properties["source"]["anyOf"][0]
@@ -98,3 +118,5 @@ def test_shared_schema_expresses_mapping_contract() -> None:
     assert properties["atoms"]["items"]["properties"]["index"]["minimum"] == 1
     assert properties["bonds"]["items"]["properties"]["atom1"]["minimum"] == 1
     assert properties["bonds"]["items"]["properties"]["atom2"]["minimum"] == 1
+    assert properties["frozen_atom_indices"]["uniqueItems"] is True
+    assert properties["frozen_atom_indices"]["items"]["minimum"] == 1

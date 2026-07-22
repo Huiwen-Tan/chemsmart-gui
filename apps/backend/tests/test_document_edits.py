@@ -15,6 +15,7 @@ from chemsmart_gui.domain.edit import (
     SetAtomDihedralCommand,
     SetAtomDistanceCommand,
     SetAtomPositionCommand,
+    SetFrozenAtomsCommand,
 )
 from chemsmart_gui.domain.molecule import Atom
 from chemsmart_gui.main import app
@@ -154,6 +155,17 @@ def delete_atoms_command(document: MoleculeDocument) -> DeleteAtomsCommand:
         command_type="delete_atoms",
         document_id=document.id,
         atom_indices=[2],
+    )
+
+
+def set_frozen_atoms_command(
+    document: MoleculeDocument,
+) -> SetFrozenAtomsCommand:
+    return SetFrozenAtomsCommand(
+        command_type="set_frozen_atoms",
+        document_id=document.id,
+        atom_indices=[1, 3],
+        action="replace",
     )
 
 
@@ -429,6 +441,27 @@ def test_apply_delete_atoms_command_returns_updated_document() -> None:
         {"index": 2, "element": "H", "x": -0.76, "y": 0.58, "z": 0.0},
     ]
     assert body["document"]["bonds"] == [{"atom1": 1, "atom2": 2}]
+
+
+def test_apply_set_frozen_atoms_command_returns_updated_document() -> None:
+    document = open_water_document()
+    command = set_frozen_atoms_command(document)
+
+    response = client.post(
+        "/api/documents/edit",
+        json={
+            "document": document.model_dump(),
+            "command": command.model_dump(),
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["can_undo"] is True
+    assert body["can_redo"] is False
+    assert body["document"]["id"] == document.id
+    assert body["document"]["calculation"] is None
+    assert body["document"]["frozen_atom_indices"] == [1, 3]
 
 
 def test_apply_molecule_edit_command_rejects_document_mismatch() -> None:

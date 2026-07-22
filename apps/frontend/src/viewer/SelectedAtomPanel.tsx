@@ -1,6 +1,11 @@
 import { type FormEvent, useEffect, useState } from 'react';
 
-import type { Atom, Bond, MoleculeDocument } from '../shared/types';
+import type {
+  Atom,
+  Bond,
+  FrozenAtomAction,
+  MoleculeDocument,
+} from '../shared/types';
 import { useDocumentStore } from '../state/useDocumentStore';
 import { useViewerStore } from '../state/useViewerStore';
 
@@ -137,6 +142,10 @@ function bondMatches(
   );
 }
 
+function formatAtomIndexList(atomIndices: number[]): string {
+  return atomIndices.length > 0 ? atomIndices.join(', ') : 'none';
+}
+
 export function SelectedAtomPanel({
   document,
 }: SelectedAtomPanelProps): JSX.Element {
@@ -162,6 +171,15 @@ export function SelectedAtomPanel({
     const atom = atomsByIndex.get(atomIndex);
     return atom ? [atom] : [];
   });
+  const frozenAtomIndices = document?.frozen_atom_indices ?? [];
+  const frozenAtomIndexSet = new Set(frozenAtomIndices);
+  const selectedFrozenAtoms = selectedAtoms.filter((atom) => (
+    frozenAtomIndexSet.has(atom.index)
+  ));
+  const selectedUnfrozenAtoms = selectedAtoms.filter((atom) => (
+    !frozenAtomIndexSet.has(atom.index)
+  ));
+  const selectedAtomIndexList = selectedAtoms.map((atom) => atom.index);
   const singleSelectedAtom = selectedAtoms.length === 1
     ? selectedAtoms[0]
     : null;
@@ -521,6 +539,21 @@ export function SelectedAtomPanel({
       atom_indices: selectedAtoms.map((atom) => atom.index),
     });
   };
+  const applyFrozenAtomEdit = (
+    action: FrozenAtomAction,
+    atomIndices: number[],
+  ): void => {
+    if (!document) {
+      return;
+    }
+
+    void applyMoleculeEditCommand({
+      command_type: 'set_frozen_atoms',
+      document_id: document.id,
+      atom_indices: atomIndices,
+      action,
+    });
+  };
   const deleteSelectionDisabled = Boolean(
     !document ||
     selectedAtoms.length === 0 ||
@@ -799,6 +832,85 @@ export function SelectedAtomPanel({
           ) : null}
         </>
       )}
+      {document ? (
+        <section
+          aria-label="Freeze selected atoms"
+          style={{ marginTop: 12 }}
+        >
+          <h3>Frozen Atoms</h3>
+          <p>
+            Frozen atom indices: {formatAtomIndexList(frozenAtomIndices)}
+          </p>
+          {selectedAtoms.length > 0 ? (
+            <>
+              <p>
+                Selected frozen atom indices:{' '}
+                {formatAtomIndexList(
+                  selectedFrozenAtoms.map((atom) => atom.index),
+                )}
+              </p>
+              <p>
+                Selected unfrozen atom indices:{' '}
+                {formatAtomIndexList(
+                  selectedUnfrozenAtoms.map((atom) => atom.index),
+                )}
+              </p>
+            </>
+          ) : null}
+          <button
+            disabled={
+              isApplyingMoleculeEdit || selectedUnfrozenAtoms.length === 0
+            }
+            onClick={() => applyFrozenAtomEdit(
+              'freeze',
+              selectedAtomIndexList,
+            )}
+            type="button"
+          >
+            {isApplyingMoleculeEdit
+              ? 'Freezing Atoms...'
+              : 'Freeze Selected Atoms'}
+          </button>
+          <button
+            disabled={
+              isApplyingMoleculeEdit || selectedFrozenAtoms.length === 0
+            }
+            onClick={() => applyFrozenAtomEdit(
+              'unfreeze',
+              selectedAtomIndexList,
+            )}
+            style={{ marginLeft: 8 }}
+            type="button"
+          >
+            {isApplyingMoleculeEdit
+              ? 'Unfreezing Atoms...'
+              : 'Unfreeze Selected Atoms'}
+          </button>
+          <button
+            disabled={isApplyingMoleculeEdit || selectedAtoms.length === 0}
+            onClick={() => applyFrozenAtomEdit(
+              'replace',
+              selectedAtomIndexList,
+            )}
+            style={{ marginLeft: 8 }}
+            type="button"
+          >
+            {isApplyingMoleculeEdit
+              ? 'Replacing Frozen Atoms...'
+              : 'Replace Frozen Atoms With Selection'}
+          </button>
+          <button
+            disabled={isApplyingMoleculeEdit || frozenAtomIndices.length === 0}
+            onClick={() => applyFrozenAtomEdit('replace', [])}
+            style={{ marginLeft: 8 }}
+            type="button"
+          >
+            {isApplyingMoleculeEdit
+              ? 'Clearing Frozen Atoms...'
+              : 'Clear Frozen Atoms'}
+          </button>
+        </section>
+      ) : null}
       {document ? (
         <form
           aria-label="Add atom"

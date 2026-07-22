@@ -42,6 +42,7 @@ const WATER_DOCUMENT = {
     { atom1: 1, atom2: 2 },
     { atom1: 1, atom2: 3 },
   ],
+  frozen_atom_indices: [],
 } satisfies MoleculeDocument;
 
 const EDITED_WATER_DOCUMENT = {
@@ -108,6 +109,7 @@ const DIHEDRAL_FRAGMENT_DOCUMENT = {
     { index: 4, element: 'H', x: 0, y: 1, z: 1 },
   ],
   bonds: [],
+  frozen_atom_indices: [],
 } satisfies MoleculeDocument;
 
 const DIHEDRAL_EDITED_FRAGMENT_DOCUMENT = {
@@ -129,6 +131,11 @@ const DELETED_ATOM_WATER_DOCUMENT = {
     { ...WATER_DOCUMENT.atoms[2], index: 2 },
   ],
   bonds: [{ atom1: 1, atom2: 2 }],
+} satisfies MoleculeDocument;
+
+const FROZEN_WATER_DOCUMENT = {
+  ...WATER_DOCUMENT,
+  frozen_atom_indices: [1, 3],
 } satisfies MoleculeDocument;
 
 const SAVED_EDITED_WATER_DOCUMENT = {
@@ -581,6 +588,59 @@ describe('App', () => {
             atom2_index: 2,
             distance: 1.5,
             coordinate_unit: 'angstrom',
+          },
+        }),
+      }),
+    );
+  });
+
+  it('freezes selected atoms through edit controls', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
+      .mockResolvedValueOnce(jsonResponse(WATER_DOCUMENT))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          document: FROZEN_WATER_DOCUMENT,
+          can_undo: true,
+          can_redo: false,
+        }),
+      );
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(WATER_DOCUMENT),
+      );
+    });
+    act(() => {
+      useViewerStore.setState({ selectedAtomIndices: [1, 3] });
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Freeze Selected Atoms' }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(FROZEN_WATER_DOCUMENT),
+      );
+    });
+    expect(screen.getByText('Unsaved edits')).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      'http://127.0.0.1:8000/api/documents/edit',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          document: WATER_DOCUMENT,
+          command: {
+            command_type: 'set_frozen_atoms',
+            document_id: WATER_DOCUMENT.id,
+            atom_indices: [1, 3],
+            action: 'freeze',
           },
         }),
       }),

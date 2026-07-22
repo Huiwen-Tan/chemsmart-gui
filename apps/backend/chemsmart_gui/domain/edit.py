@@ -49,6 +49,16 @@ class SetAtomDihedralCommand(BaseModel):
     dihedral_degrees: float = Field(ge=-180, le=180)
 
 
+FrozenAtomAction = Literal["freeze", "unfreeze", "replace"]
+
+
+class SetFrozenAtomsCommand(BaseModel):
+    command_type: Literal["set_frozen_atoms"]
+    document_id: str = Field(min_length=1)
+    atom_indices: list[AtomIndex] = Field(default_factory=list)
+    action: FrozenAtomAction
+
+
 class AddBondCommand(BaseModel):
     command_type: Literal["add_bond"]
     document_id: str = Field(min_length=1)
@@ -82,6 +92,7 @@ MoleculeEditCommand = (
     | SetAtomDistanceCommand
     | SetAtomAngleCommand
     | SetAtomDihedralCommand
+    | SetFrozenAtomsCommand
     | AddBondCommand
     | RemoveBondCommand
     | AddAtomCommand

@@ -14,6 +14,7 @@ from chemsmart_gui.domain.edit import (
     SetAtomDihedralCommand,
     SetAtomDistanceCommand,
     SetAtomPositionCommand,
+    SetFrozenAtomsCommand,
 )
 from chemsmart_gui.domain.molecule import Atom, Bond
 from chemsmart_gui.services.molecule_edit_service import MoleculeEditService
@@ -195,6 +196,21 @@ def delete_atoms_command(
     )
 
 
+def set_frozen_atoms_command(
+    document: MoleculeDocument,
+    *,
+    atom_indices: list[int] | None = None,
+    action: str = "freeze",
+    document_id: str | None = None,
+) -> SetFrozenAtomsCommand:
+    return SetFrozenAtomsCommand(
+        command_type="set_frozen_atoms",
+        document_id=document_id or document.id,
+        atom_indices=[] if atom_indices is None else atom_indices,
+        action=action,
+    )
+
+
 def test_apply_set_atom_position_updates_target_atom() -> None:
     document = open_water_document().model_copy(
         update={
@@ -236,6 +252,18 @@ def test_apply_set_atom_position_preserves_manual_bonds() -> None:
     updated = MoleculeEditService().apply_command(document, command)
 
     assert updated.bonds == [Bond(atom1=2, atom2=3)]
+
+
+def test_apply_set_atom_position_preserves_frozen_atoms() -> None:
+    document = open_water_document().model_copy(
+        update={"frozen_atom_indices": [1, 3]},
+        deep=True,
+    )
+    command = set_atom_position_command(document)
+
+    updated = MoleculeEditService().apply_command(document, command)
+
+    assert updated.frozen_atom_indices == [1, 3]
 
 
 def test_apply_set_atom_position_rejects_document_mismatch() -> None:
@@ -606,6 +634,98 @@ def test_apply_set_atom_dihedral_rejects_degenerate_dihedral() -> None:
         MoleculeEditService().apply_command(document, command)
 
 
+def test_apply_set_frozen_atoms_freezes_selected_atoms() -> None:
+    document = open_water_document().model_copy(
+        update={
+            "calculation": CalculationMetadata(
+                program="gaussian",
+                normal_termination=True,
+            )
+        },
+        deep=True,
+    )
+    command = set_frozen_atoms_command(document, atom_indices=[3, 1])
+
+    updated = MoleculeEditService().apply_command(document, command)
+
+    assert updated.id == document.id
+    assert updated.source == document.source
+    assert updated.calculation is None
+    assert updated.frozen_atom_indices == [1, 3]
+
+
+def test_apply_set_frozen_atoms_unfreezes_selected_atoms() -> None:
+    document = open_water_document().model_copy(
+        update={"frozen_atom_indices": [1, 2, 3]},
+        deep=True,
+    )
+    command = set_frozen_atoms_command(
+        document,
+        atom_indices=[2, 3],
+        action="unfreeze",
+    )
+
+    updated = MoleculeEditService().apply_command(document, command)
+
+    assert updated.frozen_atom_indices == [1]
+
+
+def test_apply_set_frozen_atoms_replaces_frozen_atoms() -> None:
+    document = open_water_document().model_copy(
+        update={"frozen_atom_indices": [1]},
+        deep=True,
+    )
+    command = set_frozen_atoms_command(
+        document,
+        atom_indices=[3, 2],
+        action="replace",
+    )
+
+    updated = MoleculeEditService().apply_command(document, command)
+
+    assert updated.frozen_atom_indices == [2, 3]
+
+
+def test_apply_set_frozen_atoms_clears_frozen_atoms() -> None:
+    document = open_water_document().model_copy(
+        update={"frozen_atom_indices": [1, 3]},
+        deep=True,
+    )
+    command = set_frozen_atoms_command(document, action="replace")
+
+    updated = MoleculeEditService().apply_command(document, command)
+
+    assert updated.frozen_atom_indices == []
+
+
+def test_apply_set_frozen_atoms_rejects_missing_atom() -> None:
+    document = open_water_document()
+    command = set_frozen_atoms_command(document, atom_indices=[99])
+
+    with pytest.raises(ValueError, match="Atom index 99"):
+        MoleculeEditService().apply_command(document, command)
+
+
+def test_apply_set_frozen_atoms_rejects_empty_incremental_edit() -> None:
+    document = open_water_document()
+    command = set_frozen_atoms_command(document)
+
+    with pytest.raises(ValueError, match="requires at least one atom index"):
+        MoleculeEditService().apply_command(document, command)
+
+
+def test_apply_set_frozen_atoms_rejects_document_mismatch() -> None:
+    document = open_water_document()
+    command = set_frozen_atoms_command(
+        document,
+        atom_indices=[1],
+        document_id="other-document",
+    )
+
+    with pytest.raises(ValueError, match="targets document"):
+        MoleculeEditService().apply_command(document, command)
+
+
 def test_apply_add_bond_adds_bond_between_existing_atoms() -> None:
     document = open_water_document().model_copy(
         update={
@@ -727,7 +847,10 @@ def test_apply_add_atom_rejects_document_mismatch() -> None:
 
 
 def test_apply_delete_atoms_removes_atoms_and_remaps_bonds() -> None:
-    document = open_water_document()
+    document = open_water_document().model_copy(
+        update={"frozen_atom_indices": [1, 3]},
+        deep=True,
+    )
     command = delete_atoms_command(document, atom_indices=[2])
 
     updated = MoleculeEditService().apply_command(document, command)
@@ -740,16 +863,21 @@ def test_apply_delete_atoms_removes_atoms_and_remaps_bonds() -> None:
         (2, "H"),
     ]
     assert updated.bonds == [Bond(atom1=1, atom2=2)]
+    assert updated.frozen_atom_indices == [1, 2]
 
 
 def test_apply_delete_atoms_deletes_multiple_atoms() -> None:
-    document = open_water_document()
+    document = open_water_document().model_copy(
+        update={"frozen_atom_indices": [1, 2, 3]},
+        deep=True,
+    )
     command = delete_atoms_command(document, atom_indices=[2, 3])
 
     updated = MoleculeEditService().apply_command(document, command)
 
     assert [(atom.index, atom.element) for atom in updated.atoms] == [(1, "O")]
     assert updated.bonds == []
+    assert updated.frozen_atom_indices == [1]
 
 
 def test_apply_delete_atoms_rejects_missing_atom() -> None:

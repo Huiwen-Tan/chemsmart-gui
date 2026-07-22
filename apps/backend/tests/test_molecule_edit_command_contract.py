@@ -14,6 +14,7 @@ from chemsmart_gui.domain.edit import (
     SetAtomDihedralCommand,
     SetAtomDistanceCommand,
     SetAtomPositionCommand,
+    SetFrozenAtomsCommand,
 )
 
 
@@ -206,6 +207,43 @@ def test_set_atom_dihedral_command_requires_valid_indices() -> None:
         )
 
 
+def test_set_frozen_atoms_command_serializes_contract() -> None:
+    command = SetFrozenAtomsCommand(
+        command_type="set_frozen_atoms",
+        document_id="document-water",
+        atom_indices=[3, 1],
+        action="replace",
+    )
+
+    assert command.model_dump() == {
+        "command_type": "set_frozen_atoms",
+        "document_id": "document-water",
+        "atom_indices": [3, 1],
+        "action": "replace",
+    }
+
+
+def test_set_frozen_atoms_command_allows_empty_replacement() -> None:
+    command = SetFrozenAtomsCommand(
+        command_type="set_frozen_atoms",
+        document_id="document-water",
+        atom_indices=[],
+        action="replace",
+    )
+
+    assert command.atom_indices == []
+
+
+def test_set_frozen_atoms_command_requires_1_based_atom_indices() -> None:
+    with pytest.raises(ValidationError):
+        SetFrozenAtomsCommand(
+            command_type="set_frozen_atoms",
+            document_id="document-water",
+            atom_indices=[0],
+            action="freeze",
+        )
+
+
 def test_add_bond_command_serializes_contract() -> None:
     command = AddBondCommand(
         command_type="add_bond",
@@ -329,6 +367,7 @@ def test_shared_schema_expresses_edit_command_contract() -> None:
     remove_bond_schema = command_schemas["RemoveBondCommand"]
     set_angle_schema = command_schemas["SetAtomAngleCommand"]
     set_dihedral_schema = command_schemas["SetAtomDihedralCommand"]
+    set_frozen_atoms_schema = command_schemas["SetFrozenAtomsCommand"]
     add_atom_schema = command_schemas["AddAtomCommand"]
     delete_atoms_schema = command_schemas["DeleteAtomsCommand"]
     properties = set_atom_schema["properties"]
@@ -341,6 +380,7 @@ def test_shared_schema_expresses_edit_command_contract() -> None:
         "RemoveBondCommand",
         "SetAtomAngleCommand",
         "SetAtomDihedralCommand",
+        "SetFrozenAtomsCommand",
         "AddAtomCommand",
         "DeleteAtomsCommand",
     }
@@ -452,6 +492,30 @@ def test_shared_schema_expresses_edit_command_contract() -> None:
         set_dihedral_schema["properties"]["dihedral_degrees"]["maximum"]
         == 180
     )
+    assert set_frozen_atoms_schema["required"] == [
+        "command_type",
+        "document_id",
+        "atom_indices",
+        "action",
+    ]
+    assert (
+        set_frozen_atoms_schema["properties"]["command_type"]["const"]
+        == "set_frozen_atoms"
+    )
+    assert (
+        set_frozen_atoms_schema["properties"]["document_id"]["minLength"] == 1
+    )
+    assert (
+        set_frozen_atoms_schema["properties"]["atom_indices"]["items"][
+            "minimum"
+        ]
+        == 1
+    )
+    assert set_frozen_atoms_schema["properties"]["action"]["enum"] == [
+        "freeze",
+        "unfreeze",
+        "replace",
+    ]
     assert add_atom_schema["required"] == [
         "command_type",
         "document_id",

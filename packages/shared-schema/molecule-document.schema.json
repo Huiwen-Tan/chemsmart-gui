@@ -13,7 +13,8 @@
     "charge",
     "multiplicity",
     "atoms",
-    "bonds"
+    "bonds",
+    "frozen_atom_indices"
   ],
   "properties": {
     "id": { "type": "string", "minLength": 1 },
@@ -99,6 +100,15 @@
         },
         "additionalProperties": false
       }
+    },
+    "frozen_atom_indices": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "description": "1-based atom indices currently frozen for constrained edits or future input generation."
     }
   },
   "additionalProperties": false

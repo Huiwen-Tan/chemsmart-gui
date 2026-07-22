@@ -21,6 +21,7 @@ const WATER_DOCUMENT: MoleculeDocument = {
   multiplicity: null,
   atoms: [],
   bonds: [],
+  frozen_atom_indices: [],
 };
 
 const GAUSSIAN_OUTPUT_DOCUMENT: MoleculeDocument = {

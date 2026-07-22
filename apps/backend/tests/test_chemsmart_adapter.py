@@ -42,6 +42,7 @@ def test_open_molecule_from_path_returns_normalized_document() -> None:
         (1, 2),
         (1, 3),
     ]
+    assert document.frozen_atom_indices == []
 
 
 @pytest.mark.parametrize(
@@ -75,6 +76,7 @@ def test_open_gaussian_input_from_path_returns_normalized_document(
         (0.76, 0.58, 0.0),
         (-0.76, 0.58, 0.0),
     ]
+    assert document.frozen_atom_indices == []
 
 
 def test_open_orca_input_from_path_returns_normalized_document() -> None:
@@ -97,6 +99,7 @@ def test_open_orca_input_from_path_returns_normalized_document() -> None:
         (-0.792, 0.0, -0.4973),
         (0.792, 0.0, -0.4973),
     ]
+    assert document.frozen_atom_indices == []
 
 
 def test_open_gaussian_output_from_path_returns_final_structure() -> None:
@@ -278,6 +281,32 @@ def test_preview_molecule_export_returns_gjf_from_gaussian_input() -> None:
         "1.1000000000",
         "1.2000000000",
     ]
+
+
+def test_preview_input_export_omits_frozen_atoms() -> None:
+    gaussian_document = ChemsmartAdapter().open_molecule_from_path(
+        str(WATER_GJF_PATH),
+    )
+    orca_document = ChemsmartAdapter().open_molecule_from_path(
+        str(WATER_INP_PATH),
+    )
+
+    _, gaussian_content = ChemsmartAdapter().preview_molecule_export(
+        gaussian_document.model_copy(update={"frozen_atom_indices": [1]}),
+        "gjf",
+    )
+    _, orca_content = ChemsmartAdapter().preview_molecule_export(
+        orca_document.model_copy(update={"frozen_atom_indices": [1]}),
+        "inp",
+    )
+
+    assert gaussian_content.splitlines()[8].split() == [
+        "O",
+        "0.0000000000",
+        "0.0000000000",
+        "0.0000000000",
+    ]
+    assert "%geom" not in orca_content
 
 
 def test_preview_molecule_export_returns_inp_from_orca_input() -> None:

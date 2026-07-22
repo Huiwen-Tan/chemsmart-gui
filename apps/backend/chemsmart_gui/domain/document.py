@@ -1,6 +1,6 @@
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from .molecule import Atom, Bond
 
@@ -16,6 +16,7 @@ CalculationProgram = Literal["gaussian", "orca"]
 JsonScalar = str | int | float | bool | None
 JsonValue = JsonScalar | list[JsonScalar] | dict[str, JsonScalar]
 JsonObject = dict[str, JsonValue]
+AtomIndex = Annotated[int, Field(ge=1)]
 
 
 class DocumentSource(BaseModel):
@@ -42,6 +43,33 @@ class MoleculeDocument(BaseModel):
     multiplicity: int | None
     atoms: list[Atom]
     bonds: list[Bond]
+    frozen_atom_indices: list[AtomIndex] = Field(default_factory=list)
+
+    @field_validator("frozen_atom_indices")
+    @classmethod
+    def frozen_atom_indices_are_unique(
+        cls,
+        atom_indices: list[int],
+    ) -> list[int]:
+        return sorted(set(atom_indices))
+
+    @model_validator(mode="after")
+    def frozen_atom_indices_reference_atoms(self) -> "MoleculeDocument":
+        existing_atom_indices = {atom.index for atom in self.atoms}
+        missing_atom_indices = [
+            atom_index
+            for atom_index in self.frozen_atom_indices
+            if atom_index not in existing_atom_indices
+        ]
+        if missing_atom_indices:
+            missing_atom_list = ", ".join(
+                str(atom_index) for atom_index in missing_atom_indices
+            )
+            raise ValueError(
+                "frozen_atom_indices reference missing atom indices: "
+                f"{missing_atom_list}"
+            )
+        return self
 
 
 class TrajectoryDocument(BaseModel):

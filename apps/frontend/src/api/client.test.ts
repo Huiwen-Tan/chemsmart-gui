@@ -39,6 +39,7 @@ const WATER_DOCUMENT: MoleculeDocument = {
     { index: 2, element: 'H', x: 0.76, y: 0.58, z: 0 },
   ],
   bonds: [{ atom1: 1, atom2: 2 }],
+  frozen_atom_indices: [],
 };
 
 const EDIT_REQUEST: ApplyMoleculeEditRequest = {
@@ -188,6 +189,7 @@ const DIHEDRAL_FRAGMENT: MoleculeDocument = {
     { index: 4, element: 'H', x: 0, y: 1, z: 1 },
   ],
   bonds: [],
+  frozen_atom_indices: [],
 };
 
 const DIHEDRAL_EDIT_REQUEST: ApplyMoleculeEditRequest = {
@@ -213,6 +215,25 @@ const DIHEDRAL_EDIT_RESPONSE: MoleculeEditResponse = {
       DIHEDRAL_FRAGMENT.atoms[2],
       { index: 4, element: 'H', x: 0.5, y: 1, z: -0.866 },
     ],
+  },
+  can_undo: true,
+  can_redo: false,
+};
+
+const FROZEN_EDIT_REQUEST: ApplyMoleculeEditRequest = {
+  document: WATER_DOCUMENT,
+  command: {
+    command_type: 'set_frozen_atoms',
+    document_id: WATER_DOCUMENT.id,
+    atom_indices: [1, 2],
+    action: 'replace',
+  },
+};
+
+const FROZEN_EDIT_RESPONSE: MoleculeEditResponse = {
+  document: {
+    ...WATER_DOCUMENT,
+    frozen_atom_indices: [1, 2],
   },
   can_undo: true,
   can_redo: false,
@@ -411,6 +432,23 @@ describe('api client', () => {
         headers: { 'Content-Type': 'application/json' },
         method: 'POST',
         body: JSON.stringify(DIHEDRAL_EDIT_REQUEST),
+      },
+    );
+  });
+
+  it('posts molecule frozen atom edit commands to the document edit API', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(FROZEN_EDIT_RESPONSE));
+
+    await expect(applyMoleculeEdit(FROZEN_EDIT_REQUEST)).resolves.toEqual(
+      FROZEN_EDIT_RESPONSE,
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/api/documents/edit',
+      {
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        body: JSON.stringify(FROZEN_EDIT_REQUEST),
       },
     );
   });

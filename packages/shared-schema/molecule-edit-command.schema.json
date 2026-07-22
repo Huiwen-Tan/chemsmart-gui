@@ -228,6 +228,37 @@
       "additionalProperties": false
     },
     {
+      "title": "SetFrozenAtomsCommand",
+      "type": "object",
+      "required": [
+        "command_type",
+        "document_id",
+        "atom_indices",
+        "action"
+      ],
+      "properties": {
+        "command_type": {
+          "type": "string",
+          "const": "set_frozen_atoms"
+        },
+        "document_id": { "type": "string", "minLength": 1 },
+        "atom_indices": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "description": "1-based atom indices to freeze, unfreeze, or use as the full frozen atom set."
+        },
+        "action": {
+          "type": "string",
+          "enum": ["freeze", "unfreeze", "replace"],
+          "description": "How to apply atom_indices to the document frozen atom set."
+        }
+      },
+      "additionalProperties": false
+    },
+    {
       "title": "AddAtomCommand",
       "type": "object",
       "required": [
