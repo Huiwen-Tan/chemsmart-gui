@@ -277,10 +277,34 @@ describe('VibrationalModesPanel', () => {
     );
   });
 
+  it('requests positive and negative displaced XYZ downloads', () => {
+    const onDownloadDisplacedStructure = vi.fn();
+    render(
+      <VibrationalModesPanel
+        document={GAUSSIAN_OUTPUT_DOCUMENT}
+        onDownloadDisplacedStructure={onDownloadDisplacedStructure}
+        selectedModeIndex={1}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Download + XYZ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Download - XYZ' }));
+
+    expect(onDownloadDisplacedStructure).toHaveBeenNthCalledWith(
+      1,
+      'positive',
+    );
+    expect(onDownloadDisplacedStructure).toHaveBeenNthCalledWith(
+      2,
+      'negative',
+    );
+  });
+
   it('disables displaced structure controls when selected mode has no vectors', () => {
     render(
       <VibrationalModesPanel
         document={GAUSSIAN_OUTPUT_DOCUMENT}
+        onDownloadDisplacedStructure={vi.fn()}
         onGenerateDisplacedStructure={vi.fn()}
         selectedModeIndex={2}
       />,
@@ -291,6 +315,30 @@ describe('VibrationalModesPanel', () => {
     ).toBeDisabled();
     expect(
       screen.getByRole('button', { name: 'Generate - Displacement' }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: 'Download + XYZ' }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: 'Download - XYZ' }),
+    ).toBeDisabled();
+  });
+
+  it('disables displaced XYZ downloads while an export is in progress', () => {
+    render(
+      <VibrationalModesPanel
+        document={GAUSSIAN_OUTPUT_DOCUMENT}
+        isDownloadingDisplacedStructure
+        onDownloadDisplacedStructure={vi.fn()}
+        selectedModeIndex={1}
+      />,
+    );
+
+    expect(
+      screen.getByRole('button', { name: 'Download + XYZ' }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: 'Download - XYZ' }),
     ).toBeDisabled();
   });
 

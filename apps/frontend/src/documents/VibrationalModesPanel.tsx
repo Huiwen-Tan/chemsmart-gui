@@ -16,6 +16,10 @@ interface VibrationalModesPanelProps {
   onGenerateDisplacedStructure?: (
     direction: ModeDisplacementDirection,
   ) => void;
+  isDownloadingDisplacedStructure?: boolean;
+  onDownloadDisplacedStructure?: (
+    direction: ModeDisplacementDirection,
+  ) => void;
 }
 
 function formatNumber(value: number): string {
@@ -49,6 +53,8 @@ export function VibrationalModesPanel({
   onSelectedModeIndexChange,
   isGeneratingDisplacedStructure = false,
   onGenerateDisplacedStructure,
+  isDownloadingDisplacedStructure = false,
+  onDownloadDisplacedStructure,
 }: VibrationalModesPanelProps): JSX.Element {
   const modes = document?.vibrational_modes ?? [];
   const [
@@ -73,6 +79,11 @@ export function VibrationalModesPanel({
     selectedMode.displacements.length > 0 &&
     !isGeneratingDisplacedStructure &&
     onGenerateDisplacedStructure !== undefined;
+  const canDownloadDisplacedStructure =
+    selectedMode !== null &&
+    selectedMode.displacements.length > 0 &&
+    !isDownloadingDisplacedStructure &&
+    onDownloadDisplacedStructure !== undefined;
 
   return (
     <section
@@ -159,6 +170,22 @@ export function VibrationalModesPanel({
             type="button"
           >
             Generate - Displacement
+          </button>
+          <button
+            disabled={!canDownloadDisplacedStructure}
+            onClick={() => onDownloadDisplacedStructure?.('positive')}
+            style={{ marginLeft: 8 }}
+            type="button"
+          >
+            Download + XYZ
+          </button>
+          <button
+            disabled={!canDownloadDisplacedStructure}
+            onClick={() => onDownloadDisplacedStructure?.('negative')}
+            style={{ marginLeft: 8 }}
+            type="button"
+          >
+            Download - XYZ
           </button>
           <dl>
             <dt>Frequency (cm^-1)</dt>

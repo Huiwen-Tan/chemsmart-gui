@@ -6,6 +6,7 @@ import {
   writeMoleculeExport,
   writeMoleculeSource,
 } from '../api/client';
+import { downloadTextFile } from '../shared/download';
 import type {
   MoleculeDocument,
   MoleculeExportPreviewFiletype,
@@ -149,29 +150,6 @@ function sourceStatusResolutionMessage(
 
 function messageFromUnknownError(error: unknown): string {
   return error instanceof Error ? error.message : 'Unknown error';
-}
-
-function downloadTextFile(
-  filename: string,
-  content: string,
-  contentType: string,
-): void {
-  const blob = new Blob([content], {
-    type: contentType,
-  });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.download = filename;
-  link.href = url;
-  link.rel = 'noopener';
-
-  try {
-    document.body.appendChild(link);
-    link.click();
-  } finally {
-    link.remove();
-    URL.revokeObjectURL(url);
-  }
 }
 
 export function MoleculeExportPreviewPanel({

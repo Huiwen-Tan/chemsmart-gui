@@ -271,6 +271,19 @@ const DISPLACED_GAUSSIAN_OUTPUT_DOCUMENT = {
   vibrational_modes: [],
 } satisfies MoleculeDocument;
 
+const NEGATIVE_DISPLACED_GAUSSIAN_OUTPUT_DOCUMENT = {
+  ...DISPLACED_GAUSSIAN_OUTPUT_DOCUMENT,
+  id: 'generated-negative-mode-displaced-water-document',
+  atoms: [
+    { index: 1, element: 'O', x: 0, y: 0, z: 0.1 },
+    { index: 2, element: 'H', x: 0.56, y: 0.58, z: -0.1 },
+    WATER_DOCUMENT.atoms[2],
+  ],
+} satisfies MoleculeDocument;
+
+const DISPLACED_XYZ_CONTENT =
+  '3\nstr-H2O-mode-negative    Empirical formula: H2O\nO 0 0 0.1\nH 0.56 0.58 -0.1\nH -0.76 0.58 0\n';
+
 const fetchMock = vi.fn<typeof fetch>();
 
 function jsonResponse(body: unknown): Response {
@@ -287,6 +300,19 @@ function jsonErrorResponse(
   return new Response(JSON.stringify(body), {
     ...init,
     headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+function readBlobAsText(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener('load', () => {
+      resolve(String(reader.result));
+    });
+    reader.addEventListener('error', () => {
+      reject(reader.error ?? new Error('Could not read Blob.'));
+    });
+    reader.readAsText(blob);
   });
 }
 
@@ -1095,6 +1121,163 @@ describe('App', () => {
         'No vibrational modes available for this document.',
       ),
     ).toBeInTheDocument();
+  });
+
+  it('downloads a selected mode displaced XYZ without replacing the document', async () => {
+    const createObjectURL = vi.fn((blob: Blob): string => {
+      void blob;
+      return 'blob:displaced-mode-xyz';
+    });
+    const revokeObjectURL = vi.fn();
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => {});
+    vi.stubGlobal('URL', {
+      ...URL,
+      createObjectURL,
+      revokeObjectURL,
+    });
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
+      .mockResolvedValueOnce(jsonResponse(GAUSSIAN_OUTPUT_DOCUMENT))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          document: NEGATIVE_DISPLACED_GAUSSIAN_OUTPUT_DOCUMENT,
+          mode_index: 1,
+          direction: 'negative',
+          amplitude: 1,
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          filename: 'str-H2O-mode-negative.xyz',
+          filetype: 'xyz',
+          content: DISPLACED_XYZ_CONTENT,
+        }),
+      );
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText('Document path'), {
+      target: { value: 'sample-data/water.log' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT),
+      );
+    });
+    const modesPanel = screen.getByRole('region', {
+      name: 'Vibrational Modes',
+    });
+    fireEvent.click(
+      within(modesPanel).getByRole('button', {
+        name: 'Play Mode Animation',
+      }),
+    );
+    fireEvent.click(
+      within(modesPanel).getByRole('button', { name: 'Download - XYZ' }),
+    );
+
+    await waitFor(() => {
+      expect(createObjectURL).toHaveBeenCalledTimes(1);
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      'http://127.0.0.1:8000/api/documents/mode-displacement',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          document: GAUSSIAN_OUTPUT_DOCUMENT,
+          mode_index: 1,
+          direction: 'negative',
+          amplitude: 1,
+        }),
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      4,
+      'http://127.0.0.1:8000/api/documents/export-preview',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          document: NEGATIVE_DISPLACED_GAUSSIAN_OUTPUT_DOCUMENT,
+          filetype: 'xyz',
+        }),
+      }),
+    );
+    const blob = createObjectURL.mock.calls[0]?.[0];
+    if (!(blob instanceof Blob)) {
+      throw new Error('Expected a displaced XYZ Blob.');
+    }
+    expect(blob.type).toBe('chemical/x-xyz;charset=utf-8');
+    await expect(readBlobAsText(blob)).resolves.toBe(DISPLACED_XYZ_CONTENT);
+    expect(click).toHaveBeenCalledTimes(1);
+    const link = click.mock.contexts[0] as HTMLAnchorElement;
+    expect(link.download).toBe('str-H2O-mode-negative.xyz');
+    expect(link.href).toBe('blob:displaced-mode-xyz');
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:displaced-mode-xyz');
+    expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+      JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT),
+    );
+    expect(screen.getByTestId('viewer-animation')).toHaveTextContent('true');
+  });
+
+  it('shows displaced XYZ download errors from backend export preview', async () => {
+    const createObjectURL = vi.fn();
+    vi.stubGlobal('URL', {
+      ...URL,
+      createObjectURL,
+      revokeObjectURL: vi.fn(),
+    });
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
+      .mockResolvedValueOnce(jsonResponse(GAUSSIAN_OUTPUT_DOCUMENT))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          document: DISPLACED_GAUSSIAN_OUTPUT_DOCUMENT,
+          mode_index: 1,
+          direction: 'positive',
+          amplitude: 1,
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonErrorResponse({
+          detail: 'Could not preview displaced XYZ export.',
+        }),
+      );
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText('Document path'), {
+      target: { value: 'sample-data/water.log' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT),
+      );
+    });
+    fireEvent.click(
+      within(screen.getByRole('region', { name: 'Vibrational Modes' }))
+        .getByRole('button', { name: 'Download + XYZ' }),
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          'Error: Could not preview displaced XYZ export.',
+        ),
+      ).toBeInTheDocument();
+    });
+    expect(createObjectURL).not.toHaveBeenCalled();
+    expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+      JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT),
+    );
   });
 
   it('previews XYZ export content for the loaded document', async () => {
