@@ -9,6 +9,7 @@ from chemsmart_gui.domain.edit import (
     MoleculeEditCommand,
     RemoveBondCommand,
     SetAtomAngleCommand,
+    SetAtomDihedralCommand,
     SetAtomDistanceCommand,
     SetAtomPositionCommand,
 )
@@ -18,12 +19,20 @@ GEOMETRY_EPSILON = 1e-12
 Vector3 = tuple[float, float, float]
 
 
-def _subtract_atom_positions(first: Atom, second: Atom) -> Vector3:
+def _atom_position(atom: Atom) -> Vector3:
+    return (atom.x, atom.y, atom.z)
+
+
+def _subtract_vectors(first: Vector3, second: Vector3) -> Vector3:
     return (
-        first.x - second.x,
-        first.y - second.y,
-        first.z - second.z,
+        first[0] - second[0],
+        first[1] - second[1],
+        first[2] - second[2],
     )
+
+
+def _subtract_atom_positions(first: Atom, second: Atom) -> Vector3:
+    return _subtract_vectors(_atom_position(first), _atom_position(second))
 
 
 def _add_vectors(first: Vector3, second: Vector3) -> Vector3:
@@ -70,6 +79,73 @@ def _normalize_vector(vector: Vector3) -> Vector3 | None:
     return _scale_vector(vector, 1 / length)
 
 
+def _orthogonal_component(vector: Vector3, axis_unit: Vector3) -> Vector3:
+    return _subtract_vectors(
+        vector,
+        _scale_vector(axis_unit, _dot_vectors(vector, axis_unit)),
+    )
+
+
+def _calculate_dihedral_degrees(
+    first_atom: Atom,
+    second_atom: Atom,
+    third_atom: Atom,
+    fourth_atom: Atom,
+) -> float | None:
+    first_bond = _subtract_atom_positions(first_atom, second_atom)
+    second_bond = _subtract_atom_positions(third_atom, second_atom)
+    third_bond = _subtract_atom_positions(fourth_atom, third_atom)
+    second_bond_unit = _normalize_vector(second_bond)
+    if second_bond_unit is None:
+        return None
+
+    first_plane_vector = _orthogonal_component(
+        first_bond,
+        second_bond_unit,
+    )
+    second_plane_vector = _orthogonal_component(
+        third_bond,
+        second_bond_unit,
+    )
+    if (
+        _vector_length(first_plane_vector) <= GEOMETRY_EPSILON
+        or _vector_length(second_plane_vector) <= GEOMETRY_EPSILON
+    ):
+        return None
+
+    x_value = _dot_vectors(first_plane_vector, second_plane_vector)
+    y_value = _dot_vectors(
+        _cross_vectors(second_bond_unit, first_plane_vector),
+        second_plane_vector,
+    )
+    return math.degrees(math.atan2(y_value, x_value))
+
+
+def _normalize_rotation_degrees(rotation_degrees: float) -> float:
+    return (rotation_degrees + 180) % 360 - 180
+
+
+def _rotate_vector_around_axis(
+    vector: Vector3,
+    axis_unit: Vector3,
+    rotation_radians: float,
+) -> Vector3:
+    cos_value = math.cos(rotation_radians)
+    sin_value = math.sin(rotation_radians)
+    cross_component = _cross_vectors(axis_unit, vector)
+    axis_component = _scale_vector(
+        axis_unit,
+        _dot_vectors(axis_unit, vector) * (1 - cos_value),
+    )
+    return _add_vectors(
+        _add_vectors(
+            _scale_vector(vector, cos_value),
+            _scale_vector(cross_component, sin_value),
+        ),
+        axis_component,
+    )
+
+
 class MoleculeEditService:
     """Apply molecule edit commands to normalized backend documents."""
 
@@ -87,6 +163,8 @@ class MoleculeEditService:
             return self._apply_set_atom_distance(document, command)
         if isinstance(command, SetAtomAngleCommand):
             return self._apply_set_atom_angle(document, command)
+        if isinstance(command, SetAtomDihedralCommand):
+            return self._apply_set_atom_dihedral(document, command)
         if isinstance(command, AddBondCommand):
             return self._apply_add_bond(document, command)
         if isinstance(command, RemoveBondCommand):
@@ -336,6 +414,72 @@ class MoleculeEditService:
         )
         updated_atoms = [
             updated_third_atom if atom.index == command.atom3_index else atom
+            for atom in document.atoms
+        ]
+        return self._refresh_structure_document(
+            document,
+            atoms=updated_atoms,
+            bonds=document.bonds,
+        )
+
+    def _apply_set_atom_dihedral(
+        self,
+        document: MoleculeDocument,
+        command: SetAtomDihedralCommand,
+    ) -> MoleculeDocument:
+        self._validate_document_id(document, command)
+        atom_indices = (
+            command.atom1_index,
+            command.atom2_index,
+            command.atom3_index,
+            command.atom4_index,
+        )
+        if len(set(atom_indices)) != 4:
+            raise ValueError("Dihedral edit requires four different atoms.")
+        self._validate_atom_indices(document, atom_indices)
+
+        first_atom = self._atom_by_index(document, command.atom1_index)
+        second_atom = self._atom_by_index(document, command.atom2_index)
+        third_atom = self._atom_by_index(document, command.atom3_index)
+        fourth_atom = self._atom_by_index(document, command.atom4_index)
+        axis = _subtract_atom_positions(third_atom, second_atom)
+        axis_unit = _normalize_vector(axis)
+        if axis_unit is None:
+            raise ValueError(
+                "Cannot set atom dihedral when the central bond is "
+                "degenerate."
+            )
+
+        current_dihedral = _calculate_dihedral_degrees(
+            first_atom,
+            second_atom,
+            third_atom,
+            fourth_atom,
+        )
+        if current_dihedral is None:
+            raise ValueError(
+                "Cannot set atom dihedral when the current dihedral is "
+                "degenerate."
+            )
+
+        rotation_degrees = _normalize_rotation_degrees(
+            command.dihedral_degrees - current_dihedral
+        )
+        fourth_vector = _subtract_atom_positions(fourth_atom, third_atom)
+        rotated_fourth_vector = _rotate_vector_around_axis(
+            fourth_vector,
+            axis_unit,
+            math.radians(rotation_degrees),
+        )
+        updated_fourth_atom = fourth_atom.model_copy(
+            update={
+                "x": third_atom.x + rotated_fourth_vector[0],
+                "y": third_atom.y + rotated_fourth_vector[1],
+                "z": third_atom.z + rotated_fourth_vector[2],
+            }
+        )
+        updated_atoms = [
+            updated_fourth_atom if atom.index == command.atom4_index else atom
             for atom in document.atoms
         ]
         return self._refresh_structure_document(

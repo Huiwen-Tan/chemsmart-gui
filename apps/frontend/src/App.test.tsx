@@ -92,6 +92,35 @@ const ANGLE_EDITED_WATER_DOCUMENT = {
   ],
 } satisfies MoleculeDocument;
 
+const DIHEDRAL_FRAGMENT_DOCUMENT = {
+  id: 'dihedral-fragment-document',
+  name: 'dihedral-fragment',
+  document_kind: 'structure',
+  source: null,
+  calculation: null,
+  coordinate_unit: 'angstrom',
+  charge: null,
+  multiplicity: null,
+  atoms: [
+    { index: 1, element: 'C', x: 1, y: 0, z: 0 },
+    { index: 2, element: 'C', x: 0, y: 0, z: 0 },
+    { index: 3, element: 'C', x: 0, y: 1, z: 0 },
+    { index: 4, element: 'H', x: 0, y: 1, z: 1 },
+  ],
+  bonds: [],
+} satisfies MoleculeDocument;
+
+const DIHEDRAL_EDITED_FRAGMENT_DOCUMENT = {
+  ...DIHEDRAL_FRAGMENT_DOCUMENT,
+  id: 'dihedral-edited-fragment-document',
+  atoms: [
+    DIHEDRAL_FRAGMENT_DOCUMENT.atoms[0],
+    DIHEDRAL_FRAGMENT_DOCUMENT.atoms[1],
+    DIHEDRAL_FRAGMENT_DOCUMENT.atoms[2],
+    { index: 4, element: 'H', x: 0.5, y: 1, z: -0.866 },
+  ],
+} satisfies MoleculeDocument;
+
 const DELETED_ATOM_WATER_DOCUMENT = {
   ...WATER_DOCUMENT,
   id: 'deleted-atom-water-document',
@@ -608,6 +637,63 @@ describe('App', () => {
             vertex_atom_index: 1,
             atom3_index: 2,
             angle_degrees: 120,
+          },
+        }),
+      }),
+    );
+  });
+
+  it('sets selected atom dihedral through edit controls', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
+      .mockResolvedValueOnce(jsonResponse(DIHEDRAL_FRAGMENT_DOCUMENT))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          document: DIHEDRAL_EDITED_FRAGMENT_DOCUMENT,
+          can_undo: true,
+          can_redo: false,
+        }),
+      );
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(DIHEDRAL_FRAGMENT_DOCUMENT),
+      );
+    });
+    act(() => {
+      useViewerStore.setState({ selectedAtomIndices: [1, 2, 3, 4] });
+    });
+    fireEvent.change(screen.getByLabelText('Selected atom dihedral'), {
+      target: { value: '60' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Set Dihedral' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(DIHEDRAL_EDITED_FRAGMENT_DOCUMENT),
+      );
+    });
+    expect(screen.getByText('Unsaved edits')).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      'http://127.0.0.1:8000/api/documents/edit',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          document: DIHEDRAL_FRAGMENT_DOCUMENT,
+          command: {
+            command_type: 'set_atom_dihedral',
+            document_id: DIHEDRAL_FRAGMENT_DOCUMENT.id,
+            atom1_index: 1,
+            atom2_index: 2,
+            atom3_index: 3,
+            atom4_index: 4,
+            dihedral_degrees: 60,
           },
         }),
       }),

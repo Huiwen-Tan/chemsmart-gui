@@ -12,9 +12,11 @@ from chemsmart_gui.domain.edit import (
     DeleteAtomsCommand,
     RemoveBondCommand,
     SetAtomAngleCommand,
+    SetAtomDihedralCommand,
     SetAtomDistanceCommand,
     SetAtomPositionCommand,
 )
+from chemsmart_gui.domain.molecule import Atom
 from chemsmart_gui.main import app
 
 
@@ -74,6 +76,48 @@ def set_atom_angle_command(
         vertex_atom_index=vertex_atom_index,
         atom3_index=atom3_index,
         angle_degrees=angle_degrees,
+    )
+
+
+def set_atom_dihedral_command(
+    document: MoleculeDocument,
+    *,
+    atom1_index: int = 1,
+    atom2_index: int = 2,
+    atom3_index: int = 3,
+    atom4_index: int = 4,
+    dihedral_degrees: float = 60.0,
+) -> SetAtomDihedralCommand:
+    return SetAtomDihedralCommand(
+        command_type="set_atom_dihedral",
+        document_id=document.id,
+        atom1_index=atom1_index,
+        atom2_index=atom2_index,
+        atom3_index=atom3_index,
+        atom4_index=atom4_index,
+        dihedral_degrees=dihedral_degrees,
+    )
+
+
+def make_dihedral_document() -> MoleculeDocument:
+    water = open_water_document()
+    return water.model_copy(
+        update={
+            "atoms": [
+                water.atoms[0].model_copy(
+                    update={"element": "C", "x": 1.0, "y": 0.0, "z": 0.0}
+                ),
+                water.atoms[1].model_copy(
+                    update={"element": "C", "x": 0.0, "y": 0.0, "z": 0.0}
+                ),
+                water.atoms[2].model_copy(
+                    update={"element": "C", "x": 0.0, "y": 1.0, "z": 0.0}
+                ),
+                Atom(index=4, element="H", x=0.0, y=1.0, z=1.0),
+            ],
+            "bonds": [],
+        },
+        deep=True,
     )
 
 
@@ -242,6 +286,50 @@ def test_apply_set_atom_angle_command_returns_updated_document() -> None:
         {"atom1": 1, "atom2": 2},
         {"atom1": 1, "atom2": 3},
     ]
+
+
+def test_apply_set_atom_dihedral_command_returns_updated_document() -> None:
+    document = make_dihedral_document()
+    command = set_atom_dihedral_command(document)
+
+    response = client.post(
+        "/api/documents/edit",
+        json={
+            "document": document.model_dump(),
+            "command": command.model_dump(),
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["can_undo"] is True
+    assert body["can_redo"] is False
+    assert body["document"]["id"] != document.id
+    assert body["document"]["atoms"][0] == {
+        "index": 1,
+        "element": "C",
+        "x": 1.0,
+        "y": 0.0,
+        "z": 0.0,
+    }
+    assert body["document"]["atoms"][1] == {
+        "index": 2,
+        "element": "C",
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+    }
+    assert body["document"]["atoms"][2] == {
+        "index": 3,
+        "element": "C",
+        "x": 0.0,
+        "y": 1.0,
+        "z": 0.0,
+    }
+    assert body["document"]["atoms"][3]["x"] == pytest.approx(0.5)
+    assert body["document"]["atoms"][3]["y"] == pytest.approx(1.0)
+    assert body["document"]["atoms"][3]["z"] == pytest.approx(-0.8660254038)
+    assert body["document"]["bonds"] == []
 
 
 def test_apply_add_bond_command_returns_updated_document() -> None:
@@ -438,6 +526,28 @@ def test_apply_set_atom_angle_rejects_duplicate_atoms() -> None:
 
     assert response.status_code == 400
     assert "three different atoms" in response.json()["detail"]
+
+
+def test_apply_set_atom_dihedral_rejects_duplicate_atoms() -> None:
+    document = make_dihedral_document()
+    command = set_atom_dihedral_command(
+        document,
+        atom1_index=1,
+        atom2_index=2,
+        atom3_index=3,
+        atom4_index=1,
+    )
+
+    response = client.post(
+        "/api/documents/edit",
+        json={
+            "document": document.model_dump(),
+            "command": command.model_dump(),
+        },
+    )
+
+    assert response.status_code == 400
+    assert "four different atoms" in response.json()["detail"]
 
 
 def test_apply_delete_atoms_rejects_deleting_every_atom() -> None:

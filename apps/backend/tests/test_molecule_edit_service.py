@@ -11,10 +11,11 @@ from chemsmart_gui.domain.edit import (
     DeleteAtomsCommand,
     RemoveBondCommand,
     SetAtomAngleCommand,
+    SetAtomDihedralCommand,
     SetAtomDistanceCommand,
     SetAtomPositionCommand,
 )
-from chemsmart_gui.domain.molecule import Bond
+from chemsmart_gui.domain.molecule import Atom, Bond
 from chemsmart_gui.services.molecule_edit_service import MoleculeEditService
 
 
@@ -75,6 +76,64 @@ def set_atom_angle_command(
         vertex_atom_index=vertex_atom_index,
         atom3_index=atom3_index,
         angle_degrees=angle_degrees,
+    )
+
+
+def set_atom_dihedral_command(
+    document: MoleculeDocument,
+    *,
+    atom1_index: int = 1,
+    atom2_index: int = 2,
+    atom3_index: int = 3,
+    atom4_index: int = 4,
+    dihedral_degrees: float = 60.0,
+    document_id: str | None = None,
+) -> SetAtomDihedralCommand:
+    return SetAtomDihedralCommand(
+        command_type="set_atom_dihedral",
+        document_id=document_id or document.id,
+        atom1_index=atom1_index,
+        atom2_index=atom2_index,
+        atom3_index=atom3_index,
+        atom4_index=atom4_index,
+        dihedral_degrees=dihedral_degrees,
+    )
+
+
+def make_dihedral_document() -> MoleculeDocument:
+    water = open_water_document()
+    return water.model_copy(
+        update={
+            "atoms": [
+                water.atoms[0].model_copy(
+                    update={
+                        "element": "C",
+                        "x": 1.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                    }
+                ),
+                water.atoms[1].model_copy(
+                    update={
+                        "element": "C",
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                    }
+                ),
+                water.atoms[2].model_copy(
+                    update={
+                        "element": "C",
+                        "x": 0.0,
+                        "y": 1.0,
+                        "z": 0.0,
+                    }
+                ),
+                Atom(index=4, element="H", x=0.0, y=1.0, z=1.0),
+            ],
+            "bonds": [],
+        },
+        deep=True,
     )
 
 
@@ -425,6 +484,125 @@ def test_apply_set_atom_angle_rejects_degenerate_angle_plane() -> None:
     command = set_atom_angle_command(document, angle_degrees=90.0)
 
     with pytest.raises(ValueError, match="angle plane is degenerate"):
+        MoleculeEditService().apply_command(document, command)
+
+
+def test_apply_set_atom_dihedral_rotates_fourth_atom_around_axis() -> None:
+    document = make_dihedral_document()
+    command = set_atom_dihedral_command(document, dihedral_degrees=60.0)
+
+    updated = MoleculeEditService().apply_command(document, command)
+
+    assert updated.id != document.id
+    assert updated.source == document.source
+    assert updated.calculation is None
+    assert (updated.atoms[0].x, updated.atoms[0].y, updated.atoms[0].z) == (
+        1.0,
+        0.0,
+        0.0,
+    )
+    assert (updated.atoms[1].x, updated.atoms[1].y, updated.atoms[1].z) == (
+        0.0,
+        0.0,
+        0.0,
+    )
+    assert (updated.atoms[2].x, updated.atoms[2].y, updated.atoms[2].z) == (
+        0.0,
+        1.0,
+        0.0,
+    )
+    assert updated.atoms[3].x == pytest.approx(0.5)
+    assert updated.atoms[3].y == pytest.approx(1.0)
+    assert updated.atoms[3].z == pytest.approx(-0.8660254038)
+    assert updated.bonds == document.bonds
+
+
+def test_apply_set_atom_dihedral_preserves_distance_and_angle() -> None:
+    base_document = make_dihedral_document()
+    document = base_document.model_copy(
+        update={
+            "atoms": [
+                *base_document.atoms[:3],
+                Atom(index=4, element="H", x=0.0, y=1.0, z=2.0),
+            ]
+        },
+        deep=True,
+    )
+    command = set_atom_dihedral_command(document, dihedral_degrees=0.0)
+
+    updated = MoleculeEditService().apply_command(document, command)
+
+    assert updated.atoms[3].x == pytest.approx(2.0)
+    assert updated.atoms[3].y == pytest.approx(1.0)
+    assert updated.atoms[3].z == pytest.approx(0.0)
+
+
+def test_apply_set_atom_dihedral_uses_shortest_equivalent_rotation() -> None:
+    document = make_dihedral_document()
+    command = set_atom_dihedral_command(document, dihedral_degrees=170.0)
+
+    updated = MoleculeEditService().apply_command(document, command)
+
+    assert updated.atoms[3].x == pytest.approx(-0.984807753)
+    assert updated.atoms[3].y == pytest.approx(1.0)
+    assert updated.atoms[3].z == pytest.approx(-0.173648178)
+
+
+def test_apply_set_atom_dihedral_rejects_duplicate_atoms() -> None:
+    document = make_dihedral_document()
+    command = set_atom_dihedral_command(document, atom4_index=1)
+
+    with pytest.raises(ValueError, match="four different atoms"):
+        MoleculeEditService().apply_command(document, command)
+
+
+def test_apply_set_atom_dihedral_rejects_missing_atom() -> None:
+    document = make_dihedral_document()
+    command = set_atom_dihedral_command(document, atom4_index=99)
+
+    with pytest.raises(ValueError, match="Atom index 99"):
+        MoleculeEditService().apply_command(document, command)
+
+
+def test_apply_set_atom_dihedral_rejects_degenerate_central_bond() -> None:
+    base_document = make_dihedral_document()
+    document = base_document.model_copy(
+        update={
+            "atoms": [
+                base_document.atoms[0],
+                base_document.atoms[1],
+                base_document.atoms[2].model_copy(
+                    update={"x": 0.0, "y": 0.0, "z": 0.0}
+                ),
+                base_document.atoms[3],
+            ]
+        },
+        deep=True,
+    )
+    command = set_atom_dihedral_command(document)
+
+    with pytest.raises(ValueError, match="central bond is degenerate"):
+        MoleculeEditService().apply_command(document, command)
+
+
+def test_apply_set_atom_dihedral_rejects_degenerate_dihedral() -> None:
+    base_document = make_dihedral_document()
+    document = base_document.model_copy(
+        update={
+            "atoms": [
+                base_document.atoms[0].model_copy(
+                    update={"x": 0.0, "y": -1.0, "z": 0.0}
+                ),
+                base_document.atoms[1],
+                base_document.atoms[2],
+                base_document.atoms[3],
+            ]
+        },
+        deep=True,
+    )
+    command = set_atom_dihedral_command(document)
+
+    with pytest.raises(ValueError, match="current dihedral is degenerate"):
         MoleculeEditService().apply_command(document, command)
 
 

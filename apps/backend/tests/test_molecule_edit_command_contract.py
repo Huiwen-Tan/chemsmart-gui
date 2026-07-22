@@ -11,6 +11,7 @@ from chemsmart_gui.domain.edit import (
     DeleteAtomsCommand,
     RemoveBondCommand,
     SetAtomAngleCommand,
+    SetAtomDihedralCommand,
     SetAtomDistanceCommand,
     SetAtomPositionCommand,
 )
@@ -148,6 +149,63 @@ def test_set_atom_angle_command_requires_valid_indices_and_angle() -> None:
         )
 
 
+def test_set_atom_dihedral_command_serializes_contract() -> None:
+    command = SetAtomDihedralCommand(
+        command_type="set_atom_dihedral",
+        document_id="document-fragment",
+        atom1_index=1,
+        atom2_index=2,
+        atom3_index=3,
+        atom4_index=4,
+        dihedral_degrees=-120.5,
+    )
+
+    assert command.model_dump() == {
+        "command_type": "set_atom_dihedral",
+        "document_id": "document-fragment",
+        "atom1_index": 1,
+        "atom2_index": 2,
+        "atom3_index": 3,
+        "atom4_index": 4,
+        "dihedral_degrees": -120.5,
+    }
+
+
+def test_set_atom_dihedral_command_requires_valid_indices() -> None:
+    with pytest.raises(ValidationError):
+        SetAtomDihedralCommand(
+            command_type="set_atom_dihedral",
+            document_id="document-fragment",
+            atom1_index=0,
+            atom2_index=2,
+            atom3_index=3,
+            atom4_index=4,
+            dihedral_degrees=60,
+        )
+
+    with pytest.raises(ValidationError):
+        SetAtomDihedralCommand(
+            command_type="set_atom_dihedral",
+            document_id="document-fragment",
+            atom1_index=1,
+            atom2_index=2,
+            atom3_index=3,
+            atom4_index=4,
+            dihedral_degrees=-181,
+        )
+
+    with pytest.raises(ValidationError):
+        SetAtomDihedralCommand(
+            command_type="set_atom_dihedral",
+            document_id="document-fragment",
+            atom1_index=1,
+            atom2_index=2,
+            atom3_index=3,
+            atom4_index=4,
+            dihedral_degrees=181,
+        )
+
+
 def test_add_bond_command_serializes_contract() -> None:
     command = AddBondCommand(
         command_type="add_bond",
@@ -270,6 +328,7 @@ def test_shared_schema_expresses_edit_command_contract() -> None:
     set_distance_schema = command_schemas["SetAtomDistanceCommand"]
     remove_bond_schema = command_schemas["RemoveBondCommand"]
     set_angle_schema = command_schemas["SetAtomAngleCommand"]
+    set_dihedral_schema = command_schemas["SetAtomDihedralCommand"]
     add_atom_schema = command_schemas["AddAtomCommand"]
     delete_atoms_schema = command_schemas["DeleteAtomsCommand"]
     properties = set_atom_schema["properties"]
@@ -281,6 +340,7 @@ def test_shared_schema_expresses_edit_command_contract() -> None:
         "SetAtomDistanceCommand",
         "RemoveBondCommand",
         "SetAtomAngleCommand",
+        "SetAtomDihedralCommand",
         "AddAtomCommand",
         "DeleteAtomsCommand",
     }
@@ -364,6 +424,32 @@ def test_shared_schema_expresses_edit_command_contract() -> None:
     )
     assert (
         set_angle_schema["properties"]["angle_degrees"]["exclusiveMaximum"]
+        == 180
+    )
+    assert set_dihedral_schema["required"] == [
+        "command_type",
+        "document_id",
+        "atom1_index",
+        "atom2_index",
+        "atom3_index",
+        "atom4_index",
+        "dihedral_degrees",
+    ]
+    assert (
+        set_dihedral_schema["properties"]["command_type"]["const"]
+        == "set_atom_dihedral"
+    )
+    assert set_dihedral_schema["properties"]["document_id"]["minLength"] == 1
+    assert set_dihedral_schema["properties"]["atom1_index"]["minimum"] == 1
+    assert set_dihedral_schema["properties"]["atom2_index"]["minimum"] == 1
+    assert set_dihedral_schema["properties"]["atom3_index"]["minimum"] == 1
+    assert set_dihedral_schema["properties"]["atom4_index"]["minimum"] == 1
+    assert (
+        set_dihedral_schema["properties"]["dihedral_degrees"]["minimum"]
+        == -180
+    )
+    assert (
+        set_dihedral_schema["properties"]["dihedral_degrees"]["maximum"]
         == 180
     )
     assert add_atom_schema["required"] == [

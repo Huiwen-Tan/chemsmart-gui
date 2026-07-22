@@ -83,6 +83,7 @@ export type MoleculeEditCommandType =
   | 'set_atom_position'
   | 'set_atom_distance'
   | 'set_atom_angle'
+  | 'set_atom_dihedral'
   | 'add_bond'
   | 'remove_bond'
   | 'add_atom'
@@ -112,6 +113,16 @@ export interface SetAtomAngleCommand {
   vertex_atom_index: number;
   atom3_index: number;
   angle_degrees: number;
+}
+
+export interface SetAtomDihedralCommand {
+  command_type: 'set_atom_dihedral';
+  document_id: string;
+  atom1_index: number;
+  atom2_index: number;
+  atom3_index: number;
+  atom4_index: number;
+  dihedral_degrees: number;
 }
 
 export interface AddBondCommand {
@@ -146,6 +157,7 @@ export type MoleculeEditCommand =
   | SetAtomPositionCommand
   | SetAtomDistanceCommand
   | SetAtomAngleCommand
+  | SetAtomDihedralCommand
   | AddBondCommand
   | RemoveBondCommand
   | AddAtomCommand

@@ -179,6 +179,10 @@ export function SelectedAtomPanel({
   );
   const [angleDraft, setAngleDraft] = useState('');
   const [angleEditError, setAngleEditError] = useState<string | null>(null);
+  const [dihedralDraft, setDihedralDraft] = useState('');
+  const [dihedralEditError, setDihedralEditError] = useState<string | null>(
+    null,
+  );
   const [addAtomDraft, setAddAtomDraft] = useState<AddAtomDraft>({
     element: 'H',
     x: '0',
@@ -371,6 +375,33 @@ export function SelectedAtomPanel({
         value: dihedralValue,
       }
     : null;
+  useEffect(() => {
+    if (!dihedralMeasurement) {
+      setDihedralDraft('');
+      setDihedralEditError(null);
+      return;
+    }
+
+    setDihedralDraft(String(dihedralMeasurement.value));
+    setDihedralEditError(null);
+  }, [
+    dihedralMeasurement?.firstAtom.index,
+    dihedralMeasurement?.firstAtom.x,
+    dihedralMeasurement?.firstAtom.y,
+    dihedralMeasurement?.firstAtom.z,
+    dihedralMeasurement?.secondAtom.index,
+    dihedralMeasurement?.secondAtom.x,
+    dihedralMeasurement?.secondAtom.y,
+    dihedralMeasurement?.secondAtom.z,
+    dihedralMeasurement?.thirdAtom.index,
+    dihedralMeasurement?.thirdAtom.x,
+    dihedralMeasurement?.thirdAtom.y,
+    dihedralMeasurement?.thirdAtom.z,
+    dihedralMeasurement?.fourthAtom.index,
+    dihedralMeasurement?.fourthAtom.x,
+    dihedralMeasurement?.fourthAtom.y,
+    dihedralMeasurement?.fourthAtom.z,
+  ]);
   const selectedAtomPair = document && selectedAtoms.length === 2
     ? {
         firstAtom: selectedAtoms[0],
@@ -447,6 +478,35 @@ export function SelectedAtomPanel({
       vertex_atom_index: angleMeasurement.vertexAtom.index,
       atom3_index: angleMeasurement.thirdAtom.index,
       angle_degrees: angleDegrees,
+    });
+  };
+  const submitDihedralEdit = (event: FormEvent<HTMLFormElement>): void => {
+    event.preventDefault();
+    if (!document || !dihedralMeasurement) {
+      return;
+    }
+
+    const dihedralDegrees = Number(dihedralDraft);
+    if (
+      !Number.isFinite(dihedralDegrees) ||
+      dihedralDegrees < -180 ||
+      dihedralDegrees > 180
+    ) {
+      setDihedralEditError(
+        'Dihedral must be between -180 and 180 degrees.',
+      );
+      return;
+    }
+
+    setDihedralEditError(null);
+    void applyMoleculeEditCommand({
+      command_type: 'set_atom_dihedral',
+      document_id: document.id,
+      atom1_index: dihedralMeasurement.firstAtom.index,
+      atom2_index: dihedralMeasurement.secondAtom.index,
+      atom3_index: dihedralMeasurement.thirdAtom.index,
+      atom4_index: dihedralMeasurement.fourthAtom.index,
+      dihedral_degrees: dihedralDegrees,
     });
   };
   const deleteSelectedAtoms = (): void => {
@@ -670,6 +730,46 @@ export function SelectedAtomPanel({
               </fieldset>
               {angleEditError ? (
                 <p style={{ color: '#ff8080' }}>{angleEditError}</p>
+              ) : null}
+            </form>
+          ) : null}
+          {dihedralMeasurement ? (
+            <form
+              aria-label="Edit selected atom dihedral"
+              onSubmit={submitDihedralEdit}
+              style={{ marginTop: 12 }}
+            >
+              <fieldset disabled={isApplyingMoleculeEdit}>
+                <legend>
+                  Set Dihedral for {dihedralMeasurement.firstAtom.index}{' '}
+                  {dihedralMeasurement.firstAtom.element} -{' '}
+                  {dihedralMeasurement.secondAtom.index}{' '}
+                  {dihedralMeasurement.secondAtom.element} -{' '}
+                  {dihedralMeasurement.thirdAtom.index}{' '}
+                  {dihedralMeasurement.thirdAtom.element} -{' '}
+                  {dihedralMeasurement.fourthAtom.index}{' '}
+                  {dihedralMeasurement.fourthAtom.element}
+                </legend>
+                <label style={{ display: 'inline-flex', gap: 6 }}>
+                  Dihedral (degrees)
+                  <input
+                    aria-label="Selected atom dihedral"
+                    inputMode="decimal"
+                    onChange={(event) => setDihedralDraft(
+                      event.currentTarget.value,
+                    )}
+                    type="text"
+                    value={dihedralDraft}
+                  />
+                </label>
+                <button style={{ marginLeft: 8 }} type="submit">
+                  {isApplyingMoleculeEdit
+                    ? 'Setting Dihedral...'
+                    : 'Set Dihedral'}
+                </button>
+              </fieldset>
+              {dihedralEditError ? (
+                <p style={{ color: '#ff8080' }}>{dihedralEditError}</p>
               ) : null}
             </form>
           ) : null}

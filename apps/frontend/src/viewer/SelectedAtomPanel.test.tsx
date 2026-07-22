@@ -527,6 +527,16 @@ describe('SelectedAtomPanel', () => {
     expect(
       screen.getByText('1 C - 2 C - 3 C - 4 H = -90.000 degrees'),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole('form', { name: 'Edit selected atom dihedral' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Set Dihedral' }),
+    ).toBeInTheDocument();
+    const dihedralInput = screen.getByLabelText(
+      'Selected atom dihedral',
+    ) as HTMLInputElement;
+    expect(Number(dihedralInput.value)).toBeCloseTo(-90, 3);
     expect(screen.queryByText('Distance:')).not.toBeInTheDocument();
     expect(screen.queryByText('Angle:')).not.toBeInTheDocument();
     expect(useViewerStore.getState().selectedAtomIndices).toEqual([
@@ -536,6 +546,47 @@ describe('SelectedAtomPanel', () => {
       3,
       4,
     ]);
+  });
+
+  it('sets the dihedral between four selected atoms', () => {
+    const applyMoleculeEditCommand = vi.fn().mockResolvedValue(undefined);
+    useDocumentStore.setState({ applyMoleculeEditCommand });
+    useViewerStore.setState({ selectedAtomIndices: [1, 2, 3, 4] });
+
+    render(<SelectedAtomPanel document={DIHEDRAL_FRAGMENT} />);
+
+    fireEvent.change(screen.getByLabelText('Selected atom dihedral'), {
+      target: { value: '60' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Set Dihedral' }));
+
+    expect(applyMoleculeEditCommand).toHaveBeenCalledWith({
+      command_type: 'set_atom_dihedral',
+      document_id: 'dihedral-fragment',
+      atom1_index: 1,
+      atom2_index: 2,
+      atom3_index: 3,
+      atom4_index: 4,
+      dihedral_degrees: 60,
+    });
+  });
+
+  it('shows a local error for invalid dihedral edits', () => {
+    const applyMoleculeEditCommand = vi.fn().mockResolvedValue(undefined);
+    useDocumentStore.setState({ applyMoleculeEditCommand });
+    useViewerStore.setState({ selectedAtomIndices: [1, 2, 3, 4] });
+
+    render(<SelectedAtomPanel document={DIHEDRAL_FRAGMENT} />);
+
+    fireEvent.change(screen.getByLabelText('Selected atom dihedral'), {
+      target: { value: '181' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Set Dihedral' }));
+
+    expect(
+      screen.getByText('Dihedral must be between -180 and 180 degrees.'),
+    ).toBeInTheDocument();
+    expect(applyMoleculeEditCommand).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -601,6 +652,9 @@ describe('SelectedAtomPanel', () => {
       render(<SelectedAtomPanel document={document} />);
 
       expect(screen.queryByText('Dihedral:')).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('form', { name: 'Edit selected atom dihedral' }),
+      ).not.toBeInTheDocument();
     },
   );
 
@@ -610,6 +664,9 @@ describe('SelectedAtomPanel', () => {
     render(<SelectedAtomPanel document={COLLINEAR_FRAGMENT} />);
 
     expect(screen.queryByText('Dihedral:')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('form', { name: 'Edit selected atom dihedral' }),
+    ).not.toBeInTheDocument();
     expect(useViewerStore.getState().selectedAtomIndices).toEqual([
       1,
       2,

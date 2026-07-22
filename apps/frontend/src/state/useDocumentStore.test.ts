@@ -6,6 +6,7 @@ import type {
   DeleteAtomsCommand,
   MoleculeDocument,
   SetAtomAngleCommand,
+  SetAtomDihedralCommand,
   SetAtomDistanceCommand,
   SetAtomPositionCommand,
 } from '../shared/types';
@@ -101,6 +102,35 @@ const ANGLE_EDITED_WATER: MoleculeDocument = {
   ],
 };
 
+const DIHEDRAL_FRAGMENT: MoleculeDocument = {
+  id: 'dihedral-fragment',
+  name: 'dihedral-fragment',
+  document_kind: 'structure',
+  source: null,
+  calculation: null,
+  coordinate_unit: 'angstrom',
+  charge: null,
+  multiplicity: null,
+  atoms: [
+    { index: 1, element: 'C', x: 1, y: 0, z: 0 },
+    { index: 2, element: 'C', x: 0, y: 0, z: 0 },
+    { index: 3, element: 'C', x: 0, y: 1, z: 0 },
+    { index: 4, element: 'H', x: 0, y: 1, z: 1 },
+  ],
+  bonds: [],
+};
+
+const DIHEDRAL_EDITED_FRAGMENT: MoleculeDocument = {
+  ...DIHEDRAL_FRAGMENT,
+  id: 'dihedral-edited-fragment',
+  atoms: [
+    DIHEDRAL_FRAGMENT.atoms[0],
+    DIHEDRAL_FRAGMENT.atoms[1],
+    DIHEDRAL_FRAGMENT.atoms[2],
+    { index: 4, element: 'H', x: 0.5, y: 1, z: -0.866 },
+  ],
+};
+
 const DELETED_ATOM_WATER: MoleculeDocument = {
   ...WATER,
   id: 'deleted-atom-water',
@@ -150,6 +180,16 @@ const SET_ATOM_ANGLE: SetAtomAngleCommand = {
   vertex_atom_index: 2,
   atom3_index: 3,
   angle_degrees: 120,
+};
+
+const SET_ATOM_DIHEDRAL: SetAtomDihedralCommand = {
+  command_type: 'set_atom_dihedral',
+  document_id: DIHEDRAL_FRAGMENT.id,
+  atom1_index: 1,
+  atom2_index: 2,
+  atom3_index: 3,
+  atom4_index: 4,
+  dihedral_degrees: 60,
 };
 
 const DELETE_ATOMS: DeleteAtomsCommand = {
@@ -447,6 +487,50 @@ describe('useDocumentStore', () => {
         body: JSON.stringify({
           document: WATER,
           command: SET_ATOM_ANGLE,
+        }),
+      },
+    );
+  });
+
+  it('applies molecule dihedral edit commands through the API client', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        document: DIHEDRAL_EDITED_FRAGMENT,
+        can_undo: true,
+        can_redo: false,
+      }),
+    );
+    useDocumentStore.setState({ currentDocument: DIHEDRAL_FRAGMENT });
+    useViewerStore.setState({ selectedAtomIndices: [1, 2, 3, 4] });
+
+    await useDocumentStore
+      .getState()
+      .applyMoleculeEditCommand(SET_ATOM_DIHEDRAL);
+
+    expect(useDocumentStore.getState().currentDocument).toEqual(
+      DIHEDRAL_EDITED_FRAGMENT,
+    );
+    expect(useDocumentStore.getState().hasUnsavedMoleculeEdits).toBe(true);
+    expect(useDocumentStore.getState().moleculeEditUndoStack).toEqual([
+      {
+        beforeDocument: DIHEDRAL_FRAGMENT,
+        afterDocument: DIHEDRAL_EDITED_FRAGMENT,
+      },
+    ]);
+    expect(useViewerStore.getState().selectedAtomIndices).toEqual([
+      1,
+      2,
+      3,
+      4,
+    ]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/api/documents/edit',
+      {
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        body: JSON.stringify({
+          document: DIHEDRAL_FRAGMENT,
+          command: SET_ATOM_DIHEDRAL,
         }),
       },
     );

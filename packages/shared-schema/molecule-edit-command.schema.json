@@ -181,6 +181,53 @@
       "additionalProperties": false
     },
     {
+      "title": "SetAtomDihedralCommand",
+      "type": "object",
+      "required": [
+        "command_type",
+        "document_id",
+        "atom1_index",
+        "atom2_index",
+        "atom3_index",
+        "atom4_index",
+        "dihedral_degrees"
+      ],
+      "properties": {
+        "command_type": {
+          "type": "string",
+          "const": "set_atom_dihedral"
+        },
+        "document_id": { "type": "string", "minLength": 1 },
+        "atom1_index": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based first atom index in the target molecule document."
+        },
+        "atom2_index": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based second atom index in the target molecule document."
+        },
+        "atom3_index": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based third atom index in the target molecule document."
+        },
+        "atom4_index": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based fourth atom index in the target molecule document."
+        },
+        "dihedral_degrees": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180,
+          "description": "Target atom dihedral in degrees."
+        }
+      },
+      "additionalProperties": false
+    },
+    {
       "title": "AddAtomCommand",
       "type": "object",
       "required": [

@@ -172,6 +172,52 @@ const ANGLE_EDIT_RESPONSE: MoleculeEditResponse = {
   can_redo: false,
 };
 
+const DIHEDRAL_FRAGMENT: MoleculeDocument = {
+  id: 'dihedral-fragment',
+  name: 'dihedral-fragment',
+  document_kind: 'structure',
+  source: null,
+  calculation: null,
+  coordinate_unit: 'angstrom',
+  charge: null,
+  multiplicity: null,
+  atoms: [
+    { index: 1, element: 'C', x: 1, y: 0, z: 0 },
+    { index: 2, element: 'C', x: 0, y: 0, z: 0 },
+    { index: 3, element: 'C', x: 0, y: 1, z: 0 },
+    { index: 4, element: 'H', x: 0, y: 1, z: 1 },
+  ],
+  bonds: [],
+};
+
+const DIHEDRAL_EDIT_REQUEST: ApplyMoleculeEditRequest = {
+  document: DIHEDRAL_FRAGMENT,
+  command: {
+    command_type: 'set_atom_dihedral',
+    document_id: DIHEDRAL_FRAGMENT.id,
+    atom1_index: 1,
+    atom2_index: 2,
+    atom3_index: 3,
+    atom4_index: 4,
+    dihedral_degrees: 60,
+  },
+};
+
+const DIHEDRAL_EDIT_RESPONSE: MoleculeEditResponse = {
+  document: {
+    ...DIHEDRAL_FRAGMENT,
+    id: 'document-fragment-dihedral-edited',
+    atoms: [
+      DIHEDRAL_FRAGMENT.atoms[0],
+      DIHEDRAL_FRAGMENT.atoms[1],
+      DIHEDRAL_FRAGMENT.atoms[2],
+      { index: 4, element: 'H', x: 0.5, y: 1, z: -0.866 },
+    ],
+  },
+  can_undo: true,
+  can_redo: false,
+};
+
 const EXPORT_PREVIEW_REQUEST: MoleculeExportPreviewRequest = {
   document: WATER_DOCUMENT,
   filetype: 'xyz',
@@ -348,6 +394,23 @@ describe('api client', () => {
         headers: { 'Content-Type': 'application/json' },
         method: 'POST',
         body: JSON.stringify(ANGLE_EDIT_REQUEST),
+      },
+    );
+  });
+
+  it('posts molecule dihedral edit commands to the document edit API', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(DIHEDRAL_EDIT_RESPONSE));
+
+    await expect(applyMoleculeEdit(DIHEDRAL_EDIT_REQUEST)).resolves.toEqual(
+      DIHEDRAL_EDIT_RESPONSE,
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/api/documents/edit',
+      {
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        body: JSON.stringify(DIHEDRAL_EDIT_REQUEST),
       },
     );
   });

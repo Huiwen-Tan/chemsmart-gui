@@ -39,6 +39,16 @@ class SetAtomAngleCommand(BaseModel):
     angle_degrees: float = Field(gt=0, lt=180)
 
 
+class SetAtomDihedralCommand(BaseModel):
+    command_type: Literal["set_atom_dihedral"]
+    document_id: str = Field(min_length=1)
+    atom1_index: int = Field(ge=1)
+    atom2_index: int = Field(ge=1)
+    atom3_index: int = Field(ge=1)
+    atom4_index: int = Field(ge=1)
+    dihedral_degrees: float = Field(ge=-180, le=180)
+
+
 class AddBondCommand(BaseModel):
     command_type: Literal["add_bond"]
     document_id: str = Field(min_length=1)
@@ -71,6 +81,7 @@ MoleculeEditCommand = (
     SetAtomPositionCommand
     | SetAtomDistanceCommand
     | SetAtomAngleCommand
+    | SetAtomDihedralCommand
     | AddBondCommand
     | RemoveBondCommand
     | AddAtomCommand
