@@ -282,7 +282,7 @@ class ChemsmartAdapter:
 
         filename = self.suggested_export_filename(document, "gjf")
         label = Path(filename).stem
-        molecule = self.to_molecule(document, include_frozen_atoms=False)
+        molecule = self.to_molecule(document)
         molecule.charge = settings.charge
         molecule.multiplicity = settings.multiplicity
         job = GaussianJob(
@@ -315,7 +315,7 @@ class ChemsmartAdapter:
 
         filename = self.suggested_export_filename(document, "inp")
         label = Path(filename).stem
-        molecule = self.to_molecule(document, include_frozen_atoms=False)
+        molecule = self.to_molecule(document)
         molecule.charge = settings.charge
         molecule.multiplicity = settings.multiplicity
         job = ORCAJob(

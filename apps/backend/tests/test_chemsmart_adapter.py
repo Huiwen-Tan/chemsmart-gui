@@ -237,6 +237,22 @@ def test_preview_xyz_export_allows_changed_source_revision(
     ]
 
 
+def test_preview_xyz_export_omits_frozen_atoms() -> None:
+    document = ChemsmartAdapter().open_molecule_from_path(str(WATER_PATH))
+
+    _, content = ChemsmartAdapter().preview_molecule_export(
+        document.model_copy(update={"frozen_atom_indices": [1]}),
+        "xyz",
+    )
+
+    assert content.splitlines()[2].split() == [
+        "O",
+        "0.0000000000",
+        "0.0000000000",
+        "0.0000000000",
+    ]
+
+
 def test_preview_molecule_export_rejects_unsupported_filetype() -> None:
     document = ChemsmartAdapter().open_molecule_from_path(str(WATER_PATH))
 
@@ -283,7 +299,7 @@ def test_preview_molecule_export_returns_gjf_from_gaussian_input() -> None:
     ]
 
 
-def test_preview_input_export_omits_frozen_atoms() -> None:
+def test_preview_input_export_writes_frozen_atoms() -> None:
     gaussian_document = ChemsmartAdapter().open_molecule_from_path(
         str(WATER_GJF_PATH),
     )
@@ -292,21 +308,27 @@ def test_preview_input_export_omits_frozen_atoms() -> None:
     )
 
     _, gaussian_content = ChemsmartAdapter().preview_molecule_export(
-        gaussian_document.model_copy(update={"frozen_atom_indices": [1]}),
+        gaussian_document.model_copy(update={"frozen_atom_indices": [1, 3]}),
         "gjf",
     )
     _, orca_content = ChemsmartAdapter().preview_molecule_export(
-        orca_document.model_copy(update={"frozen_atom_indices": [1]}),
+        orca_document.model_copy(update={"frozen_atom_indices": [1, 3]}),
         "inp",
     )
 
     assert gaussian_content.splitlines()[8].split() == [
         "O",
+        "-1",
         "0.0000000000",
         "0.0000000000",
         "0.0000000000",
     ]
-    assert "%geom" not in orca_content
+    assert gaussian_content.splitlines()[9].split()[1] == "0"
+    assert gaussian_content.splitlines()[10].split()[1] == "-1"
+    assert "%geom" in orca_content
+    assert "{ C 0 C }" in orca_content
+    assert "{ C 2 C }" in orca_content
+    assert "{ C 1 C }" not in orca_content
 
 
 def test_preview_molecule_export_returns_inp_from_orca_input() -> None:

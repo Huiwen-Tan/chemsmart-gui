@@ -12,6 +12,7 @@ client = TestClient(app)
 REPOSITORY_ROOT = Path(__file__).parents[3]
 WATER_PATH = REPOSITORY_ROOT / "sample-data" / "water.xyz"
 WATER_GJF_PATH = REPOSITORY_ROOT / "sample-data" / "water.gjf"
+WATER_INP_PATH = REPOSITORY_ROOT / "sample-data" / "water.inp"
 
 
 def open_water_document() -> MoleculeDocument:
@@ -96,6 +97,67 @@ def test_write_molecule_export_writes_gjf_to_new_target(
         "1.1000000000",
         "1.2000000000",
     ]
+
+
+def test_write_molecule_export_writes_frozen_gjf_to_new_target(
+    tmp_path: Path,
+) -> None:
+    source_path = tmp_path / "water.gjf"
+    target_path = tmp_path / "water-frozen.gjf"
+    shutil.copyfile(WATER_GJF_PATH, source_path)
+    document = ChemsmartAdapter().open_molecule_from_path(str(source_path))
+    frozen_document = document.model_copy(
+        update={"frozen_atom_indices": [1, 3]},
+    )
+
+    response = client.post(
+        "/api/documents/export",
+        json={
+            "document": frozen_document.model_dump(),
+            "filetype": "gjf",
+            "target_path": str(target_path),
+        },
+    )
+
+    assert response.status_code == 200
+    lines = target_path.read_text(encoding="utf-8").splitlines()
+    assert lines[8].split() == [
+        "O",
+        "-1",
+        "0.0000000000",
+        "0.0000000000",
+        "0.0000000000",
+    ]
+    assert lines[9].split()[1] == "0"
+    assert lines[10].split()[1] == "-1"
+
+
+def test_write_molecule_export_writes_frozen_inp_to_new_target(
+    tmp_path: Path,
+) -> None:
+    source_path = tmp_path / "water.inp"
+    target_path = tmp_path / "water-frozen.inp"
+    shutil.copyfile(WATER_INP_PATH, source_path)
+    document = ChemsmartAdapter().open_molecule_from_path(str(source_path))
+    frozen_document = document.model_copy(
+        update={"frozen_atom_indices": [1, 3]},
+    )
+
+    response = client.post(
+        "/api/documents/export",
+        json={
+            "document": frozen_document.model_dump(),
+            "filetype": "inp",
+            "target_path": str(target_path),
+        },
+    )
+
+    assert response.status_code == 200
+    content = target_path.read_text(encoding="utf-8")
+    assert "%geom" in content
+    assert "{ C 0 C }" in content
+    assert "{ C 2 C }" in content
+    assert "{ C 1 C }" not in content
 
 
 def test_write_molecule_export_rejects_existing_target(

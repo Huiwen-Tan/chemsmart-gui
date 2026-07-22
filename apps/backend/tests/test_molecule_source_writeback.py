@@ -117,6 +117,37 @@ def test_write_molecule_source_updates_gjf_source(
     ]
 
 
+def test_write_molecule_source_updates_gjf_frozen_atoms(
+    tmp_path: Path,
+) -> None:
+    source_path = tmp_path / "water.gjf"
+    shutil.copyfile(WATER_GJF_PATH, source_path)
+    document = ChemsmartAdapter().open_molecule_from_path(str(source_path))
+    frozen_document = document.model_copy(
+        update={"frozen_atom_indices": [1, 3]},
+    )
+
+    response = client.post(
+        "/api/documents/source-write",
+        json={
+            "document": frozen_document.model_dump(),
+            "confirmed": True,
+        },
+    )
+
+    assert response.status_code == 200
+    lines = source_path.read_text(encoding="utf-8").splitlines()
+    assert lines[8].split() == [
+        "O",
+        "-1",
+        "0.0000000000",
+        "0.0000000000",
+        "0.0000000000",
+    ]
+    assert lines[9].split()[1] == "0"
+    assert lines[10].split()[1] == "-1"
+
+
 def test_write_molecule_source_updates_inp_source(
     tmp_path: Path,
 ) -> None:
@@ -156,6 +187,32 @@ def test_write_molecule_source_updates_inp_source(
             "2.2000000000",
         ],
     ]
+
+
+def test_write_molecule_source_updates_inp_frozen_atoms(
+    tmp_path: Path,
+) -> None:
+    source_path = tmp_path / "water.inp"
+    shutil.copyfile(WATER_INP_PATH, source_path)
+    document = ChemsmartAdapter().open_molecule_from_path(str(source_path))
+    frozen_document = document.model_copy(
+        update={"frozen_atom_indices": [1, 3]},
+    )
+
+    response = client.post(
+        "/api/documents/source-write",
+        json={
+            "document": frozen_document.model_dump(),
+            "confirmed": True,
+        },
+    )
+
+    assert response.status_code == 200
+    content = source_path.read_text(encoding="utf-8")
+    assert "%geom" in content
+    assert "{ C 0 C }" in content
+    assert "{ C 2 C }" in content
+    assert "{ C 1 C }" not in content
 
 
 def test_write_molecule_source_requires_confirmation(

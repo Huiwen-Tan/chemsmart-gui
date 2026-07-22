@@ -127,6 +127,32 @@ def test_preview_molecule_export_returns_gjf_payload() -> None:
     assert "0 1" in body["content"].splitlines()
 
 
+def test_preview_molecule_export_returns_frozen_gjf_payload() -> None:
+    document = open_gaussian_document().model_copy(
+        update={"frozen_atom_indices": [1, 3]},
+    )
+
+    response = client.post(
+        "/api/documents/export-preview",
+        json={
+            "document": document.model_dump(),
+            "filetype": "gjf",
+        },
+    )
+
+    assert response.status_code == 200
+    lines = response.json()["content"].splitlines()
+    assert lines[8].split() == [
+        "O",
+        "-1",
+        "0.0000000000",
+        "0.0000000000",
+        "0.0000000000",
+    ]
+    assert lines[9].split()[1] == "0"
+    assert lines[10].split()[1] == "-1"
+
+
 def test_preview_molecule_export_returns_inp_payload() -> None:
     document = open_orca_document()
 
@@ -148,6 +174,27 @@ def test_preview_molecule_export_returns_inp_payload() -> None:
         "def2-svp",
     ]
     assert "* xyz 0 1" in body["content"].splitlines()
+
+
+def test_preview_molecule_export_returns_frozen_inp_payload() -> None:
+    document = open_orca_document().model_copy(
+        update={"frozen_atom_indices": [1, 3]},
+    )
+
+    response = client.post(
+        "/api/documents/export-preview",
+        json={
+            "document": document.model_dump(),
+            "filetype": "inp",
+        },
+    )
+
+    assert response.status_code == 200
+    content = response.json()["content"]
+    assert "%geom" in content
+    assert "{ C 0 C }" in content
+    assert "{ C 2 C }" in content
+    assert "{ C 1 C }" not in content
 
 
 def test_preview_molecule_export_returns_bad_request_for_wrong_source() -> None:
