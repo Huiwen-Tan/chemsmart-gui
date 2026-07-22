@@ -4,6 +4,7 @@ import { healthCheck, openDocument } from './api/client';
 import { AppShell } from './app/AppShell';
 import { DocumentSummaryPanel } from './documents/DocumentSummaryPanel';
 import { MoleculeExportPreviewPanel } from './documents/MoleculeExportPreviewPanel';
+import { VibrationalModesPanel } from './documents/VibrationalModesPanel';
 import { useDocumentStore } from './state/useDocumentStore';
 import { useViewerStore } from './state/useViewerStore';
 import { MolecularViewer } from './viewer/MolecularViewer';
@@ -190,6 +191,7 @@ export function App(): JSX.Element {
         document={currentDocument}
         hasUnsavedMoleculeEdits={hasUnsavedMoleculeEdits}
       />
+      <VibrationalModesPanel document={currentDocument} />
       <MoleculeExportPreviewPanel
         document={currentDocument}
         onReopenSource={openDocumentPath}

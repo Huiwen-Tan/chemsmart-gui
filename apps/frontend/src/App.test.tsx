@@ -202,6 +202,45 @@ const GAUSSIAN_DOCUMENT = {
   multiplicity: 1,
 } satisfies MoleculeDocument;
 
+const GAUSSIAN_OUTPUT_DOCUMENT = {
+  ...WATER_DOCUMENT,
+  id: 'gaussian-output-water-document',
+  source: {
+    path: 'sample-data/water.log',
+    filename: 'water.log',
+    filetype: 'log',
+  },
+  calculation: {
+    program: 'gaussian',
+    normal_termination: true,
+  },
+  vibrational_modes: [
+    {
+      index: 1,
+      frequency_cm_minus_1: -530.2,
+      is_imaginary: true,
+      reduced_mass_amu: 1.2,
+      force_constant_mdyne_per_angstrom: 0.3,
+      ir_intensity_km_per_mol: 12.3,
+      symmetry: 'A1',
+      displacements: [
+        { atom_index: 1, x: 0, y: 0, z: -0.1 },
+        { atom_index: 2, x: 0.2, y: 0, z: 0.1 },
+      ],
+    },
+    {
+      index: 2,
+      frequency_cm_minus_1: 1628.3334,
+      is_imaginary: false,
+      reduced_mass_amu: null,
+      force_constant_mdyne_per_angstrom: null,
+      ir_intensity_km_per_mol: null,
+      symmetry: null,
+      displacements: [],
+    },
+  ],
+} satisfies MoleculeDocument;
+
 const fetchMock = vi.fn<typeof fetch>();
 
 function jsonResponse(body: unknown): Response {
@@ -885,6 +924,37 @@ describe('App', () => {
       ).toBeInTheDocument();
     });
     expect(screen.getByTestId('viewer-document')).toHaveTextContent('null');
+  });
+
+  it('renders vibrational mode table for output documents', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
+      .mockResolvedValueOnce(jsonResponse(GAUSSIAN_OUTPUT_DOCUMENT));
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText('Document path'), {
+      target: { value: 'sample-data/water.log' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT),
+      );
+    });
+    const modesPanel = screen.getByRole('region', {
+      name: 'Vibrational Modes',
+    });
+    const table = within(modesPanel).getByRole('table', {
+      name: 'Vibrational mode table',
+    });
+    const rows = within(table).getAllByRole('row');
+    expect(rows[1]).toHaveTextContent('-530.2');
+    expect(rows[1]).toHaveTextContent('Imaginary');
+    expect(rows[2]).toHaveTextContent('1628.3334');
+    expect(rows[2]).toHaveTextContent('Real');
   });
 
   it('previews XYZ export content for the loaded document', async () => {
