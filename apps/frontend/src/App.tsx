@@ -94,9 +94,9 @@ export function App(): JSX.Element {
     undoMoleculeEdit,
   ]);
 
-  const openCurrentDocument = async (): Promise<void> => {
+  const openDocumentPath = async (pathOverride?: string): Promise<void> => {
     setError(null);
-    const path = documentPath.trim();
+    const path = (pathOverride ?? documentPath).trim();
     if (!path) {
       setError('A document path is required.');
       return;
@@ -111,9 +111,16 @@ export function App(): JSX.Element {
     try {
       const document = await openDocument({ path });
       setCurrentDocument(document);
+      if (pathOverride !== undefined) {
+        setDocumentPath(path);
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     }
+  };
+
+  const openCurrentDocument = async (): Promise<void> => {
+    await openDocumentPath();
   };
 
   return (
@@ -185,6 +192,7 @@ export function App(): JSX.Element {
       />
       <MoleculeExportPreviewPanel
         document={currentDocument}
+        onReopenSource={openDocumentPath}
         onSourceWrite={markMoleculeDocumentSaved}
       />
       <SelectedAtomPanel document={currentDocument} />

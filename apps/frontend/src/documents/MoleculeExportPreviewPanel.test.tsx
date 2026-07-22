@@ -644,10 +644,78 @@ describe('MoleculeExportPreviewPanel', () => {
       screen.getByRole('button', { name: 'Update Source File' }),
     ).toBeDisabled();
     expect(
-      screen.getByText(
-        'Resolve the source status by reopening the source file before writing back.',
-      ),
+      screen.getByText('Reopen the source file before writing back.'),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Reopen Source File' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('offers to reopen changed sources when a handler is available', async () => {
+    const onReopenSource = vi.fn();
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        ...CURRENT_SOURCE_STATUS_RESPONSE,
+        status: 'changed',
+        message: 'Source file changed since this document was opened.',
+      }),
+    );
+
+    render(
+      <MoleculeExportPreviewPanel
+        document={WATER_DOCUMENT}
+        onReopenSource={onReopenSource}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check Source Status' }),
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: 'Reopen Source File' }),
+      ).toBeEnabled();
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Reopen Source File' }),
+    );
+
+    expect(onReopenSource).toHaveBeenCalledWith('sample-data/water.xyz');
+  });
+
+  it('offers to reopen untracked sources with source paths', async () => {
+    const onReopenSource = vi.fn();
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        status: 'untracked',
+        message: 'Source revision metadata is unavailable.',
+        opened_source: WATER_DOCUMENT.source,
+        current_source: CURRENT_SOURCE_STATUS_RESPONSE.current_source,
+      }),
+    );
+
+    render(
+      <MoleculeExportPreviewPanel
+        document={WATER_DOCUMENT}
+        onReopenSource={onReopenSource}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check Source Status' }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'Source status: Untracked. Source revision metadata is unavailable.',
+      );
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Reopen Source File' }),
+    );
+
+    expect(onReopenSource).toHaveBeenCalledWith('sample-data/water.xyz');
   });
 
   it('shows missing source status and disables source write-back', async () => {
@@ -674,6 +742,14 @@ describe('MoleculeExportPreviewPanel', () => {
     expect(
       screen.getByRole('button', { name: 'Update Source File' }),
     ).toBeDisabled();
+    expect(
+      screen.getByText(
+        'Restore the source file or open a different file before writing back.',
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Reopen Source File' }),
+    ).not.toBeInTheDocument();
   });
 
   it('blocks changed source write-back before confirmation', async () => {

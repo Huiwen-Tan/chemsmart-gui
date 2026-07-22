@@ -19,6 +19,7 @@ import type {
 
 interface MoleculeExportPreviewPanelProps {
   document: MoleculeDocument | null;
+  onReopenSource?: (sourcePath: string) => Promise<void> | void;
   onSourceWrite?: (document: MoleculeDocument) => void;
 }
 
@@ -115,6 +116,20 @@ function sourceStatusLabel(status: MoleculeSourceStatusValue): string {
   return 'Untracked';
 }
 
+function sourceStatusResolutionMessage(
+  status: MoleculeSourceStatusValue,
+): string | null {
+  if (status === 'changed' || status === 'untracked') {
+    return 'Reopen the source file before writing back.';
+  }
+  if (status === 'missing') {
+    return (
+      'Restore the source file or open a different file before writing back.'
+    );
+  }
+  return null;
+}
+
 function messageFromUnknownError(error: unknown): string {
   return error instanceof Error ? error.message : 'Unknown error';
 }
@@ -144,6 +159,7 @@ function downloadTextFile(
 
 export function MoleculeExportPreviewPanel({
   document,
+  onReopenSource,
   onSourceWrite,
 }: MoleculeExportPreviewPanelProps): JSX.Element {
   const previewRequestVersion = useRef(0);
@@ -161,6 +177,7 @@ export function MoleculeExportPreviewPanel({
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isCheckingSource, setIsCheckingSource] = useState(false);
+  const [isReopeningSource, setIsReopeningSource] = useState(false);
   const [isWritingSource, setIsWritingSource] = useState(false);
   const [preview, setPreview] =
     useState<MoleculeExportPreviewResponse | null>(null);
@@ -184,8 +201,20 @@ export function MoleculeExportPreviewPanel({
   const sourceWriteFiletype = sourceWriteFiletypeForDocument(document);
   const sourceWriteBlockedByStatus =
     sourceStatus !== null && sourceStatus.status !== 'current';
+  const sourceStatusCanReopen =
+    sourceStatus?.status === 'changed' || sourceStatus?.status === 'untracked';
+  const canReopenSource = Boolean(
+    sourceStatusCanReopen && document?.source?.path && onReopenSource,
+  );
+  const sourceResolutionMessage = sourceStatus
+    ? sourceStatusResolutionMessage(sourceStatus.status)
+    : null;
   const isBusy =
-    isPreviewing || isSaving || isCheckingSource || isWritingSource;
+    isPreviewing ||
+    isSaving ||
+    isCheckingSource ||
+    isReopeningSource ||
+    isWritingSource;
 
   useEffect(() => {
     if (
@@ -209,6 +238,7 @@ export function MoleculeExportPreviewPanel({
     setIsPreviewing(false);
     setIsSaving(false);
     setIsCheckingSource(false);
+    setIsReopeningSource(false);
     setIsWritingSource(false);
     setPreview(null);
     setSavedExport(null);
@@ -335,6 +365,24 @@ export function MoleculeExportPreviewPanel({
       await loadSourceStatus();
     } finally {
       setIsCheckingSource(false);
+    }
+  };
+
+  const reopenSource = async (): Promise<void> => {
+    const sourcePath = document?.source?.path;
+    if (!sourcePath || !onReopenSource) {
+      setSourceStatusError('Source reopen requires an existing source file.');
+      return;
+    }
+
+    setSourceStatusError(null);
+    setIsReopeningSource(true);
+    try {
+      await onReopenSource(sourcePath);
+    } catch (err: unknown) {
+      setSourceStatusError(messageFromUnknownError(err));
+    } finally {
+      setIsReopeningSource(false);
     }
   };
 
@@ -552,10 +600,21 @@ export function MoleculeExportPreviewPanel({
           <p>Source write-back is not supported for this document.</p>
         ) : null}
         {sourceWriteBlockedByStatus ? (
-          <p>
-            Resolve the source status by reopening the source file before
-            writing back.
-          </p>
+          <p>{sourceResolutionMessage}</p>
+        ) : null}
+        {canReopenSource ? (
+          <button
+            disabled={isBusy}
+            onClick={() => {
+              void reopenSource();
+            }}
+            style={{ marginLeft: 12 }}
+            type="button"
+          >
+            {isReopeningSource
+              ? 'Reopening Source File...'
+              : 'Reopen Source File'}
+          </button>
         ) : null}
       </div>
       {!document ? <p>No molecule document loaded.</p> : null}

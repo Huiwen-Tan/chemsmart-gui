@@ -149,11 +149,30 @@ const SAVED_EDITED_WATER_DOCUMENT = {
   },
 } satisfies MoleculeDocument;
 
+const REOPENED_WATER_DOCUMENT = {
+  ...WATER_DOCUMENT,
+  id: 'reopened-water-document',
+  source: {
+    path: 'sample-data/water.xyz',
+    filename: 'water.xyz',
+    filetype: 'xyz',
+    size_bytes: 256,
+    modified_time_ns: 456,
+  },
+} satisfies MoleculeDocument;
+
 const CURRENT_EDITED_SOURCE_STATUS_RESPONSE = {
   status: 'current',
   message: 'Source file matches the opened revision.',
   opened_source: EDITED_WATER_DOCUMENT.source,
   current_source: SAVED_EDITED_WATER_DOCUMENT.source,
+};
+
+const CHANGED_EDITED_SOURCE_STATUS_RESPONSE = {
+  ...CURRENT_EDITED_SOURCE_STATUS_RESPONSE,
+  status: 'changed',
+  message: 'Source file changed since this document was opened.',
+  current_source: REOPENED_WATER_DOCUMENT.source,
 };
 
 const HELIUM_DOCUMENT = {
@@ -1074,6 +1093,92 @@ describe('App', () => {
           confirmed: true,
         }),
       }),
+    );
+  });
+
+  it('reopens a changed source from the export panel', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
+      .mockResolvedValueOnce(jsonResponse(CHANGED_EDITED_SOURCE_STATUS_RESPONSE))
+      .mockResolvedValueOnce(jsonResponse(REOPENED_WATER_DOCUMENT));
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    setUndoHistory();
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Update Source File' }),
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: 'Reopen Source File' }),
+      ).toBeEnabled();
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Reopen Source File' }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(REOPENED_WATER_DOCUMENT),
+      );
+    });
+    expect(confirm).toHaveBeenCalledWith(
+      'Current molecule has unsaved edits. Open a different document and discard them?',
+    );
+    expect(screen.getByText('No unsaved edits')).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'http://127.0.0.1:8000/api/documents/source-status',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          document: EDITED_WATER_DOCUMENT,
+        }),
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      'http://127.0.0.1:8000/api/documents/open',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ path: 'sample-data/water.xyz' }),
+      }),
+    );
+  });
+
+  it('keeps stale edits when source reopen confirmation is declined', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
+      .mockResolvedValueOnce(jsonResponse(CHANGED_EDITED_SOURCE_STATUS_RESPONSE));
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    setUndoHistory();
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Update Source File' }),
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: 'Reopen Source File' }),
+      ).toBeEnabled();
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Reopen Source File' }),
+    );
+
+    expect(confirm).toHaveBeenCalledWith(
+      'Current molecule has unsaved edits. Open a different document and discard them?',
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(screen.getByText('Unsaved edits')).toBeInTheDocument();
+    expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+      JSON.stringify(EDITED_WATER_DOCUMENT),
     );
   });
 
