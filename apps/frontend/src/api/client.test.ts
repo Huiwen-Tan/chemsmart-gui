@@ -109,6 +109,31 @@ const ADD_ATOM_EDIT_RESPONSE: MoleculeEditResponse = {
   can_redo: false,
 };
 
+const DISTANCE_EDIT_REQUEST: ApplyMoleculeEditRequest = {
+  document: WATER_DOCUMENT,
+  command: {
+    command_type: 'set_atom_distance',
+    document_id: WATER_DOCUMENT.id,
+    atom1_index: 1,
+    atom2_index: 2,
+    distance: 2.5,
+    coordinate_unit: 'angstrom',
+  },
+};
+
+const DISTANCE_EDIT_RESPONSE: MoleculeEditResponse = {
+  document: {
+    ...WATER_DOCUMENT,
+    id: 'document-water-distance-edited',
+    atoms: [
+      WATER_DOCUMENT.atoms[0],
+      { index: 2, element: 'H', x: 2.5, y: 0, z: 0 },
+    ],
+  },
+  can_undo: true,
+  can_redo: false,
+};
+
 const EXPORT_PREVIEW_REQUEST: MoleculeExportPreviewRequest = {
   document: WATER_DOCUMENT,
   filetype: 'xyz',
@@ -251,6 +276,23 @@ describe('api client', () => {
         headers: { 'Content-Type': 'application/json' },
         method: 'POST',
         body: JSON.stringify(ADD_ATOM_EDIT_REQUEST),
+      },
+    );
+  });
+
+  it('posts molecule distance edit commands to the document edit API', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(DISTANCE_EDIT_RESPONSE));
+
+    await expect(applyMoleculeEdit(DISTANCE_EDIT_REQUEST)).resolves.toEqual(
+      DISTANCE_EDIT_RESPONSE,
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/api/documents/edit',
+      {
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        body: JSON.stringify(DISTANCE_EDIT_REQUEST),
       },
     );
   });

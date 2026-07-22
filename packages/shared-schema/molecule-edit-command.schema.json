@@ -72,6 +72,46 @@
       "additionalProperties": false
     },
     {
+      "title": "SetAtomDistanceCommand",
+      "type": "object",
+      "required": [
+        "command_type",
+        "document_id",
+        "atom1_index",
+        "atom2_index",
+        "distance",
+        "coordinate_unit"
+      ],
+      "properties": {
+        "command_type": {
+          "type": "string",
+          "const": "set_atom_distance"
+        },
+        "document_id": { "type": "string", "minLength": 1 },
+        "atom1_index": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based first atom index in the target molecule document."
+        },
+        "atom2_index": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based second atom index in the target molecule document."
+        },
+        "distance": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Target atom distance in Angstrom."
+        },
+        "coordinate_unit": {
+          "type": "string",
+          "const": "angstrom",
+          "description": "Unit used by the target distance."
+        }
+      },
+      "additionalProperties": false
+    },
+    {
       "title": "RemoveBondCommand",
       "type": "object",
       "required": [

@@ -6,9 +6,12 @@ from chemsmart_gui.domain.edit import (
     DeleteAtomsCommand,
     MoleculeEditCommand,
     RemoveBondCommand,
+    SetAtomDistanceCommand,
     SetAtomPositionCommand,
 )
 from chemsmart_gui.domain.molecule import Atom, Bond
+
+GEOMETRY_EPSILON = 1e-12
 
 
 class MoleculeEditService:
@@ -24,6 +27,8 @@ class MoleculeEditService:
     ) -> MoleculeDocument:
         if isinstance(command, SetAtomPositionCommand):
             return self._apply_set_atom_position(document, command)
+        if isinstance(command, SetAtomDistanceCommand):
+            return self._apply_set_atom_distance(document, command)
         if isinstance(command, AddBondCommand):
             return self._apply_add_bond(document, command)
         if isinstance(command, RemoveBondCommand):
@@ -52,6 +57,17 @@ class MoleculeEditService:
     @staticmethod
     def _bond_key(atom1_index: int, atom2_index: int) -> tuple[int, int]:
         return tuple(sorted((atom1_index, atom2_index)))
+
+    @staticmethod
+    def _atom_by_index(document: MoleculeDocument, atom_index: int) -> Atom:
+        for atom in document.atoms:
+            if atom.index == atom_index:
+                return atom
+
+        raise ValueError(
+            f"Atom index {atom_index} was not found in document "
+            f"'{document.id}'."
+        )
 
     @staticmethod
     def _validate_atom_indices(
@@ -144,6 +160,51 @@ class MoleculeEditService:
             )
             if atom.index == command.atom_index
             else atom
+            for atom in document.atoms
+        ]
+        return self._refresh_structure_document(
+            document,
+            atoms=updated_atoms,
+            bonds=document.bonds,
+        )
+
+    def _apply_set_atom_distance(
+        self,
+        document: MoleculeDocument,
+        command: SetAtomDistanceCommand,
+    ) -> MoleculeDocument:
+        self._validate_document_id(document, command)
+        if command.atom1_index == command.atom2_index:
+            raise ValueError("Distance edit requires two different atoms.")
+        self._validate_atom_indices(
+            document,
+            (command.atom1_index, command.atom2_index),
+        )
+
+        first_atom = self._atom_by_index(document, command.atom1_index)
+        second_atom = self._atom_by_index(document, command.atom2_index)
+        delta_x = second_atom.x - first_atom.x
+        delta_y = second_atom.y - first_atom.y
+        delta_z = second_atom.z - first_atom.z
+        current_distance = (
+            delta_x**2 + delta_y**2 + delta_z**2
+        ) ** 0.5
+        if current_distance <= GEOMETRY_EPSILON:
+            raise ValueError(
+                "Cannot set atom distance when the current atom positions "
+                "are degenerate."
+            )
+
+        scale = command.distance / current_distance
+        updated_second_atom = second_atom.model_copy(
+            update={
+                "x": first_atom.x + delta_x * scale,
+                "y": first_atom.y + delta_y * scale,
+                "z": first_atom.z + delta_z * scale,
+            }
+        )
+        updated_atoms = [
+            updated_second_atom if atom.index == command.atom2_index else atom
             for atom in document.atoms
         ]
         return self._refresh_structure_document(

@@ -173,6 +173,10 @@ export function SelectedAtomPanel({
   const [coordinateEditError, setCoordinateEditError] = useState<string | null>(
     null,
   );
+  const [distanceDraft, setDistanceDraft] = useState('');
+  const [distanceEditError, setDistanceEditError] = useState<string | null>(
+    null,
+  );
   const [addAtomDraft, setAddAtomDraft] = useState<AddAtomDraft>({
     element: 'H',
     x: '0',
@@ -295,6 +299,25 @@ export function SelectedAtomPanel({
         unit: document.coordinate_unit,
       }
     : null;
+  useEffect(() => {
+    if (!distanceMeasurement) {
+      setDistanceDraft('');
+      setDistanceEditError(null);
+      return;
+    }
+
+    setDistanceDraft(String(distanceMeasurement.value));
+    setDistanceEditError(null);
+  }, [
+    distanceMeasurement?.firstAtom.index,
+    distanceMeasurement?.firstAtom.x,
+    distanceMeasurement?.firstAtom.y,
+    distanceMeasurement?.firstAtom.z,
+    distanceMeasurement?.secondAtom.index,
+    distanceMeasurement?.secondAtom.x,
+    distanceMeasurement?.secondAtom.y,
+    distanceMeasurement?.secondAtom.z,
+  ]);
   const angleValue = selectedAtoms.length === 3
     ? calculateAngleDegrees(selectedAtoms[0], selectedAtoms[1], selectedAtoms[2])
     : null;
@@ -349,6 +372,28 @@ export function SelectedAtomPanel({
       document_id: document.id,
       atom1_index: selectedAtomPair.firstAtom.index,
       atom2_index: selectedAtomPair.secondAtom.index,
+    });
+  };
+  const submitDistanceEdit = (event: FormEvent<HTMLFormElement>): void => {
+    event.preventDefault();
+    if (!document || !selectedAtomPair) {
+      return;
+    }
+
+    const distance = Number(distanceDraft);
+    if (!Number.isFinite(distance) || distance <= 0) {
+      setDistanceEditError('Distance must be a positive number.');
+      return;
+    }
+
+    setDistanceEditError(null);
+    void applyMoleculeEditCommand({
+      command_type: 'set_atom_distance',
+      document_id: document.id,
+      atom1_index: selectedAtomPair.firstAtom.index,
+      atom2_index: selectedAtomPair.secondAtom.index,
+      distance,
+      coordinate_unit: document.coordinate_unit,
     });
   };
   const deleteSelectedAtoms = (): void => {
@@ -486,6 +531,40 @@ export function SelectedAtomPanel({
                 Current bond:{' '}
                 {selectedBond ? 'present' : 'absent'}
               </p>
+              <form
+                aria-label="Edit selected atom distance"
+                onSubmit={submitDistanceEdit}
+                style={{ marginBottom: 8 }}
+              >
+                <fieldset disabled={isApplyingMoleculeEdit}>
+                  <legend>
+                    Set Distance Between {selectedAtomPair.firstAtom.index}{' '}
+                    {selectedAtomPair.firstAtom.element} and{' '}
+                    {selectedAtomPair.secondAtom.index}{' '}
+                    {selectedAtomPair.secondAtom.element}
+                  </legend>
+                  <label style={{ display: 'inline-flex', gap: 6 }}>
+                    Distance ({document?.coordinate_unit})
+                    <input
+                      aria-label="Selected atom distance"
+                      inputMode="decimal"
+                      onChange={(event) => setDistanceDraft(
+                        event.currentTarget.value,
+                      )}
+                      type="text"
+                      value={distanceDraft}
+                    />
+                  </label>
+                  <button style={{ marginLeft: 8 }} type="submit">
+                    {isApplyingMoleculeEdit
+                      ? 'Setting Distance...'
+                      : 'Set Distance'}
+                  </button>
+                </fieldset>
+                {distanceEditError ? (
+                  <p style={{ color: '#ff8080' }}>{distanceEditError}</p>
+                ) : null}
+              </form>
               <button
                 disabled={isApplyingMoleculeEdit || selectedBond !== null}
                 onClick={() => applyBondEdit('add_bond')}

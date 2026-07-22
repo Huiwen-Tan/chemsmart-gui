@@ -21,6 +21,15 @@ class SetAtomPositionCommand(BaseModel):
     coordinate_unit: Literal["angstrom"]
 
 
+class SetAtomDistanceCommand(BaseModel):
+    command_type: Literal["set_atom_distance"]
+    document_id: str = Field(min_length=1)
+    atom1_index: int = Field(ge=1)
+    atom2_index: int = Field(ge=1)
+    distance: float = Field(gt=0)
+    coordinate_unit: Literal["angstrom"]
+
+
 class AddBondCommand(BaseModel):
     command_type: Literal["add_bond"]
     document_id: str = Field(min_length=1)
@@ -51,6 +60,7 @@ class DeleteAtomsCommand(BaseModel):
 
 MoleculeEditCommand = (
     SetAtomPositionCommand
+    | SetAtomDistanceCommand
     | AddBondCommand
     | RemoveBondCommand
     | AddAtomCommand

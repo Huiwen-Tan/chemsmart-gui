@@ -5,6 +5,7 @@ import type {
   AddBondCommand,
   DeleteAtomsCommand,
   MoleculeDocument,
+  SetAtomDistanceCommand,
   SetAtomPositionCommand,
 } from '../shared/types';
 import { useViewerStore } from './useViewerStore';
@@ -79,6 +80,16 @@ const ADDED_ATOM_WATER: MoleculeDocument = {
   ],
 };
 
+const DISTANCE_EDITED_WATER: MoleculeDocument = {
+  ...WATER,
+  id: 'distance-edited-water',
+  atoms: [
+    WATER.atoms[0],
+    { index: 2, element: 'H', x: 2.5, y: 0, z: 0 },
+    WATER.atoms[2],
+  ],
+};
+
 const DELETED_ATOM_WATER: MoleculeDocument = {
   ...WATER,
   id: 'deleted-atom-water',
@@ -109,6 +120,15 @@ const ADD_ATOM: AddAtomCommand = {
   document_id: WATER.id,
   element: 'He',
   position: { x: 1, y: 1.1, z: 1.2 },
+  coordinate_unit: 'angstrom',
+};
+
+const SET_ATOM_DISTANCE: SetAtomDistanceCommand = {
+  command_type: 'set_atom_distance',
+  document_id: WATER.id,
+  atom1_index: 1,
+  atom2_index: 2,
+  distance: 2.5,
   coordinate_unit: 'angstrom',
 };
 
@@ -331,6 +351,45 @@ describe('useDocumentStore', () => {
         body: JSON.stringify({
           document: WATER,
           command: ADD_ATOM,
+        }),
+      },
+    );
+  });
+
+  it('applies molecule distance edit commands through the API client', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        document: DISTANCE_EDITED_WATER,
+        can_undo: true,
+        can_redo: false,
+      }),
+    );
+    useDocumentStore.setState({ currentDocument: WATER });
+    useViewerStore.setState({ selectedAtomIndices: [1, 2] });
+
+    await useDocumentStore
+      .getState()
+      .applyMoleculeEditCommand(SET_ATOM_DISTANCE);
+
+    expect(useDocumentStore.getState().currentDocument).toEqual(
+      DISTANCE_EDITED_WATER,
+    );
+    expect(useDocumentStore.getState().hasUnsavedMoleculeEdits).toBe(true);
+    expect(useDocumentStore.getState().moleculeEditUndoStack).toEqual([
+      {
+        beforeDocument: WATER,
+        afterDocument: DISTANCE_EDITED_WATER,
+      },
+    ]);
+    expect(useViewerStore.getState().selectedAtomIndices).toEqual([1, 2]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/api/documents/edit',
+      {
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        body: JSON.stringify({
+          document: WATER,
+          command: SET_ATOM_DISTANCE,
         }),
       },
     );

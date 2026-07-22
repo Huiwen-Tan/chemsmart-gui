@@ -229,6 +229,9 @@ describe('SelectedAtomPanel', () => {
       screen.getByText('Bond Between 2 H and 3 H'),
     ).toBeInTheDocument();
     expect(screen.getByText('Current bond: absent')).toBeInTheDocument();
+    expect(
+      screen.getByRole('form', { name: 'Edit selected atom distance' }),
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add Bond' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Remove Bond' })).toBeDisabled();
 
@@ -240,6 +243,51 @@ describe('SelectedAtomPanel', () => {
       atom1_index: 2,
       atom2_index: 3,
     });
+  });
+
+  it('sets the distance between two selected atoms', () => {
+    const applyMoleculeEditCommand = vi.fn().mockResolvedValue(undefined);
+    useDocumentStore.setState({ applyMoleculeEditCommand });
+    useViewerStore.setState({ selectedAtomIndices: [1, 2] });
+
+    render(<SelectedAtomPanel document={WATER} />);
+
+    const distanceInput = screen.getByLabelText(
+      'Selected atom distance',
+    ) as HTMLInputElement;
+    expect(Number(distanceInput.value)).toBeCloseTo(0.956, 3);
+
+    fireEvent.change(distanceInput, {
+      target: { value: '1.5' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Set Distance' }));
+
+    expect(applyMoleculeEditCommand).toHaveBeenCalledWith({
+      command_type: 'set_atom_distance',
+      document_id: 'water',
+      atom1_index: 1,
+      atom2_index: 2,
+      distance: 1.5,
+      coordinate_unit: 'angstrom',
+    });
+  });
+
+  it('shows a local error for invalid distance edits', () => {
+    const applyMoleculeEditCommand = vi.fn().mockResolvedValue(undefined);
+    useDocumentStore.setState({ applyMoleculeEditCommand });
+    useViewerStore.setState({ selectedAtomIndices: [1, 2] });
+
+    render(<SelectedAtomPanel document={WATER} />);
+
+    fireEvent.change(screen.getByLabelText('Selected atom distance'), {
+      target: { value: '0' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Set Distance' }));
+
+    expect(
+      screen.getByText('Distance must be a positive number.'),
+    ).toBeInTheDocument();
+    expect(applyMoleculeEditCommand).not.toHaveBeenCalled();
   });
 
   it('removes an existing bond between two selected atoms', () => {
@@ -270,6 +318,9 @@ describe('SelectedAtomPanel', () => {
 
     expect(
       screen.queryByRole('region', { name: 'Edit selected atom bond' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('form', { name: 'Edit selected atom distance' }),
     ).not.toBeInTheDocument();
   });
 

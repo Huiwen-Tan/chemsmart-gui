@@ -72,6 +72,16 @@ const ADDED_ATOM_WATER_DOCUMENT = {
   ],
 } satisfies MoleculeDocument;
 
+const DISTANCE_EDITED_WATER_DOCUMENT = {
+  ...WATER_DOCUMENT,
+  id: 'distance-edited-water-document',
+  atoms: [
+    WATER_DOCUMENT.atoms[0],
+    { index: 2, element: 'H', x: 1.5, y: 0, z: 0 },
+    WATER_DOCUMENT.atoms[2],
+  ],
+} satisfies MoleculeDocument;
+
 const DELETED_ATOM_WATER_DOCUMENT = {
   ...WATER_DOCUMENT,
   id: 'deleted-atom-water-document',
@@ -475,6 +485,62 @@ describe('App', () => {
             document_id: WATER_DOCUMENT.id,
             element: 'He',
             position: { x: 1, y: 1.1, z: 1.2 },
+            coordinate_unit: 'angstrom',
+          },
+        }),
+      }),
+    );
+  });
+
+  it('sets selected atom distance through edit controls', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
+      .mockResolvedValueOnce(jsonResponse(WATER_DOCUMENT))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          document: DISTANCE_EDITED_WATER_DOCUMENT,
+          can_undo: true,
+          can_redo: false,
+        }),
+      );
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(WATER_DOCUMENT),
+      );
+    });
+    act(() => {
+      useViewerStore.setState({ selectedAtomIndices: [1, 2] });
+    });
+    fireEvent.change(screen.getByLabelText('Selected atom distance'), {
+      target: { value: '1.5' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Set Distance' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(DISTANCE_EDITED_WATER_DOCUMENT),
+      );
+    });
+    expect(screen.getByText('Unsaved edits')).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      'http://127.0.0.1:8000/api/documents/edit',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          document: WATER_DOCUMENT,
+          command: {
+            command_type: 'set_atom_distance',
+            document_id: WATER_DOCUMENT.id,
+            atom1_index: 1,
+            atom2_index: 2,
+            distance: 1.5,
             coordinate_unit: 'angstrom',
           },
         }),

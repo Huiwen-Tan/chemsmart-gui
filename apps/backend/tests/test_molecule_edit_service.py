@@ -10,6 +10,7 @@ from chemsmart_gui.domain.edit import (
     CartesianPosition,
     DeleteAtomsCommand,
     RemoveBondCommand,
+    SetAtomDistanceCommand,
     SetAtomPositionCommand,
 )
 from chemsmart_gui.domain.molecule import Bond
@@ -35,6 +36,24 @@ def set_atom_position_command(
         document_id=document_id or document.id,
         atom_index=atom_index,
         position=CartesianPosition(x=1.0, y=1.1, z=1.2),
+        coordinate_unit="angstrom",
+    )
+
+
+def set_atom_distance_command(
+    document: MoleculeDocument,
+    *,
+    atom1_index: int = 1,
+    atom2_index: int = 2,
+    distance: float = 2.5,
+    document_id: str | None = None,
+) -> SetAtomDistanceCommand:
+    return SetAtomDistanceCommand(
+        command_type="set_atom_distance",
+        document_id=document_id or document.id,
+        atom1_index=atom1_index,
+        atom2_index=atom2_index,
+        distance=distance,
         coordinate_unit="angstrom",
     )
 
@@ -156,6 +175,101 @@ def test_apply_set_atom_position_rejects_missing_atom_index() -> None:
     command = set_atom_position_command(document, atom_index=99)
 
     with pytest.raises(ValueError, match="Atom index 99"):
+        MoleculeEditService().apply_command(document, command)
+
+
+def test_apply_set_atom_distance_moves_second_atom() -> None:
+    water = open_water_document()
+    document = water.model_copy(
+        update={
+            "atoms": [
+                water.atoms[0],
+                water.atoms[1].model_copy(
+                    update={"x": 1.0, "y": 0.0, "z": 0.0}
+                ),
+                water.atoms[2],
+            ]
+        },
+        deep=True,
+    )
+    command = set_atom_distance_command(document, distance=2.5)
+
+    updated = MoleculeEditService().apply_command(document, command)
+
+    assert updated.id != document.id
+    assert updated.source == document.source
+    assert updated.calculation is None
+    assert (updated.atoms[0].x, updated.atoms[0].y, updated.atoms[0].z) == (
+        0.0,
+        0.0,
+        0.0,
+    )
+    assert updated.atoms[1].x == pytest.approx(2.5)
+    assert updated.atoms[1].y == pytest.approx(0.0)
+    assert updated.atoms[1].z == pytest.approx(0.0)
+    assert updated.bonds == document.bonds
+
+
+def test_apply_set_atom_distance_preserves_direction() -> None:
+    water = open_water_document()
+    document = water.model_copy(
+        update={
+            "atoms": [
+                water.atoms[0],
+                water.atoms[1].model_copy(
+                    update={"x": 0.0, "y": 2.0, "z": 0.0}
+                ),
+                water.atoms[2],
+            ]
+        },
+        deep=True,
+    )
+    command = set_atom_distance_command(document, distance=1.5)
+
+    updated = MoleculeEditService().apply_command(document, command)
+
+    assert updated.atoms[1].x == pytest.approx(0.0)
+    assert updated.atoms[1].y == pytest.approx(1.5)
+    assert updated.atoms[1].z == pytest.approx(0.0)
+
+
+def test_apply_set_atom_distance_rejects_identical_atoms() -> None:
+    document = open_water_document()
+    command = set_atom_distance_command(
+        document,
+        atom1_index=2,
+        atom2_index=2,
+    )
+
+    with pytest.raises(ValueError, match="two different atoms"):
+        MoleculeEditService().apply_command(document, command)
+
+
+def test_apply_set_atom_distance_rejects_missing_atom() -> None:
+    document = open_water_document()
+    command = set_atom_distance_command(document, atom2_index=99)
+
+    with pytest.raises(ValueError, match="Atom index 99"):
+        MoleculeEditService().apply_command(document, command)
+
+
+def test_apply_set_atom_distance_rejects_degenerate_positions() -> None:
+    water = open_water_document()
+    document = water.model_copy(
+        update={
+            "atoms": [
+                water.atoms[0],
+                water.atoms[1].model_copy(
+                    update={"x": 0.0, "y": 0.0, "z": 0.0}
+                ),
+                water.atoms[2],
+            ]
+        },
+        deep=True,
+    )
+    command = set_atom_distance_command(document)
+
+    with pytest.raises(ValueError, match="degenerate"):
         MoleculeEditService().apply_command(document, command)
 
 

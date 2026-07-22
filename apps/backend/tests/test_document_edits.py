@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from chemsmart_gui.adapters.chemsmart_adapter import ChemsmartAdapter
@@ -10,6 +11,7 @@ from chemsmart_gui.domain.edit import (
     CartesianPosition,
     DeleteAtomsCommand,
     RemoveBondCommand,
+    SetAtomDistanceCommand,
     SetAtomPositionCommand,
 )
 from chemsmart_gui.main import app
@@ -35,6 +37,23 @@ def set_atom_position_command(
         document_id=document_id or document.id,
         atom_index=atom_index,
         position=CartesianPosition(x=1.0, y=1.1, z=1.2),
+        coordinate_unit="angstrom",
+    )
+
+
+def set_atom_distance_command(
+    document: MoleculeDocument,
+    *,
+    atom1_index: int = 1,
+    atom2_index: int = 2,
+    distance: float = 2.5,
+) -> SetAtomDistanceCommand:
+    return SetAtomDistanceCommand(
+        command_type="set_atom_distance",
+        document_id=document.id,
+        atom1_index=atom1_index,
+        atom2_index=atom2_index,
+        distance=distance,
         coordinate_unit="angstrom",
     )
 
@@ -99,6 +118,51 @@ def test_apply_molecule_edit_command_returns_updated_document() -> None:
         {"index": 2, "element": "H", "x": 1.0, "y": 1.1, "z": 1.2},
         {"index": 3, "element": "H", "x": -0.76, "y": 0.58, "z": 0.0},
     ]
+    assert body["document"]["bonds"] == [
+        {"atom1": 1, "atom2": 2},
+        {"atom1": 1, "atom2": 3},
+    ]
+
+
+def test_apply_set_atom_distance_command_returns_updated_document() -> None:
+    water = open_water_document()
+    document = water.model_copy(
+        update={
+            "atoms": [
+                water.atoms[0],
+                water.atoms[1].model_copy(
+                    update={"x": 1.0, "y": 0.0, "z": 0.0}
+                ),
+                water.atoms[2],
+            ]
+        },
+        deep=True,
+    )
+    command = set_atom_distance_command(document)
+
+    response = client.post(
+        "/api/documents/edit",
+        json={
+            "document": document.model_dump(),
+            "command": command.model_dump(),
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["can_undo"] is True
+    assert body["can_redo"] is False
+    assert body["document"]["id"] != document.id
+    assert body["document"]["atoms"][0] == {
+        "index": 1,
+        "element": "O",
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+    }
+    assert body["document"]["atoms"][1]["x"] == pytest.approx(2.5)
+    assert body["document"]["atoms"][1]["y"] == pytest.approx(0.0)
+    assert body["document"]["atoms"][1]["z"] == pytest.approx(0.0)
     assert body["document"]["bonds"] == [
         {"atom1": 1, "atom2": 2},
         {"atom1": 1, "atom2": 3},
@@ -258,6 +322,26 @@ def test_apply_bond_edit_rejects_duplicate_bond() -> None:
 
     assert response.status_code == 400
     assert "already exists" in response.json()["detail"]
+
+
+def test_apply_set_atom_distance_rejects_identical_atoms() -> None:
+    document = open_water_document()
+    command = set_atom_distance_command(
+        document,
+        atom1_index=2,
+        atom2_index=2,
+    )
+
+    response = client.post(
+        "/api/documents/edit",
+        json={
+            "document": document.model_dump(),
+            "command": command.model_dump(),
+        },
+    )
+
+    assert response.status_code == 400
+    assert "two different atoms" in response.json()["detail"]
 
 
 def test_apply_delete_atoms_rejects_deleting_every_atom() -> None:

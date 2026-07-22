@@ -10,6 +10,7 @@ from chemsmart_gui.domain.edit import (
     CartesianPosition,
     DeleteAtomsCommand,
     RemoveBondCommand,
+    SetAtomDistanceCommand,
     SetAtomPositionCommand,
 )
 
@@ -48,6 +49,48 @@ def test_set_atom_position_command_requires_1_based_atom_index() -> None:
             document_id="document-water",
             atom_index=0,
             position=CartesianPosition(x=0.1, y=0.2, z=0.3),
+            coordinate_unit="angstrom",
+        )
+
+
+def test_set_atom_distance_command_serializes_contract() -> None:
+    command = SetAtomDistanceCommand(
+        command_type="set_atom_distance",
+        document_id="document-water",
+        atom1_index=1,
+        atom2_index=2,
+        distance=1.5,
+        coordinate_unit="angstrom",
+    )
+
+    assert command.model_dump() == {
+        "command_type": "set_atom_distance",
+        "document_id": "document-water",
+        "atom1_index": 1,
+        "atom2_index": 2,
+        "distance": 1.5,
+        "coordinate_unit": "angstrom",
+    }
+
+
+def test_set_atom_distance_command_requires_valid_indices_and_distance() -> None:
+    with pytest.raises(ValidationError):
+        SetAtomDistanceCommand(
+            command_type="set_atom_distance",
+            document_id="document-water",
+            atom1_index=0,
+            atom2_index=2,
+            distance=1.5,
+            coordinate_unit="angstrom",
+        )
+
+    with pytest.raises(ValidationError):
+        SetAtomDistanceCommand(
+            command_type="set_atom_distance",
+            document_id="document-water",
+            atom1_index=1,
+            atom2_index=2,
+            distance=0,
             coordinate_unit="angstrom",
         )
 
@@ -171,6 +214,7 @@ def test_shared_schema_expresses_edit_command_contract() -> None:
     }
     set_atom_schema = command_schemas["SetAtomPositionCommand"]
     add_bond_schema = command_schemas["AddBondCommand"]
+    set_distance_schema = command_schemas["SetAtomDistanceCommand"]
     remove_bond_schema = command_schemas["RemoveBondCommand"]
     add_atom_schema = command_schemas["AddAtomCommand"]
     delete_atoms_schema = command_schemas["DeleteAtomsCommand"]
@@ -180,6 +224,7 @@ def test_shared_schema_expresses_edit_command_contract() -> None:
     assert set(command_schemas) == {
         "SetAtomPositionCommand",
         "AddBondCommand",
+        "SetAtomDistanceCommand",
         "RemoveBondCommand",
         "AddAtomCommand",
         "DeleteAtomsCommand",
@@ -206,6 +251,27 @@ def test_shared_schema_expresses_edit_command_contract() -> None:
     assert add_bond_schema["properties"]["document_id"]["minLength"] == 1
     assert add_bond_schema["properties"]["atom1_index"]["minimum"] == 1
     assert add_bond_schema["properties"]["atom2_index"]["minimum"] == 1
+    assert set_distance_schema["required"] == [
+        "command_type",
+        "document_id",
+        "atom1_index",
+        "atom2_index",
+        "distance",
+        "coordinate_unit",
+    ]
+    assert (
+        set_distance_schema["properties"]["command_type"]["const"]
+        == "set_atom_distance"
+    )
+    assert set_distance_schema["properties"]["document_id"]["minLength"] == 1
+    assert set_distance_schema["properties"]["atom1_index"]["minimum"] == 1
+    assert set_distance_schema["properties"]["atom2_index"]["minimum"] == 1
+    assert (
+        set_distance_schema["properties"]["distance"]["exclusiveMinimum"] == 0
+    )
+    assert set_distance_schema["properties"]["coordinate_unit"]["const"] == (
+        "angstrom"
+    )
     assert remove_bond_schema["required"] == [
         "command_type",
         "document_id",
