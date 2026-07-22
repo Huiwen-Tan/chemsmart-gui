@@ -10,6 +10,7 @@ from chemsmart_gui.domain.edit import (
     CartesianPosition,
     DeleteAtomsCommand,
     RemoveBondCommand,
+    SetAtomAngleCommand,
     SetAtomDistanceCommand,
     SetAtomPositionCommand,
 )
@@ -73,7 +74,7 @@ def test_set_atom_distance_command_serializes_contract() -> None:
     }
 
 
-def test_set_atom_distance_command_requires_valid_indices_and_distance() -> None:
+def test_set_atom_distance_command_requires_valid_indices() -> None:
     with pytest.raises(ValidationError):
         SetAtomDistanceCommand(
             command_type="set_atom_distance",
@@ -92,6 +93,58 @@ def test_set_atom_distance_command_requires_valid_indices_and_distance() -> None
             atom2_index=2,
             distance=0,
             coordinate_unit="angstrom",
+        )
+
+
+def test_set_atom_angle_command_serializes_contract() -> None:
+    command = SetAtomAngleCommand(
+        command_type="set_atom_angle",
+        document_id="document-water",
+        atom1_index=1,
+        vertex_atom_index=2,
+        atom3_index=3,
+        angle_degrees=109.5,
+    )
+
+    assert command.model_dump() == {
+        "command_type": "set_atom_angle",
+        "document_id": "document-water",
+        "atom1_index": 1,
+        "vertex_atom_index": 2,
+        "atom3_index": 3,
+        "angle_degrees": 109.5,
+    }
+
+
+def test_set_atom_angle_command_requires_valid_indices_and_angle() -> None:
+    with pytest.raises(ValidationError):
+        SetAtomAngleCommand(
+            command_type="set_atom_angle",
+            document_id="document-water",
+            atom1_index=0,
+            vertex_atom_index=2,
+            atom3_index=3,
+            angle_degrees=109.5,
+        )
+
+    with pytest.raises(ValidationError):
+        SetAtomAngleCommand(
+            command_type="set_atom_angle",
+            document_id="document-water",
+            atom1_index=1,
+            vertex_atom_index=2,
+            atom3_index=3,
+            angle_degrees=0,
+        )
+
+    with pytest.raises(ValidationError):
+        SetAtomAngleCommand(
+            command_type="set_atom_angle",
+            document_id="document-water",
+            atom1_index=1,
+            vertex_atom_index=2,
+            atom3_index=3,
+            angle_degrees=180,
         )
 
 
@@ -216,6 +269,7 @@ def test_shared_schema_expresses_edit_command_contract() -> None:
     add_bond_schema = command_schemas["AddBondCommand"]
     set_distance_schema = command_schemas["SetAtomDistanceCommand"]
     remove_bond_schema = command_schemas["RemoveBondCommand"]
+    set_angle_schema = command_schemas["SetAtomAngleCommand"]
     add_atom_schema = command_schemas["AddAtomCommand"]
     delete_atoms_schema = command_schemas["DeleteAtomsCommand"]
     properties = set_atom_schema["properties"]
@@ -226,6 +280,7 @@ def test_shared_schema_expresses_edit_command_contract() -> None:
         "AddBondCommand",
         "SetAtomDistanceCommand",
         "RemoveBondCommand",
+        "SetAtomAngleCommand",
         "AddAtomCommand",
         "DeleteAtomsCommand",
     }
@@ -285,6 +340,32 @@ def test_shared_schema_expresses_edit_command_contract() -> None:
     assert remove_bond_schema["properties"]["document_id"]["minLength"] == 1
     assert remove_bond_schema["properties"]["atom1_index"]["minimum"] == 1
     assert remove_bond_schema["properties"]["atom2_index"]["minimum"] == 1
+    assert set_angle_schema["required"] == [
+        "command_type",
+        "document_id",
+        "atom1_index",
+        "vertex_atom_index",
+        "atom3_index",
+        "angle_degrees",
+    ]
+    assert (
+        set_angle_schema["properties"]["command_type"]["const"]
+        == "set_atom_angle"
+    )
+    assert set_angle_schema["properties"]["document_id"]["minLength"] == 1
+    assert set_angle_schema["properties"]["atom1_index"]["minimum"] == 1
+    assert (
+        set_angle_schema["properties"]["vertex_atom_index"]["minimum"] == 1
+    )
+    assert set_angle_schema["properties"]["atom3_index"]["minimum"] == 1
+    assert (
+        set_angle_schema["properties"]["angle_degrees"]["exclusiveMinimum"]
+        == 0
+    )
+    assert (
+        set_angle_schema["properties"]["angle_degrees"]["exclusiveMaximum"]
+        == 180
+    )
     assert add_atom_schema["required"] == [
         "command_type",
         "document_id",

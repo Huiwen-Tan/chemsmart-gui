@@ -5,6 +5,7 @@ import type {
   AddBondCommand,
   DeleteAtomsCommand,
   MoleculeDocument,
+  SetAtomAngleCommand,
   SetAtomDistanceCommand,
   SetAtomPositionCommand,
 } from '../shared/types';
@@ -90,6 +91,16 @@ const DISTANCE_EDITED_WATER: MoleculeDocument = {
   ],
 };
 
+const ANGLE_EDITED_WATER: MoleculeDocument = {
+  ...WATER,
+  id: 'angle-edited-water',
+  atoms: [
+    WATER.atoms[0],
+    WATER.atoms[1],
+    { index: 3, element: 'H', x: -1, y: 1.732, z: 0 },
+  ],
+};
+
 const DELETED_ATOM_WATER: MoleculeDocument = {
   ...WATER,
   id: 'deleted-atom-water',
@@ -130,6 +141,15 @@ const SET_ATOM_DISTANCE: SetAtomDistanceCommand = {
   atom2_index: 2,
   distance: 2.5,
   coordinate_unit: 'angstrom',
+};
+
+const SET_ATOM_ANGLE: SetAtomAngleCommand = {
+  command_type: 'set_atom_angle',
+  document_id: WATER.id,
+  atom1_index: 1,
+  vertex_atom_index: 2,
+  atom3_index: 3,
+  angle_degrees: 120,
 };
 
 const DELETE_ATOMS: DeleteAtomsCommand = {
@@ -390,6 +410,43 @@ describe('useDocumentStore', () => {
         body: JSON.stringify({
           document: WATER,
           command: SET_ATOM_DISTANCE,
+        }),
+      },
+    );
+  });
+
+  it('applies molecule angle edit commands through the API client', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        document: ANGLE_EDITED_WATER,
+        can_undo: true,
+        can_redo: false,
+      }),
+    );
+    useDocumentStore.setState({ currentDocument: WATER });
+    useViewerStore.setState({ selectedAtomIndices: [1, 2, 3] });
+
+    await useDocumentStore.getState().applyMoleculeEditCommand(SET_ATOM_ANGLE);
+
+    expect(useDocumentStore.getState().currentDocument).toEqual(
+      ANGLE_EDITED_WATER,
+    );
+    expect(useDocumentStore.getState().hasUnsavedMoleculeEdits).toBe(true);
+    expect(useDocumentStore.getState().moleculeEditUndoStack).toEqual([
+      {
+        beforeDocument: WATER,
+        afterDocument: ANGLE_EDITED_WATER,
+      },
+    ]);
+    expect(useViewerStore.getState().selectedAtomIndices).toEqual([1, 2, 3]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/api/documents/edit',
+      {
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        body: JSON.stringify({
+          document: WATER,
+          command: SET_ATOM_ANGLE,
         }),
       },
     );

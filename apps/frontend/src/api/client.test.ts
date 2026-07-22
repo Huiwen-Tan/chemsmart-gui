@@ -134,6 +134,44 @@ const DISTANCE_EDIT_RESPONSE: MoleculeEditResponse = {
   can_redo: false,
 };
 
+const ANGLE_WATER_DOCUMENT: MoleculeDocument = {
+  ...WATER_DOCUMENT,
+  atoms: [
+    ...WATER_DOCUMENT.atoms,
+    { index: 3, element: 'H', x: -0.76, y: 0.58, z: 0 },
+  ],
+  bonds: [
+    ...WATER_DOCUMENT.bonds,
+    { atom1: 1, atom2: 3 },
+  ],
+};
+
+const ANGLE_EDIT_REQUEST: ApplyMoleculeEditRequest = {
+  document: ANGLE_WATER_DOCUMENT,
+  command: {
+    command_type: 'set_atom_angle',
+    document_id: ANGLE_WATER_DOCUMENT.id,
+    atom1_index: 1,
+    vertex_atom_index: 2,
+    atom3_index: 3,
+    angle_degrees: 120,
+  },
+};
+
+const ANGLE_EDIT_RESPONSE: MoleculeEditResponse = {
+  document: {
+    ...ANGLE_WATER_DOCUMENT,
+    id: 'document-water-angle-edited',
+    atoms: [
+      ANGLE_WATER_DOCUMENT.atoms[0],
+      ANGLE_WATER_DOCUMENT.atoms[1],
+      { index: 3, element: 'H', x: -1, y: 1.732, z: 0 },
+    ],
+  },
+  can_undo: true,
+  can_redo: false,
+};
+
 const EXPORT_PREVIEW_REQUEST: MoleculeExportPreviewRequest = {
   document: WATER_DOCUMENT,
   filetype: 'xyz',
@@ -293,6 +331,23 @@ describe('api client', () => {
         headers: { 'Content-Type': 'application/json' },
         method: 'POST',
         body: JSON.stringify(DISTANCE_EDIT_REQUEST),
+      },
+    );
+  });
+
+  it('posts molecule angle edit commands to the document edit API', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(ANGLE_EDIT_RESPONSE));
+
+    await expect(applyMoleculeEdit(ANGLE_EDIT_REQUEST)).resolves.toEqual(
+      ANGLE_EDIT_RESPONSE,
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/api/documents/edit',
+      {
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        body: JSON.stringify(ANGLE_EDIT_REQUEST),
       },
     );
   });

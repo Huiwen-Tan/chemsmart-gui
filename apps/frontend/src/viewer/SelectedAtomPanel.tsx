@@ -177,6 +177,8 @@ export function SelectedAtomPanel({
   const [distanceEditError, setDistanceEditError] = useState<string | null>(
     null,
   );
+  const [angleDraft, setAngleDraft] = useState('');
+  const [angleEditError, setAngleEditError] = useState<string | null>(null);
   const [addAtomDraft, setAddAtomDraft] = useState<AddAtomDraft>({
     element: 'H',
     x: '0',
@@ -329,6 +331,29 @@ export function SelectedAtomPanel({
         value: angleValue,
       }
     : null;
+  useEffect(() => {
+    if (!angleMeasurement) {
+      setAngleDraft('');
+      setAngleEditError(null);
+      return;
+    }
+
+    setAngleDraft(String(angleMeasurement.value));
+    setAngleEditError(null);
+  }, [
+    angleMeasurement?.firstAtom.index,
+    angleMeasurement?.firstAtom.x,
+    angleMeasurement?.firstAtom.y,
+    angleMeasurement?.firstAtom.z,
+    angleMeasurement?.vertexAtom.index,
+    angleMeasurement?.vertexAtom.x,
+    angleMeasurement?.vertexAtom.y,
+    angleMeasurement?.vertexAtom.z,
+    angleMeasurement?.thirdAtom.index,
+    angleMeasurement?.thirdAtom.x,
+    angleMeasurement?.thirdAtom.y,
+    angleMeasurement?.thirdAtom.z,
+  ]);
   const dihedralValue = selectedAtoms.length === 4
     ? calculateDihedralDegrees(
         selectedAtoms[0],
@@ -394,6 +419,34 @@ export function SelectedAtomPanel({
       atom2_index: selectedAtomPair.secondAtom.index,
       distance,
       coordinate_unit: document.coordinate_unit,
+    });
+  };
+  const submitAngleEdit = (event: FormEvent<HTMLFormElement>): void => {
+    event.preventDefault();
+    if (!document || !angleMeasurement) {
+      return;
+    }
+
+    const angleDegrees = Number(angleDraft);
+    if (
+      !Number.isFinite(angleDegrees) ||
+      angleDegrees <= 0 ||
+      angleDegrees >= 180
+    ) {
+      setAngleEditError(
+        'Angle must be greater than 0 and less than 180 degrees.',
+      );
+      return;
+    }
+
+    setAngleEditError(null);
+    void applyMoleculeEditCommand({
+      command_type: 'set_atom_angle',
+      document_id: document.id,
+      atom1_index: angleMeasurement.firstAtom.index,
+      vertex_atom_index: angleMeasurement.vertexAtom.index,
+      atom3_index: angleMeasurement.thirdAtom.index,
+      angle_degrees: angleDegrees,
     });
   };
   const deleteSelectedAtoms = (): void => {
@@ -581,6 +634,44 @@ export function SelectedAtomPanel({
                 {isApplyingMoleculeEdit ? 'Applying Bond...' : 'Remove Bond'}
               </button>
             </section>
+          ) : null}
+          {angleMeasurement ? (
+            <form
+              aria-label="Edit selected atom angle"
+              onSubmit={submitAngleEdit}
+              style={{ marginTop: 12 }}
+            >
+              <fieldset disabled={isApplyingMoleculeEdit}>
+                <legend>
+                  Set Angle for {angleMeasurement.firstAtom.index}{' '}
+                  {angleMeasurement.firstAtom.element} -{' '}
+                  {angleMeasurement.vertexAtom.index}{' '}
+                  {angleMeasurement.vertexAtom.element} -{' '}
+                  {angleMeasurement.thirdAtom.index}{' '}
+                  {angleMeasurement.thirdAtom.element}
+                </legend>
+                <label style={{ display: 'inline-flex', gap: 6 }}>
+                  Angle (degrees)
+                  <input
+                    aria-label="Selected atom angle"
+                    inputMode="decimal"
+                    onChange={(event) => setAngleDraft(
+                      event.currentTarget.value,
+                    )}
+                    type="text"
+                    value={angleDraft}
+                  />
+                </label>
+                <button style={{ marginLeft: 8 }} type="submit">
+                  {isApplyingMoleculeEdit
+                    ? 'Setting Angle...'
+                    : 'Set Angle'}
+                </button>
+              </fieldset>
+              {angleEditError ? (
+                <p style={{ color: '#ff8080' }}>{angleEditError}</p>
+              ) : null}
+            </form>
           ) : null}
           {document ? (
             <section

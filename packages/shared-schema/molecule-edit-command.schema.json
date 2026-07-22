@@ -140,6 +140,47 @@
       "additionalProperties": false
     },
     {
+      "title": "SetAtomAngleCommand",
+      "type": "object",
+      "required": [
+        "command_type",
+        "document_id",
+        "atom1_index",
+        "vertex_atom_index",
+        "atom3_index",
+        "angle_degrees"
+      ],
+      "properties": {
+        "command_type": {
+          "type": "string",
+          "const": "set_atom_angle"
+        },
+        "document_id": { "type": "string", "minLength": 1 },
+        "atom1_index": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based first atom index in the target molecule document."
+        },
+        "vertex_atom_index": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based vertex atom index in the target molecule document."
+        },
+        "atom3_index": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based third atom index in the target molecule document."
+        },
+        "angle_degrees": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "exclusiveMaximum": 180,
+          "description": "Target atom angle in degrees."
+        }
+      },
+      "additionalProperties": false
+    },
+    {
       "title": "AddAtomCommand",
       "type": "object",
       "required": [

@@ -1,3 +1,5 @@
+import math
+
 from chemsmart_gui.adapters.chemsmart_adapter import ChemsmartAdapter
 from chemsmart_gui.domain.document import MoleculeDocument
 from chemsmart_gui.domain.edit import (
@@ -6,12 +8,66 @@ from chemsmart_gui.domain.edit import (
     DeleteAtomsCommand,
     MoleculeEditCommand,
     RemoveBondCommand,
+    SetAtomAngleCommand,
     SetAtomDistanceCommand,
     SetAtomPositionCommand,
 )
 from chemsmart_gui.domain.molecule import Atom, Bond
 
 GEOMETRY_EPSILON = 1e-12
+Vector3 = tuple[float, float, float]
+
+
+def _subtract_atom_positions(first: Atom, second: Atom) -> Vector3:
+    return (
+        first.x - second.x,
+        first.y - second.y,
+        first.z - second.z,
+    )
+
+
+def _add_vectors(first: Vector3, second: Vector3) -> Vector3:
+    return (
+        first[0] + second[0],
+        first[1] + second[1],
+        first[2] + second[2],
+    )
+
+
+def _scale_vector(vector: Vector3, scale: float) -> Vector3:
+    return (
+        vector[0] * scale,
+        vector[1] * scale,
+        vector[2] * scale,
+    )
+
+
+def _dot_vectors(first: Vector3, second: Vector3) -> float:
+    return (
+        first[0] * second[0]
+        + first[1] * second[1]
+        + first[2] * second[2]
+    )
+
+
+def _cross_vectors(first: Vector3, second: Vector3) -> Vector3:
+    return (
+        first[1] * second[2] - first[2] * second[1],
+        first[2] * second[0] - first[0] * second[2],
+        first[0] * second[1] - first[1] * second[0],
+    )
+
+
+def _vector_length(vector: Vector3) -> float:
+    return math.sqrt(_dot_vectors(vector, vector))
+
+
+def _normalize_vector(vector: Vector3) -> Vector3 | None:
+    length = _vector_length(vector)
+    if length <= GEOMETRY_EPSILON:
+        return None
+
+    return _scale_vector(vector, 1 / length)
 
 
 class MoleculeEditService:
@@ -29,6 +85,8 @@ class MoleculeEditService:
             return self._apply_set_atom_position(document, command)
         if isinstance(command, SetAtomDistanceCommand):
             return self._apply_set_atom_distance(document, command)
+        if isinstance(command, SetAtomAngleCommand):
+            return self._apply_set_atom_angle(document, command)
         if isinstance(command, AddBondCommand):
             return self._apply_add_bond(document, command)
         if isinstance(command, RemoveBondCommand):
@@ -141,7 +199,11 @@ class MoleculeEditService:
         self._validate_document_id(document, command)
 
         target_atom = next(
-            (atom for atom in document.atoms if atom.index == command.atom_index),
+            (
+                atom
+                for atom in document.atoms
+                if atom.index == command.atom_index
+            ),
             None,
         )
         if target_atom is None:
@@ -183,12 +245,8 @@ class MoleculeEditService:
 
         first_atom = self._atom_by_index(document, command.atom1_index)
         second_atom = self._atom_by_index(document, command.atom2_index)
-        delta_x = second_atom.x - first_atom.x
-        delta_y = second_atom.y - first_atom.y
-        delta_z = second_atom.z - first_atom.z
-        current_distance = (
-            delta_x**2 + delta_y**2 + delta_z**2
-        ) ** 0.5
+        delta = _subtract_atom_positions(second_atom, first_atom)
+        current_distance = _vector_length(delta)
         if current_distance <= GEOMETRY_EPSILON:
             raise ValueError(
                 "Cannot set atom distance when the current atom positions "
@@ -196,15 +254,88 @@ class MoleculeEditService:
             )
 
         scale = command.distance / current_distance
+        target_delta = _scale_vector(delta, scale)
         updated_second_atom = second_atom.model_copy(
             update={
-                "x": first_atom.x + delta_x * scale,
-                "y": first_atom.y + delta_y * scale,
-                "z": first_atom.z + delta_z * scale,
+                "x": first_atom.x + target_delta[0],
+                "y": first_atom.y + target_delta[1],
+                "z": first_atom.z + target_delta[2],
             }
         )
         updated_atoms = [
             updated_second_atom if atom.index == command.atom2_index else atom
+            for atom in document.atoms
+        ]
+        return self._refresh_structure_document(
+            document,
+            atoms=updated_atoms,
+            bonds=document.bonds,
+        )
+
+    def _apply_set_atom_angle(
+        self,
+        document: MoleculeDocument,
+        command: SetAtomAngleCommand,
+    ) -> MoleculeDocument:
+        self._validate_document_id(document, command)
+        atom_indices = (
+            command.atom1_index,
+            command.vertex_atom_index,
+            command.atom3_index,
+        )
+        if len(set(atom_indices)) != 3:
+            raise ValueError("Angle edit requires three different atoms.")
+        self._validate_atom_indices(document, atom_indices)
+
+        first_atom = self._atom_by_index(document, command.atom1_index)
+        vertex_atom = self._atom_by_index(document, command.vertex_atom_index)
+        third_atom = self._atom_by_index(document, command.atom3_index)
+        first_vector = _subtract_atom_positions(first_atom, vertex_atom)
+        third_vector = _subtract_atom_positions(third_atom, vertex_atom)
+        first_unit = _normalize_vector(first_vector)
+        third_unit = _normalize_vector(third_vector)
+        if first_unit is None or third_unit is None:
+            raise ValueError(
+                "Cannot set atom angle when the current atom positions "
+                "are degenerate."
+            )
+
+        plane_normal = _normalize_vector(
+            _cross_vectors(first_unit, third_unit)
+        )
+        if plane_normal is None:
+            raise ValueError(
+                "Cannot set atom angle when the current angle plane is "
+                "degenerate."
+            )
+
+        perpendicular_unit = _normalize_vector(
+            _cross_vectors(plane_normal, first_unit)
+        )
+        if perpendicular_unit is None:
+            raise ValueError(
+                "Cannot set atom angle when the current angle plane is "
+                "degenerate."
+            )
+
+        target_angle = math.radians(command.angle_degrees)
+        target_unit = _add_vectors(
+            _scale_vector(first_unit, math.cos(target_angle)),
+            _scale_vector(perpendicular_unit, math.sin(target_angle)),
+        )
+        target_vector = _scale_vector(
+            target_unit,
+            _vector_length(third_vector),
+        )
+        updated_third_atom = third_atom.model_copy(
+            update={
+                "x": vertex_atom.x + target_vector[0],
+                "y": vertex_atom.y + target_vector[1],
+                "z": vertex_atom.z + target_vector[2],
+            }
+        )
+        updated_atoms = [
+            updated_third_atom if atom.index == command.atom3_index else atom
             for atom in document.atoms
         ]
         return self._refresh_structure_document(
@@ -285,7 +416,9 @@ class MoleculeEditService:
         if not element:
             raise ValueError("Atom element is required.")
 
-        next_index = max((atom.index for atom in document.atoms), default=0) + 1
+        next_index = (
+            max((atom.index for atom in document.atoms), default=0) + 1
+        )
         updated_atoms = [
             *document.atoms,
             Atom(
@@ -311,7 +444,9 @@ class MoleculeEditService:
         atom_indices_to_delete = set(command.atom_indices)
         self._validate_atom_indices(document, command.atom_indices)
         if len(atom_indices_to_delete) >= len(document.atoms):
-            raise ValueError("Cannot delete every atom from a molecule document.")
+            raise ValueError(
+                "Cannot delete every atom from a molecule document."
+            )
 
         old_to_new_index: dict[int, int] = {}
         updated_atoms: list[Atom] = []

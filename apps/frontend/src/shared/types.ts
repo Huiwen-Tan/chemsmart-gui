@@ -82,6 +82,7 @@ export interface CalculationResultDocument {
 export type MoleculeEditCommandType =
   | 'set_atom_position'
   | 'set_atom_distance'
+  | 'set_atom_angle'
   | 'add_bond'
   | 'remove_bond'
   | 'add_atom'
@@ -102,6 +103,15 @@ export interface SetAtomDistanceCommand {
   atom2_index: number;
   distance: number;
   coordinate_unit: 'angstrom';
+}
+
+export interface SetAtomAngleCommand {
+  command_type: 'set_atom_angle';
+  document_id: string;
+  atom1_index: number;
+  vertex_atom_index: number;
+  atom3_index: number;
+  angle_degrees: number;
 }
 
 export interface AddBondCommand {
@@ -135,6 +145,7 @@ export interface DeleteAtomsCommand {
 export type MoleculeEditCommand =
   | SetAtomPositionCommand
   | SetAtomDistanceCommand
+  | SetAtomAngleCommand
   | AddBondCommand
   | RemoveBondCommand
   | AddAtomCommand

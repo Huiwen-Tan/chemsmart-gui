@@ -11,6 +11,7 @@ from chemsmart_gui.domain.edit import (
     CartesianPosition,
     DeleteAtomsCommand,
     RemoveBondCommand,
+    SetAtomAngleCommand,
     SetAtomDistanceCommand,
     SetAtomPositionCommand,
 )
@@ -55,6 +56,24 @@ def set_atom_distance_command(
         atom2_index=atom2_index,
         distance=distance,
         coordinate_unit="angstrom",
+    )
+
+
+def set_atom_angle_command(
+    document: MoleculeDocument,
+    *,
+    atom1_index: int = 1,
+    vertex_atom_index: int = 2,
+    atom3_index: int = 3,
+    angle_degrees: float = 60.0,
+) -> SetAtomAngleCommand:
+    return SetAtomAngleCommand(
+        command_type="set_atom_angle",
+        document_id=document.id,
+        atom1_index=atom1_index,
+        vertex_atom_index=vertex_atom_index,
+        atom3_index=atom3_index,
+        angle_degrees=angle_degrees,
     )
 
 
@@ -163,6 +182,62 @@ def test_apply_set_atom_distance_command_returns_updated_document() -> None:
     assert body["document"]["atoms"][1]["x"] == pytest.approx(2.5)
     assert body["document"]["atoms"][1]["y"] == pytest.approx(0.0)
     assert body["document"]["atoms"][1]["z"] == pytest.approx(0.0)
+    assert body["document"]["bonds"] == [
+        {"atom1": 1, "atom2": 2},
+        {"atom1": 1, "atom2": 3},
+    ]
+
+
+def test_apply_set_atom_angle_command_returns_updated_document() -> None:
+    water = open_water_document()
+    document = water.model_copy(
+        update={
+            "atoms": [
+                water.atoms[0].model_copy(
+                    update={"x": 1.0, "y": 0.0, "z": 0.0}
+                ),
+                water.atoms[1].model_copy(
+                    update={"x": 0.0, "y": 0.0, "z": 0.0}
+                ),
+                water.atoms[2].model_copy(
+                    update={"x": 0.0, "y": 1.0, "z": 0.0}
+                ),
+            ]
+        },
+        deep=True,
+    )
+    command = set_atom_angle_command(document)
+
+    response = client.post(
+        "/api/documents/edit",
+        json={
+            "document": document.model_dump(),
+            "command": command.model_dump(),
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["can_undo"] is True
+    assert body["can_redo"] is False
+    assert body["document"]["id"] != document.id
+    assert body["document"]["atoms"][0] == {
+        "index": 1,
+        "element": "O",
+        "x": 1.0,
+        "y": 0.0,
+        "z": 0.0,
+    }
+    assert body["document"]["atoms"][1] == {
+        "index": 2,
+        "element": "H",
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+    }
+    assert body["document"]["atoms"][2]["x"] == pytest.approx(0.5)
+    assert body["document"]["atoms"][2]["y"] == pytest.approx(0.8660254038)
+    assert body["document"]["atoms"][2]["z"] == pytest.approx(0.0)
     assert body["document"]["bonds"] == [
         {"atom1": 1, "atom2": 2},
         {"atom1": 1, "atom2": 3},
@@ -342,6 +417,27 @@ def test_apply_set_atom_distance_rejects_identical_atoms() -> None:
 
     assert response.status_code == 400
     assert "two different atoms" in response.json()["detail"]
+
+
+def test_apply_set_atom_angle_rejects_duplicate_atoms() -> None:
+    document = open_water_document()
+    command = set_atom_angle_command(
+        document,
+        atom1_index=1,
+        vertex_atom_index=2,
+        atom3_index=1,
+    )
+
+    response = client.post(
+        "/api/documents/edit",
+        json={
+            "document": document.model_dump(),
+            "command": command.model_dump(),
+        },
+    )
+
+    assert response.status_code == 400
+    assert "three different atoms" in response.json()["detail"]
 
 
 def test_apply_delete_atoms_rejects_deleting_every_atom() -> None:

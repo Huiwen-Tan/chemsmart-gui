@@ -456,6 +456,16 @@ describe('SelectedAtomPanel', () => {
     expect(
       screen.getByText('3 H - 1 O - 2 H = 105.301 degrees'),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole('form', { name: 'Edit selected atom angle' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Set Angle' }),
+    ).toBeInTheDocument();
+    const angleInput = screen.getByLabelText(
+      'Selected atom angle',
+    ) as HTMLInputElement;
+    expect(Number(angleInput.value)).toBeCloseTo(105.301, 3);
     expect(screen.queryByText('Distance:')).not.toBeInTheDocument();
     expect(screen.queryByText('Dihedral:')).not.toBeInTheDocument();
     expect(useViewerStore.getState().selectedAtomIndices).toEqual([
@@ -464,6 +474,48 @@ describe('SelectedAtomPanel', () => {
       1,
       2,
     ]);
+  });
+
+  it('sets the angle between three selected atoms', () => {
+    const applyMoleculeEditCommand = vi.fn().mockResolvedValue(undefined);
+    useDocumentStore.setState({ applyMoleculeEditCommand });
+    useViewerStore.setState({ selectedAtomIndices: [3, 1, 2] });
+
+    render(<SelectedAtomPanel document={WATER} />);
+
+    fireEvent.change(screen.getByLabelText('Selected atom angle'), {
+      target: { value: '120' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Set Angle' }));
+
+    expect(applyMoleculeEditCommand).toHaveBeenCalledWith({
+      command_type: 'set_atom_angle',
+      document_id: 'water',
+      atom1_index: 3,
+      vertex_atom_index: 1,
+      atom3_index: 2,
+      angle_degrees: 120,
+    });
+  });
+
+  it('shows a local error for invalid angle edits', () => {
+    const applyMoleculeEditCommand = vi.fn().mockResolvedValue(undefined);
+    useDocumentStore.setState({ applyMoleculeEditCommand });
+    useViewerStore.setState({ selectedAtomIndices: [3, 1, 2] });
+
+    render(<SelectedAtomPanel document={WATER} />);
+
+    fireEvent.change(screen.getByLabelText('Selected atom angle'), {
+      target: { value: '180' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Set Angle' }));
+
+    expect(
+      screen.getByText(
+        'Angle must be greater than 0 and less than 180 degrees.',
+      ),
+    ).toBeInTheDocument();
+    expect(applyMoleculeEditCommand).not.toHaveBeenCalled();
   });
 
   it('shows selected metadata and dihedral in interaction order', () => {
