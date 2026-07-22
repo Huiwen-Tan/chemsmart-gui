@@ -227,6 +227,23 @@ export interface MoleculeSourceWriteResponse {
   bytes_written: number;
 }
 
+export type MoleculeSourceStatusValue =
+  | 'current'
+  | 'changed'
+  | 'missing'
+  | 'untracked';
+
+export interface MoleculeSourceStatusRequest {
+  document: MoleculeDocument;
+}
+
+export interface MoleculeSourceStatusResponse {
+  status: MoleculeSourceStatusValue;
+  message: string;
+  opened_source: DocumentSource | null;
+  current_source: DocumentSource | null;
+}
+
 export interface OpenDocumentRequest {
   path?: string;
   document_id?: string;

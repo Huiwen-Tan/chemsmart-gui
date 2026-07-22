@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import {
+  checkMoleculeSourceStatus,
   previewMoleculeExport,
   writeMoleculeExport,
   writeMoleculeSource,
@@ -10,6 +11,8 @@ import type {
   MoleculeExportPreviewFiletype,
   MoleculeExportPreviewResponse,
   MoleculeExportWriteResponse,
+  MoleculeSourceStatusResponse,
+  MoleculeSourceStatusValue,
   MoleculeSourceWriteFiletype,
   MoleculeSourceWriteResponse,
 } from '../shared/types';
@@ -99,6 +102,19 @@ function sourceWriteFiletypeForDocument(
   return sourceFiletype as MoleculeSourceWriteFiletype;
 }
 
+function sourceStatusLabel(status: MoleculeSourceStatusValue): string {
+  if (status === 'current') {
+    return 'Current';
+  }
+  if (status === 'changed') {
+    return 'Changed';
+  }
+  if (status === 'missing') {
+    return 'Missing';
+  }
+  return 'Untracked';
+}
+
 function messageFromUnknownError(error: unknown): string {
   return error instanceof Error ? error.message : 'Unknown error';
 }
@@ -132,19 +148,26 @@ export function MoleculeExportPreviewPanel({
 }: MoleculeExportPreviewPanelProps): JSX.Element {
   const previewRequestVersion = useRef(0);
   const saveRequestVersion = useRef(0);
+  const sourceStatusRequestVersion = useRef(0);
   const sourceWriteRequestVersion = useRef(0);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [sourceStatusError, setSourceStatusError] = useState<string | null>(
+    null,
+  );
   const [sourceWriteError, setSourceWriteError] = useState<string | null>(
     null,
   );
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isCheckingSource, setIsCheckingSource] = useState(false);
   const [isWritingSource, setIsWritingSource] = useState(false);
   const [preview, setPreview] =
     useState<MoleculeExportPreviewResponse | null>(null);
   const [savedExport, setSavedExport] =
     useState<MoleculeExportWriteResponse | null>(null);
+  const [sourceStatus, setSourceStatus] =
+    useState<MoleculeSourceStatusResponse | null>(null);
   const [sourceWriteResult, setSourceWriteResult] =
     useState<MoleculeSourceWriteResponse | null>(null);
   const [saveTargetPath, setSaveTargetPath] = useState('');
@@ -159,7 +182,10 @@ export function MoleculeExportPreviewPanel({
       (option) => option.filetype === selectedFiletype,
     ) ?? exportFormatOptions[0];
   const sourceWriteFiletype = sourceWriteFiletypeForDocument(document);
-  const isBusy = isPreviewing || isSaving || isWritingSource;
+  const sourceWriteBlockedByStatus =
+    sourceStatus !== null && sourceStatus.status !== 'current';
+  const isBusy =
+    isPreviewing || isSaving || isCheckingSource || isWritingSource;
 
   useEffect(() => {
     if (
@@ -174,15 +200,19 @@ export function MoleculeExportPreviewPanel({
   useEffect(() => {
     previewRequestVersion.current += 1;
     saveRequestVersion.current += 1;
+    sourceStatusRequestVersion.current += 1;
     sourceWriteRequestVersion.current += 1;
     setPreviewError(null);
     setSaveError(null);
+    setSourceStatusError(null);
     setSourceWriteError(null);
     setIsPreviewing(false);
     setIsSaving(false);
+    setIsCheckingSource(false);
     setIsWritingSource(false);
     setPreview(null);
     setSavedExport(null);
+    setSourceStatus(null);
     setSourceWriteResult(null);
     setSaveTargetPath('');
   }, [document?.id, selectedFiletype]);
@@ -256,6 +286,40 @@ export function MoleculeExportPreviewPanel({
     }
   };
 
+  const checkSourceStatus = async (): Promise<void> => {
+    if (!document) {
+      setSourceStatusError('No molecule document is loaded.');
+      return;
+    }
+    if (!document.source) {
+      setSourceStatusError(
+        'Source status requires an existing source file.',
+      );
+      return;
+    }
+
+    const activeRequestVersion = sourceStatusRequestVersion.current + 1;
+    sourceStatusRequestVersion.current = activeRequestVersion;
+    setSourceStatusError(null);
+    setIsCheckingSource(true);
+    setSourceStatus(null);
+
+    try {
+      const response = await checkMoleculeSourceStatus({ document });
+      if (sourceStatusRequestVersion.current === activeRequestVersion) {
+        setSourceStatus(response);
+      }
+    } catch (err: unknown) {
+      if (sourceStatusRequestVersion.current === activeRequestVersion) {
+        setSourceStatusError(messageFromUnknownError(err));
+      }
+    } finally {
+      if (sourceStatusRequestVersion.current === activeRequestVersion) {
+        setIsCheckingSource(false);
+      }
+    }
+  };
+
   const writeBackToSource = async (): Promise<void> => {
     if (!document) {
       setSourceWriteError('No molecule document is loaded.');
@@ -264,6 +328,12 @@ export function MoleculeExportPreviewPanel({
     if (!sourceWriteFiletype) {
       setSourceWriteError(
         'Source write-back is not supported for this document.',
+      );
+      return;
+    }
+    if (sourceWriteBlockedByStatus) {
+      setSourceWriteError(
+        'Resolve the source status before writing back to the source file.',
       );
       return;
     }
@@ -298,7 +368,18 @@ export function MoleculeExportPreviewPanel({
         confirmed: true,
       });
       if (sourceWriteRequestVersion.current === activeRequestVersion) {
+        const updatedSource = response.document.source;
         setSourceWriteResult(response);
+        setSourceStatus(
+          updatedSource
+            ? {
+                status: 'current',
+                message: 'Source file matches the saved document.',
+                opened_source: updatedSource,
+                current_source: updatedSource,
+              }
+            : null,
+        );
         onSourceWrite?.(response.document);
       }
     } catch (err: unknown) {
@@ -387,11 +468,50 @@ export function MoleculeExportPreviewPanel({
       </div>
       <div style={{ marginTop: 12 }}>
         <p>
+          Check whether the original source file still matches the opened
+          revision before updating it.
+        </p>
+        <button
+          disabled={!document || isBusy || !document.source}
+          onClick={() => {
+            void checkSourceStatus();
+          }}
+          type="button"
+        >
+          {isCheckingSource
+            ? 'Checking Source Status...'
+            : 'Check Source Status'}
+        </button>
+        {document && !document.source ? (
+          <p>Source status requires an existing source file.</p>
+        ) : null}
+        {sourceStatus ? (
+          <p
+            aria-live="polite"
+            role={sourceStatus.status === 'current' ? 'status' : 'alert'}
+            style={{
+              color:
+                sourceStatus.status === 'current' ? '#8fd18f' : '#ffb86c',
+            }}
+          >
+            Source status:{' '}
+            <strong>{sourceStatusLabel(sourceStatus.status)}</strong>.{' '}
+            {sourceStatus.message}
+          </p>
+        ) : null}
+      </div>
+      <div style={{ marginTop: 12 }}>
+        <p>
           Update the original source file after explicit confirmation. This is
           available only for supported source inputs and coordinates.
         </p>
         <button
-          disabled={!document || isBusy || !sourceWriteFiletype}
+          disabled={
+            !document ||
+            isBusy ||
+            !sourceWriteFiletype ||
+            sourceWriteBlockedByStatus
+          }
           onClick={() => {
             void writeBackToSource();
           }}
@@ -401,6 +521,12 @@ export function MoleculeExportPreviewPanel({
         </button>
         {document && !sourceWriteFiletype ? (
           <p>Source write-back is not supported for this document.</p>
+        ) : null}
+        {sourceWriteBlockedByStatus ? (
+          <p>
+            Resolve the source status by reopening the source file before
+            writing back.
+          </p>
         ) : null}
       </div>
       {!document ? <p>No molecule document loaded.</p> : null}
@@ -412,6 +538,11 @@ export function MoleculeExportPreviewPanel({
       {saveError ? (
         <p role="alert" style={{ color: '#ff8080' }}>
           Export save error: {saveError}
+        </p>
+      ) : null}
+      {sourceStatusError ? (
+        <p role="alert" style={{ color: '#ff8080' }}>
+          Source status error: {sourceStatusError}
         </p>
       ) : null}
       {sourceWriteError ? (

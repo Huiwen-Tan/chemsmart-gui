@@ -6,6 +6,8 @@ from chemsmart_gui.domain.export import (
     MoleculeExportPreviewResponse,
     MoleculeExportWriteRequest,
     MoleculeExportWriteResponse,
+    MoleculeSourceStatusRequest,
+    MoleculeSourceStatusResponse,
     MoleculeSourceWriteRequest,
     MoleculeSourceWriteResponse,
 )
@@ -35,6 +37,13 @@ class DocumentService(ABC):
         request: MoleculeExportWriteRequest,
     ) -> MoleculeExportWriteResponse:
         """Write a molecule export to a new target file."""
+
+    @abstractmethod
+    def check_molecule_source_status(
+        self,
+        request: MoleculeSourceStatusRequest,
+    ) -> MoleculeSourceStatusResponse:
+        """Check whether a document source still matches opened metadata."""
 
     @abstractmethod
     def write_molecule_source(

@@ -10,6 +10,8 @@ from chemsmart_gui.domain.export import (
     MoleculeExportPreviewResponse,
     MoleculeExportWriteRequest,
     MoleculeExportWriteResponse,
+    MoleculeSourceStatusRequest,
+    MoleculeSourceStatusResponse,
     MoleculeSourceWriteRequest,
     MoleculeSourceWriteResponse,
 )
@@ -104,6 +106,14 @@ def write_document_export(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
+
+
+@router.post("/source-status", response_model=MoleculeSourceStatusResponse)
+def check_document_source_status(
+    request: MoleculeSourceStatusRequest,
+    document_service: DocumentService = Depends(get_document_service),
+) -> MoleculeSourceStatusResponse:
+    return document_service.check_molecule_source_status(request)
 
 
 @router.post("/source-write", response_model=MoleculeSourceWriteResponse)

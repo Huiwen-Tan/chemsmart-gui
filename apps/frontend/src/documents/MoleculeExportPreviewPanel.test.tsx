@@ -95,6 +95,19 @@ const SOURCE_WRITTEN_WATER_DOCUMENT: MoleculeDocument = {
   },
 };
 
+const CURRENT_SOURCE_STATUS_RESPONSE = {
+  status: 'current',
+  message: 'Source file matches the opened revision.',
+  opened_source: WATER_DOCUMENT.source,
+  current_source: {
+    path: 'sample-data/water.xyz',
+    filename: 'water.xyz',
+    filetype: 'xyz',
+    size_bytes: 128,
+    modified_time_ns: 123,
+  },
+};
+
 const XYZ_PREVIEW_CONTENT =
   '2\nwater.xyz    Empirical formula: H2O\nO 0 0 0\nH 1 1 1\n';
 const GJF_PREVIEW_CONTENT =
@@ -160,6 +173,9 @@ describe('MoleculeExportPreviewPanel', () => {
     ).toBeDisabled();
     expect(
       within(panel).getByRole('button', { name: 'Save Export' }),
+    ).toBeDisabled();
+    expect(
+      within(panel).getByRole('button', { name: 'Check Source Status' }),
     ).toBeDisabled();
     expect(
       within(panel).getByRole('button', { name: 'Update Source File' }),
@@ -559,6 +575,91 @@ describe('MoleculeExportPreviewPanel', () => {
         }),
       },
     );
+  });
+
+  it('checks and displays current source status', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(CURRENT_SOURCE_STATUS_RESPONSE));
+
+    render(<MoleculeExportPreviewPanel document={WATER_DOCUMENT} />);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check Source Status' }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toHaveTextContent(
+        'Source status: Current. Source file matches the opened revision.',
+      );
+    });
+    expect(
+      screen.getByRole('button', { name: 'Update Source File' }),
+    ).toBeEnabled();
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/api/documents/source-status',
+      {
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        body: JSON.stringify({
+          document: WATER_DOCUMENT,
+        }),
+      },
+    );
+  });
+
+  it('shows changed source status and disables source write-back', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        ...CURRENT_SOURCE_STATUS_RESPONSE,
+        status: 'changed',
+        message: 'Source file changed since this document was opened.',
+      }),
+    );
+
+    render(<MoleculeExportPreviewPanel document={WATER_DOCUMENT} />);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check Source Status' }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'Source status: Changed. Source file changed since this document was opened.',
+      );
+    });
+    expect(
+      screen.getByRole('button', { name: 'Update Source File' }),
+    ).toBeDisabled();
+    expect(
+      screen.getByText(
+        'Resolve the source status by reopening the source file before writing back.',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('shows missing source status and disables source write-back', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        status: 'missing',
+        message: 'Source file no longer exists.',
+        opened_source: WATER_DOCUMENT.source,
+        current_source: null,
+      }),
+    );
+
+    render(<MoleculeExportPreviewPanel document={WATER_DOCUMENT} />);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check Source Status' }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'Source status: Missing. Source file no longer exists.',
+      );
+    });
+    expect(
+      screen.getByRole('button', { name: 'Update Source File' }),
+    ).toBeDisabled();
   });
 
   it('does not write the source file when confirmation is declined', () => {

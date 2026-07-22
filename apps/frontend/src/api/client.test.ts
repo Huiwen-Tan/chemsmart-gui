@@ -8,11 +8,14 @@ import type {
   MoleculeExportWriteRequest,
   MoleculeExportWriteResponse,
   MoleculeEditResponse,
+  MoleculeSourceStatusRequest,
+  MoleculeSourceStatusResponse,
   MoleculeSourceWriteRequest,
   MoleculeSourceWriteResponse,
 } from '../shared/types';
 import {
   applyMoleculeEdit,
+  checkMoleculeSourceStatus,
   openDocument,
   previewMoleculeExport,
   writeMoleculeExport,
@@ -283,6 +286,23 @@ const SOURCE_WRITE_RESPONSE: MoleculeSourceWriteResponse = {
   filetype: 'xyz',
   path: 'sample-data/water.xyz',
   bytes_written: 64,
+};
+
+const SOURCE_STATUS_REQUEST: MoleculeSourceStatusRequest = {
+  document: WATER_DOCUMENT,
+};
+
+const SOURCE_STATUS_RESPONSE: MoleculeSourceStatusResponse = {
+  status: 'current',
+  message: 'Source file matches the opened revision.',
+  opened_source: WATER_DOCUMENT.source,
+  current_source: {
+    path: 'sample-data/water.xyz',
+    filename: 'water.xyz',
+    filetype: 'xyz',
+    size_bytes: 64,
+    modified_time_ns: 123,
+  },
 };
 
 function jsonResponse(
@@ -563,5 +583,22 @@ describe('api client', () => {
     await expect(
       writeMoleculeSource(SOURCE_WRITE_REQUEST),
     ).rejects.toThrow('Source file changed since this document was opened.');
+  });
+
+  it('posts molecule source status checks to the source-status API', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(SOURCE_STATUS_RESPONSE));
+
+    await expect(
+      checkMoleculeSourceStatus(SOURCE_STATUS_REQUEST),
+    ).resolves.toEqual(SOURCE_STATUS_RESPONSE);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/api/documents/source-status',
+      {
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        body: JSON.stringify(SOURCE_STATUS_REQUEST),
+      },
+    );
   });
 });

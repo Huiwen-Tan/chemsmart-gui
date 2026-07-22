@@ -13,6 +13,8 @@ from chemsmart_gui.domain.export import (
     MoleculeExportWriteRequest,
     MoleculeExportWriteResponse,
     MoleculeSourceWriteFiletype,
+    MoleculeSourceStatusRequest,
+    MoleculeSourceStatusResponse,
     MoleculeSourceWriteRequest,
     MoleculeSourceWriteResponse,
 )
@@ -81,6 +83,61 @@ class ChemsmartDocumentService(DocumentService):
             target_path=request.target_path,
             filetype=request.filetype,
             content=content,
+        )
+
+    def check_molecule_source_status(
+        self,
+        request: MoleculeSourceStatusRequest,
+    ) -> MoleculeSourceStatusResponse:
+        source = request.document.source
+        if source is None:
+            return MoleculeSourceStatusResponse(
+                status="untracked",
+                message="No source file is associated with this document.",
+            )
+
+        source_path = Path(source.path)
+        if not source_path.exists():
+            return MoleculeSourceStatusResponse(
+                status="missing",
+                message=(
+                    "Source file no longer exists. Reopen the source file "
+                    "before writing source changes."
+                ),
+                opened_source=source,
+            )
+
+        current_source = document_source_from_path(str(source_path))
+        if source.size_bytes is None or source.modified_time_ns is None:
+            return MoleculeSourceStatusResponse(
+                status="untracked",
+                message=(
+                    "Source revision metadata is unavailable. Reopen the "
+                    "source file and try again."
+                ),
+                opened_source=source,
+                current_source=current_source,
+            )
+
+        if (
+            current_source.size_bytes != source.size_bytes
+            or current_source.modified_time_ns != source.modified_time_ns
+        ):
+            return MoleculeSourceStatusResponse(
+                status="changed",
+                message=(
+                    "Source file changed since this document was opened. "
+                    "Reopen the source file before writing source changes."
+                ),
+                opened_source=source,
+                current_source=current_source,
+            )
+
+        return MoleculeSourceStatusResponse(
+            status="current",
+            message="Source file matches the opened revision.",
+            opened_source=source,
+            current_source=current_source,
         )
 
     def _source_writeback_target(

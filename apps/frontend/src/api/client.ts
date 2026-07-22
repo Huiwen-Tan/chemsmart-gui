@@ -6,6 +6,8 @@ import type {
   MoleculeExportWriteRequest,
   MoleculeExportWriteResponse,
   MoleculeEditResponse,
+  MoleculeSourceStatusRequest,
+  MoleculeSourceStatusResponse,
   MoleculeSourceWriteRequest,
   MoleculeSourceWriteResponse,
   OpenDocumentRequest,
@@ -89,6 +91,15 @@ export function writeMoleculeSource(
   payload: MoleculeSourceWriteRequest,
 ): Promise<MoleculeSourceWriteResponse> {
   return request('/api/documents/source-write', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function checkMoleculeSourceStatus(
+  payload: MoleculeSourceStatusRequest,
+): Promise<MoleculeSourceStatusResponse> {
+  return request('/api/documents/source-status', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
