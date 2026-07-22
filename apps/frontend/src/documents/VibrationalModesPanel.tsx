@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 
-import type { MoleculeDocument, VibrationalMode } from '../shared/types';
+import type {
+  ModeDisplacementDirection,
+  MoleculeDocument,
+  VibrationalMode,
+} from '../shared/types';
 
 interface VibrationalModesPanelProps {
   document: MoleculeDocument | null;
@@ -8,6 +12,10 @@ interface VibrationalModesPanelProps {
   onAnimationPlayingChange?: (isPlaying: boolean) => void;
   selectedModeIndex?: number | null;
   onSelectedModeIndexChange?: (modeIndex: number) => void;
+  isGeneratingDisplacedStructure?: boolean;
+  onGenerateDisplacedStructure?: (
+    direction: ModeDisplacementDirection,
+  ) => void;
 }
 
 function formatNumber(value: number): string {
@@ -39,6 +47,8 @@ export function VibrationalModesPanel({
   onAnimationPlayingChange,
   selectedModeIndex,
   onSelectedModeIndexChange,
+  isGeneratingDisplacedStructure = false,
+  onGenerateDisplacedStructure,
 }: VibrationalModesPanelProps): JSX.Element {
   const modes = document?.vibrational_modes ?? [];
   const [
@@ -58,6 +68,11 @@ export function VibrationalModesPanel({
     setInternalSelectedModeIndex(modeIndex);
     onSelectedModeIndexChange?.(modeIndex);
   };
+  const canGenerateDisplacedStructure =
+    selectedMode !== null &&
+    selectedMode.displacements.length > 0 &&
+    !isGeneratingDisplacedStructure &&
+    onGenerateDisplacedStructure !== undefined;
 
   return (
     <section
@@ -128,6 +143,22 @@ export function VibrationalModesPanel({
             {isAnimationPlaying
               ? 'Pause Mode Animation'
               : 'Play Mode Animation'}
+          </button>
+          <button
+            disabled={!canGenerateDisplacedStructure}
+            onClick={() => onGenerateDisplacedStructure?.('positive')}
+            style={{ marginLeft: 8 }}
+            type="button"
+          >
+            Generate + Displacement
+          </button>
+          <button
+            disabled={!canGenerateDisplacedStructure}
+            onClick={() => onGenerateDisplacedStructure?.('negative')}
+            style={{ marginLeft: 8 }}
+            type="button"
+          >
+            Generate - Displacement
           </button>
           <dl>
             <dt>Frequency (cm^-1)</dt>

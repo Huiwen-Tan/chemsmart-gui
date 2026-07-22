@@ -5,11 +5,17 @@ from chemsmart_gui.domain.document import (
     MoleculeDocument,
     OpenDocumentRequest,
 )
+from chemsmart_gui.domain.displacement import (
+    MoleculeModeDisplacementRequest,
+    MoleculeModeDisplacementResponse,
+)
 from chemsmart_gui.domain.export import (
     MoleculeExportPreviewRequest,
     MoleculeExportPreviewResponse,
     MoleculeExportWriteRequest,
     MoleculeExportWriteResponse,
+    MoleculeSourceStatusRequest,
+    MoleculeSourceStatusResponse,
     MoleculeSourceWriteRequest,
     MoleculeSourceWriteResponse,
 )
@@ -18,6 +24,9 @@ from chemsmart_gui.services.document_service import DocumentService
 from chemsmart_gui.services.export_writer import (
     validate_export_target,
     write_export_text,
+)
+from chemsmart_gui.services.molecule_displacement_service import (
+    MoleculeDisplacementService,
 )
 
 
@@ -29,6 +38,7 @@ class MockDocumentService(DocumentService):
     )
 
     def __init__(self) -> None:
+        self._displacement_service = MoleculeDisplacementService()
         self._documents: dict[str, MoleculeDocument] = {}
 
     def open_document(self, request: OpenDocumentRequest) -> MoleculeDocument:
@@ -83,6 +93,16 @@ class MockDocumentService(DocumentService):
             filetype=request.filetype,
             content="\n".join(lines) + "\n",
         )
+
+    def generate_mode_displacement(
+        self,
+        request: MoleculeModeDisplacementRequest,
+    ) -> MoleculeModeDisplacementResponse:
+        response = self._displacement_service.generate_mode_displacement(
+            request,
+        )
+        self._documents[response.document.id] = response.document
+        return response
 
     def write_molecule_export(
         self,
@@ -141,4 +161,49 @@ class MockDocumentService(DocumentService):
             filetype="xyz",
             path=str(source_path),
             bytes_written=len(preview.content.encode("utf-8")),
+        )
+
+    def check_molecule_source_status(
+        self,
+        request: MoleculeSourceStatusRequest,
+    ) -> MoleculeSourceStatusResponse:
+        source = request.document.source
+        if source is None:
+            return MoleculeSourceStatusResponse(
+                status="untracked",
+                message="No source file is associated with this document.",
+            )
+
+        source_path = Path(source.path)
+        if not source_path.exists():
+            return MoleculeSourceStatusResponse(
+                status="missing",
+                message="Source file no longer exists.",
+                opened_source=source,
+            )
+
+        source_stat = source_path.stat()
+        current_source = DocumentSource(
+            path=str(source_path),
+            filename=source_path.name,
+            filetype=source_path.suffix.lower().removeprefix(".") or "xyz",
+            size_bytes=source_stat.st_size,
+            modified_time_ns=source_stat.st_mtime_ns,
+        )
+        if (
+            source.size_bytes == current_source.size_bytes
+            and source.modified_time_ns == current_source.modified_time_ns
+        ):
+            return MoleculeSourceStatusResponse(
+                status="current",
+                message="Source file matches the opened revision.",
+                opened_source=source,
+                current_source=current_source,
+            )
+
+        return MoleculeSourceStatusResponse(
+            status="changed",
+            message="Source file changed since this document was opened.",
+            opened_source=source,
+            current_source=current_source,
         )

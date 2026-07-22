@@ -205,6 +205,22 @@ export interface MoleculeEditResponse {
   can_redo: boolean;
 }
 
+export type ModeDisplacementDirection = 'positive' | 'negative';
+
+export interface MoleculeModeDisplacementRequest {
+  document: MoleculeDocument;
+  mode_index: number;
+  direction: ModeDisplacementDirection;
+  amplitude: number;
+}
+
+export interface MoleculeModeDisplacementResponse {
+  document: MoleculeDocument;
+  mode_index: number;
+  direction: ModeDisplacementDirection;
+  amplitude: number;
+}
+
 export type MoleculeExportFiletype = 'xyz' | 'com' | 'gjf' | 'inp';
 export type MoleculeExportPreviewFiletype = MoleculeExportFiletype;
 export type MoleculeSourceWriteFiletype = 'xyz' | 'com' | 'gjf' | 'inp';

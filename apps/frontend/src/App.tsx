@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 
-import { healthCheck, openDocument } from './api/client';
+import {
+  generateMoleculeModeDisplacement,
+  healthCheck,
+  openDocument,
+} from './api/client';
 import { AppShell } from './app/AppShell';
 import { DocumentSummaryPanel } from './documents/DocumentSummaryPanel';
 import { MoleculeExportPreviewPanel } from './documents/MoleculeExportPreviewPanel';
@@ -9,10 +13,15 @@ import { useDocumentStore } from './state/useDocumentStore';
 import { useViewerStore } from './state/useViewerStore';
 import { MolecularViewer } from './viewer/MolecularViewer';
 import { SelectedAtomPanel } from './viewer/SelectedAtomPanel';
-import type { VibrationalMode } from './shared/types';
+import type {
+  ModeDisplacementDirection,
+  VibrationalMode,
+} from './shared/types';
 
 const REPLACE_UNSAVED_EDITS_MESSAGE =
   'Current molecule has unsaved edits. Open a different document and discard them?';
+const REPLACE_UNSAVED_EDITS_FOR_DISPLACEMENT_MESSAGE =
+  'Current molecule has unsaved edits. Generate a displaced structure and discard them?';
 
 function isEditableShortcutTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) {
@@ -67,6 +76,10 @@ export function App(): JSX.Element {
     activeVibrationalModeAnimationKey,
     setActiveVibrationalModeAnimationKey,
   ] = useState<string | null>(null);
+  const [
+    isGeneratingDisplacedStructure,
+    setIsGeneratingDisplacedStructure,
+  ] = useState(false);
   const vibrationalModes = currentDocument?.vibrational_modes ?? [];
   const vibrationalModeIndexSignature = vibrationalModes
     .map((mode) => mode.index)
@@ -147,6 +160,44 @@ export function App(): JSX.Element {
     setActiveVibrationalModeAnimationKey(
       isPlaying ? selectedVibrationalModeAnimationKey : null,
     );
+  };
+
+  const generateSelectedModeDisplacedStructure = async (
+    direction: ModeDisplacementDirection,
+  ): Promise<void> => {
+    if (!currentDocument || !selectedVibrationalMode) {
+      setError(
+        'A vibrational mode is required before generating a displaced structure.',
+      );
+      return;
+    }
+    if (!selectedVibrationalModeCanAnimate) {
+      setError('Selected vibrational mode has no displacement vectors.');
+      return;
+    }
+    if (
+      hasUnsavedMoleculeEdits &&
+      !window.confirm(REPLACE_UNSAVED_EDITS_FOR_DISPLACEMENT_MESSAGE)
+    ) {
+      return;
+    }
+
+    setError(null);
+    setIsGeneratingDisplacedStructure(true);
+    setActiveVibrationalModeAnimationKey(null);
+    try {
+      const response = await generateMoleculeModeDisplacement({
+        document: currentDocument,
+        mode_index: selectedVibrationalMode.index,
+        direction,
+        amplitude: 1,
+      });
+      setCurrentDocument(response.document);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setIsGeneratingDisplacedStructure(false);
+    }
   };
 
   const openDocumentPath = async (pathOverride?: string): Promise<void> => {
@@ -253,8 +304,12 @@ export function App(): JSX.Element {
       />
       <VibrationalModesPanel
         document={currentDocument}
+        isGeneratingDisplacedStructure={isGeneratingDisplacedStructure}
         isAnimationPlaying={isVibrationalModeAnimationPlaying}
         onAnimationPlayingChange={setVibrationalModeAnimationPlaying}
+        onGenerateDisplacedStructure={
+          generateSelectedModeDisplacedStructure
+        }
         onSelectedModeIndexChange={selectVibrationalMode}
         selectedModeIndex={selectedVibrationalMode?.index ?? null}
       />

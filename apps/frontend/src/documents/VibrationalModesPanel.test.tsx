@@ -250,6 +250,50 @@ describe('VibrationalModesPanel', () => {
     ).toBeDisabled();
   });
 
+  it('requests positive and negative displaced structures', () => {
+    const onGenerateDisplacedStructure = vi.fn();
+    render(
+      <VibrationalModesPanel
+        document={GAUSSIAN_OUTPUT_DOCUMENT}
+        onGenerateDisplacedStructure={onGenerateDisplacedStructure}
+        selectedModeIndex={1}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Generate + Displacement' }),
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Generate - Displacement' }),
+    );
+
+    expect(onGenerateDisplacedStructure).toHaveBeenNthCalledWith(
+      1,
+      'positive',
+    );
+    expect(onGenerateDisplacedStructure).toHaveBeenNthCalledWith(
+      2,
+      'negative',
+    );
+  });
+
+  it('disables displaced structure controls when selected mode has no vectors', () => {
+    render(
+      <VibrationalModesPanel
+        document={GAUSSIAN_OUTPUT_DOCUMENT}
+        onGenerateDisplacedStructure={vi.fn()}
+        selectedModeIndex={2}
+      />,
+    );
+
+    expect(
+      screen.getByRole('button', { name: 'Generate + Displacement' }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: 'Generate - Displacement' }),
+    ).toBeDisabled();
+  });
+
   it('resets selected mode when the active document changes', () => {
     const secondDocument: MoleculeDocument = {
       ...GAUSSIAN_OUTPUT_DOCUMENT,

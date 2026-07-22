@@ -1,6 +1,10 @@
 from abc import ABC, abstractmethod
 
 from chemsmart_gui.domain.document import MoleculeDocument, OpenDocumentRequest
+from chemsmart_gui.domain.displacement import (
+    MoleculeModeDisplacementRequest,
+    MoleculeModeDisplacementResponse,
+)
 from chemsmart_gui.domain.export import (
     MoleculeExportPreviewRequest,
     MoleculeExportPreviewResponse,
@@ -30,6 +34,13 @@ class DocumentService(ABC):
         request: MoleculeExportPreviewRequest,
     ) -> MoleculeExportPreviewResponse:
         """Preview a molecule document export without writing user files."""
+
+    @abstractmethod
+    def generate_mode_displacement(
+        self,
+        request: MoleculeModeDisplacementRequest,
+    ) -> MoleculeModeDisplacementResponse:
+        """Generate a new structure from a selected vibrational mode."""
 
     @abstractmethod
     def write_molecule_export(

@@ -6,6 +6,8 @@ import type {
   MoleculeExportWriteRequest,
   MoleculeExportWriteResponse,
   MoleculeEditResponse,
+  MoleculeModeDisplacementRequest,
+  MoleculeModeDisplacementResponse,
   MoleculeSourceStatusRequest,
   MoleculeSourceStatusResponse,
   MoleculeSourceWriteRequest,
@@ -64,6 +66,15 @@ export function applyMoleculeEdit(
   payload: ApplyMoleculeEditRequest,
 ): Promise<MoleculeEditResponse> {
   return request('/api/documents/edit', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function generateMoleculeModeDisplacement(
+  payload: MoleculeModeDisplacementRequest,
+): Promise<MoleculeModeDisplacementResponse> {
+  return request('/api/documents/mode-displacement', {
     method: 'POST',
     body: JSON.stringify(payload),
   });

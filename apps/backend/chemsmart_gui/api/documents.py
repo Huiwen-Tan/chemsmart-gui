@@ -1,6 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from chemsmart_gui.domain.document import MoleculeDocument, OpenDocumentRequest
+from chemsmart_gui.domain.displacement import (
+    MoleculeModeDisplacementRequest,
+    MoleculeModeDisplacementResponse,
+)
 from chemsmart_gui.domain.edit import (
     ApplyMoleculeEditRequest,
     MoleculeEditResponse,
@@ -77,6 +81,23 @@ def preview_document_export(
 ) -> MoleculeExportPreviewResponse:
     try:
         return document_service.preview_molecule_export(request)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+
+@router.post(
+    "/mode-displacement",
+    response_model=MoleculeModeDisplacementResponse,
+)
+def generate_mode_displacement(
+    request: MoleculeModeDisplacementRequest,
+    document_service: DocumentService = Depends(get_document_service),
+) -> MoleculeModeDisplacementResponse:
+    try:
+        return document_service.generate_mode_displacement(request)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

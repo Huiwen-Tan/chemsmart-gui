@@ -8,6 +8,11 @@ from .document import (
     OpenDocumentRequest,
     TrajectoryDocument,
 )
+from .displacement import (
+    ModeDisplacementDirection,
+    MoleculeModeDisplacementRequest,
+    MoleculeModeDisplacementResponse,
+)
 from .edit import (
     ApplyMoleculeEditRequest,
     CartesianPosition,
@@ -36,6 +41,9 @@ __all__ = [
     "MoleculeExportFiletype",
     "MoleculeExportPreviewRequest",
     "MoleculeExportPreviewResponse",
+    "MoleculeModeDisplacementRequest",
+    "MoleculeModeDisplacementResponse",
+    "ModeDisplacementDirection",
     "OpenDocumentRequest",
     "SetAtomPositionCommand",
     "TrajectoryDocument",

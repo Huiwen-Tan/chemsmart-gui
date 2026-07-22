@@ -6,6 +6,10 @@ from chemsmart_gui.adapters.chemsmart_adapter import (
     document_source_from_path,
 )
 from chemsmart_gui.domain.document import MoleculeDocument, OpenDocumentRequest
+from chemsmart_gui.domain.displacement import (
+    MoleculeModeDisplacementRequest,
+    MoleculeModeDisplacementResponse,
+)
 from chemsmart_gui.domain.export import (
     MoleculeExportFiletype,
     MoleculeExportPreviewRequest,
@@ -25,6 +29,9 @@ from chemsmart_gui.services.export_writer import (
     write_export_text,
     write_source_text,
 )
+from chemsmart_gui.services.molecule_displacement_service import (
+    MoleculeDisplacementService,
+)
 
 SOURCE_WRITE_EXPORT_FILETYPES: dict[
     MoleculeSourceWriteFiletype,
@@ -43,6 +50,7 @@ class ChemsmartDocumentService(DocumentService):
 
     def __init__(self, adapter: ChemsmartAdapter | None = None) -> None:
         self._adapter = adapter if adapter is not None else ChemsmartAdapter()
+        self._displacement_service = MoleculeDisplacementService(self._adapter)
         self._documents: dict[str, MoleculeDocument] = {}
 
     def open_document(self, request: OpenDocumentRequest) -> MoleculeDocument:
@@ -69,6 +77,16 @@ class ChemsmartDocumentService(DocumentService):
             filetype=request.filetype,
             content=content,
         )
+
+    def generate_mode_displacement(
+        self,
+        request: MoleculeModeDisplacementRequest,
+    ) -> MoleculeModeDisplacementResponse:
+        response = self._displacement_service.generate_mode_displacement(
+            request,
+        )
+        self._documents[response.document.id] = response.document
+        return response
 
     def write_molecule_export(
         self,
@@ -166,7 +184,9 @@ class ChemsmartDocumentService(DocumentService):
                 "source files."
             )
 
-        source_write_filetype = cast(MoleculeSourceWriteFiletype, source_filetype)
+        source_write_filetype = cast(
+            MoleculeSourceWriteFiletype, source_filetype
+        )
         validate_source_revision(document, source_path)
         return (
             source_path,

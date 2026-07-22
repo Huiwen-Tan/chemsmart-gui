@@ -8,6 +8,8 @@ import type {
   MoleculeExportWriteRequest,
   MoleculeExportWriteResponse,
   MoleculeEditResponse,
+  MoleculeModeDisplacementRequest,
+  MoleculeModeDisplacementResponse,
   MoleculeSourceStatusRequest,
   MoleculeSourceStatusResponse,
   MoleculeSourceWriteRequest,
@@ -16,6 +18,7 @@ import type {
 import {
   applyMoleculeEdit,
   checkMoleculeSourceStatus,
+  generateMoleculeModeDisplacement,
   openDocument,
   previewMoleculeExport,
   writeMoleculeExport,
@@ -242,6 +245,30 @@ const FROZEN_EDIT_RESPONSE: MoleculeEditResponse = {
   },
   can_undo: true,
   can_redo: false,
+};
+
+const MODE_DISPLACEMENT_REQUEST: MoleculeModeDisplacementRequest = {
+  document: WATER_DOCUMENT,
+  mode_index: 1,
+  direction: 'positive',
+  amplitude: 1,
+};
+
+const MODE_DISPLACEMENT_RESPONSE: MoleculeModeDisplacementResponse = {
+  document: {
+    ...WATER_DOCUMENT,
+    id: 'displaced-water-document',
+    source: null,
+    calculation: null,
+    atoms: [
+      { index: 1, element: 'O', x: 0.1, y: 0, z: 0 },
+      { index: 2, element: 'H', x: 0.66, y: 0.58, z: 0 },
+    ],
+    vibrational_modes: [],
+  },
+  mode_index: 1,
+  direction: 'positive',
+  amplitude: 1,
 };
 
 const EXPORT_PREVIEW_REQUEST: MoleculeExportPreviewRequest = {
@@ -488,6 +515,23 @@ describe('api client', () => {
 
     await expect(applyMoleculeEdit(EDIT_REQUEST)).rejects.toThrow(
       "Edit command targets document 'other-document'",
+    );
+  });
+
+  it('posts selected mode displacement requests to the document API', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(MODE_DISPLACEMENT_RESPONSE));
+
+    await expect(
+      generateMoleculeModeDisplacement(MODE_DISPLACEMENT_REQUEST),
+    ).resolves.toEqual(MODE_DISPLACEMENT_RESPONSE);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/api/documents/mode-displacement',
+      {
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        body: JSON.stringify(MODE_DISPLACEMENT_REQUEST),
+      },
     );
   });
 

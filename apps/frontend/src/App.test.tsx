@@ -257,6 +257,20 @@ const GAUSSIAN_OUTPUT_DOCUMENT = {
   ],
 } satisfies MoleculeDocument;
 
+const DISPLACED_GAUSSIAN_OUTPUT_DOCUMENT = {
+  ...GAUSSIAN_OUTPUT_DOCUMENT,
+  id: 'generated-mode-displaced-water-document',
+  name: 'str-H2O-generated-mode-displacement',
+  source: null,
+  calculation: null,
+  atoms: [
+    { index: 1, element: 'O', x: 0, y: 0, z: -0.1 },
+    { index: 2, element: 'H', x: 0.96, y: 0.58, z: 0.1 },
+    WATER_DOCUMENT.atoms[2],
+  ],
+  vibrational_modes: [],
+} satisfies MoleculeDocument;
+
 const fetchMock = vi.fn<typeof fetch>();
 
 function jsonResponse(body: unknown): Response {
@@ -1012,6 +1026,75 @@ describe('App', () => {
         name: 'Play Mode Animation',
       }),
     ).toBeDisabled();
+  });
+
+  it('generates a displaced structure from the selected vibrational mode', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
+      .mockResolvedValueOnce(jsonResponse(GAUSSIAN_OUTPUT_DOCUMENT))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          document: DISPLACED_GAUSSIAN_OUTPUT_DOCUMENT,
+          mode_index: 1,
+          direction: 'positive',
+          amplitude: 1,
+        }),
+      );
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText('Document path'), {
+      target: { value: 'sample-data/water.log' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT),
+      );
+    });
+    const modesPanel = screen.getByRole('region', {
+      name: 'Vibrational Modes',
+    });
+    fireEvent.click(
+      within(modesPanel).getByRole('button', {
+        name: 'Play Mode Animation',
+      }),
+    );
+    expect(screen.getByTestId('viewer-animation')).toHaveTextContent('true');
+
+    fireEvent.click(
+      within(modesPanel).getByRole('button', {
+        name: 'Generate + Displacement',
+      }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(DISPLACED_GAUSSIAN_OUTPUT_DOCUMENT),
+      );
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      'http://127.0.0.1:8000/api/documents/mode-displacement',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          document: GAUSSIAN_OUTPUT_DOCUMENT,
+          mode_index: 1,
+          direction: 'positive',
+          amplitude: 1,
+        }),
+      }),
+    );
+    expect(screen.getByTestId('viewer-animation')).toHaveTextContent('false');
+    expect(screen.getByText('No unsaved edits')).toBeInTheDocument();
+    expect(
+      within(modesPanel).getByText(
+        'No vibrational modes available for this document.',
+      ),
+    ).toBeInTheDocument();
   });
 
   it('previews XYZ export content for the loaded document', async () => {
