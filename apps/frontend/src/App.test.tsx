@@ -955,6 +955,14 @@ describe('App', () => {
     expect(rows[1]).toHaveTextContent('Imaginary');
     expect(rows[2]).toHaveTextContent('1628.3334');
     expect(rows[2]).toHaveTextContent('Real');
+    expect(
+      within(modesPanel).getByRole('heading', { name: 'Selected Mode 1' }),
+    ).toBeInTheDocument();
+    const displacementTable = within(modesPanel).getByRole('table', {
+      name: 'Selected mode displacement vectors',
+    });
+    expect(within(displacementTable).getByText('-0.1')).toBeInTheDocument();
+    expect(within(displacementTable).getByText('0.2')).toBeInTheDocument();
   });
 
   it('previews XYZ export content for the loaded document', async () => {

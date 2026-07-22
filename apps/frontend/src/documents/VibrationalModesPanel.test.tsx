@@ -1,4 +1,10 @@
-import { cleanup, render, screen, within } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import type { MoleculeDocument } from '../shared/types';
@@ -108,7 +114,7 @@ describe('VibrationalModesPanel', () => {
     expect(rows[0]).toHaveTextContent('Reduced mass (amu)');
     expect(rows[0]).toHaveTextContent('Force constant (mDyne/Angstrom)');
 
-    expect(rows[1]).toHaveTextContent('1');
+    expect(rows[1]).toHaveTextContent('Select mode 1');
     expect(rows[1]).toHaveTextContent('-530.2');
     expect(rows[1]).toHaveTextContent('Imaginary');
     expect(rows[1]).toHaveTextContent('12.3457');
@@ -117,10 +123,86 @@ describe('VibrationalModesPanel', () => {
     expect(rows[1]).toHaveTextContent('0.3');
     expect(rows[1]).toHaveTextContent('2');
 
-    expect(rows[2]).toHaveTextContent('2');
+    expect(rows[2]).toHaveTextContent('Select mode 2');
     expect(rows[2]).toHaveTextContent('1628.3334');
     expect(rows[2]).toHaveTextContent('Real');
     expect(within(rows[2]).getAllByText('Unavailable')).toHaveLength(4);
     expect(rows[2]).toHaveTextContent('0');
+  });
+
+  it('shows selected mode displacement vectors by atom index', () => {
+    render(<VibrationalModesPanel document={GAUSSIAN_OUTPUT_DOCUMENT} />);
+
+    expect(screen.getByRole('heading', { name: 'Selected Mode 1' }))
+      .toBeInTheDocument();
+    const displacementTable = screen.getByRole('table', {
+      name: 'Selected mode displacement vectors',
+    });
+    const rows = within(displacementTable).getAllByRole('row');
+
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toHaveTextContent('Atom index');
+    expect(rows[0]).toHaveTextContent('x');
+    expect(rows[0]).toHaveTextContent('y');
+    expect(rows[0]).toHaveTextContent('z');
+    expect(rows[1]).toHaveTextContent('1');
+    expect(rows[1]).toHaveTextContent('-0.1');
+    expect(rows[2]).toHaveTextContent('2');
+    expect(rows[2]).toHaveTextContent('0.2');
+    expect(rows[2]).toHaveTextContent('0.1');
+    expect(
+      screen.getByRole('button', { name: 'Select mode 1' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('updates the selected mode and shows displacement empty state', () => {
+    render(<VibrationalModesPanel document={GAUSSIAN_OUTPUT_DOCUMENT} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Select mode 2' }));
+
+    expect(screen.getByRole('heading', { name: 'Selected Mode 2' }))
+      .toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Select mode 2' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    expect(
+      screen.queryByRole('table', {
+        name: 'Selected mode displacement vectors',
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText('No displacement vectors available for selected mode.'),
+    ).toBeInTheDocument();
+  });
+
+  it('resets selected mode when the active document changes', () => {
+    const secondDocument: MoleculeDocument = {
+      ...GAUSSIAN_OUTPUT_DOCUMENT,
+      id: 'second-gaussian-output-document',
+      vibrational_modes: [
+        {
+          ...GAUSSIAN_OUTPUT_DOCUMENT.vibrational_modes[1],
+          index: 4,
+          displacements: [
+            { atom_index: 1, x: 0.4, y: 0.5, z: 0.6 },
+          ],
+        },
+      ],
+    };
+    const { rerender } = render(
+      <VibrationalModesPanel document={GAUSSIAN_OUTPUT_DOCUMENT} />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Select mode 2' }));
+    expect(screen.getByRole('heading', { name: 'Selected Mode 2' }))
+      .toBeInTheDocument();
+
+    rerender(<VibrationalModesPanel document={secondDocument} />);
+
+    expect(screen.getByRole('heading', { name: 'Selected Mode 4' }))
+      .toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Select mode 4' }),
+    ).toHaveAttribute('aria-pressed', 'true');
   });
 });

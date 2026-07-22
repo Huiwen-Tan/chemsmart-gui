@@ -1,4 +1,6 @@
-import type { MoleculeDocument } from '../shared/types';
+import { useEffect, useState } from 'react';
+
+import type { MoleculeDocument, VibrationalMode } from '../shared/types';
 
 interface VibrationalModesPanelProps {
   document: MoleculeDocument | null;
@@ -16,10 +18,30 @@ function formatOptionalString(value: string | null): string {
   return value === null || value.length === 0 ? 'Unavailable' : value;
 }
 
+function selectedModeFromIndex(
+  modes: VibrationalMode[],
+  selectedModeIndex: number | null,
+): VibrationalMode | null {
+  return (
+    modes.find((mode) => mode.index === selectedModeIndex) ??
+    modes[0] ??
+    null
+  );
+}
+
 export function VibrationalModesPanel({
   document,
 }: VibrationalModesPanelProps): JSX.Element {
   const modes = document?.vibrational_modes ?? [];
+  const [selectedModeIndex, setSelectedModeIndex] = useState<number | null>(
+    null,
+  );
+  const modeIndexSignature = modes.map((mode) => mode.index).join(',');
+  const selectedMode = selectedModeFromIndex(modes, selectedModeIndex);
+
+  useEffect(() => {
+    setSelectedModeIndex(modes[0]?.index ?? null);
+  }, [document?.id, modeIndexSignature]);
 
   return (
     <section
@@ -47,8 +69,19 @@ export function VibrationalModesPanel({
           </thead>
           <tbody>
             {modes.map((mode) => (
-              <tr key={mode.index}>
-                <th scope="row">{mode.index}</th>
+              <tr
+                aria-selected={selectedMode?.index === mode.index}
+                key={mode.index}
+              >
+                <th scope="row">
+                  <button
+                    aria-pressed={selectedMode?.index === mode.index}
+                    onClick={() => setSelectedModeIndex(mode.index)}
+                    type="button"
+                  >
+                    Select mode {mode.index}
+                  </button>
+                </th>
                 <td>{formatNumber(mode.frequency_cm_minus_1)}</td>
                 <td>{mode.is_imaginary ? 'Imaginary' : 'Real'}</td>
                 <td>{formatOptionalNumber(mode.ir_intensity_km_per_mol)}</td>
@@ -64,6 +97,43 @@ export function VibrationalModesPanel({
             ))}
           </tbody>
         </table>
+      ) : null}
+      {selectedMode ? (
+        <div style={{ marginTop: 12 }}>
+          <h3>Selected Mode {selectedMode.index}</h3>
+          <dl>
+            <dt>Frequency (cm^-1)</dt>
+            <dd>{formatNumber(selectedMode.frequency_cm_minus_1)}</dd>
+            <dt>Type</dt>
+            <dd>{selectedMode.is_imaginary ? 'Imaginary' : 'Real'}</dd>
+            <dt>Displacement vectors</dt>
+            <dd>{selectedMode.displacements.length}</dd>
+          </dl>
+          {selectedMode.displacements.length > 0 ? (
+            <table aria-label="Selected mode displacement vectors">
+              <thead>
+                <tr>
+                  <th scope="col">Atom index</th>
+                  <th scope="col">x</th>
+                  <th scope="col">y</th>
+                  <th scope="col">z</th>
+                </tr>
+              </thead>
+              <tbody>
+                {selectedMode.displacements.map((displacement) => (
+                  <tr key={displacement.atom_index}>
+                    <th scope="row">{displacement.atom_index}</th>
+                    <td>{formatNumber(displacement.x)}</td>
+                    <td>{formatNumber(displacement.y)}</td>
+                    <td>{formatNumber(displacement.z)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p>No displacement vectors available for selected mode.</p>
+          )}
+        </div>
       ) : null}
     </section>
   );
