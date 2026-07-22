@@ -12,6 +12,8 @@ const MODE_DISPLACEMENT_ARROW_MIN_LENGTH = 0.25;
 const MODE_DISPLACEMENT_ARROW_MAX_LENGTH = 1.2;
 const MODE_DISPLACEMENT_ARROW_HEAD_LENGTH = 0.16;
 const MODE_DISPLACEMENT_ARROW_HEAD_WIDTH = 0.08;
+const MODE_ANIMATION_AMPLITUDE_SCALE = 1.5;
+const MODE_ANIMATION_PERIOD_MS = 1600;
 const SELECTED_ATOM_EMISSIVE_COLOR = 0xffb300;
 const SELECTED_ATOM_EMISSIVE_INTENSITY = 0.8;
 const FROZEN_ATOM_EMISSIVE_COLOR = 0x38bdf8;
@@ -19,7 +21,11 @@ const FROZEN_ATOM_EMISSIVE_INTENSITY = 0.55;
 const DEFAULT_ATOM_EMISSIVE_COLOR = 0x000000;
 const DEFAULT_ATOM_EMISSIVE_INTENSITY = 1;
 
-function createAtomLabel(text: string, position: THREE.Vector3): CSS2DObject {
+function createAtomLabel(
+  text: string,
+  position: THREE.Vector3,
+  atomIndex: number,
+): CSS2DObject {
   const element = document.createElement('span');
   element.textContent = text;
   element.style.background = 'rgba(20, 25, 34, 0.75)';
@@ -38,6 +44,7 @@ function createAtomLabel(text: string, position: THREE.Vector3): CSS2DObject {
   label.visible = false;
   label.userData.moleculeObject = true;
   label.userData.atomLabel = true;
+  label.userData.atomLabelIndex = atomIndex;
   return label;
 }
 
@@ -83,7 +90,10 @@ function disposeObjectResources(object: THREE.Object3D): void {
 export class MoleculeScene {
   private readonly scene = new THREE.Scene();
   private readonly raycaster = new THREE.Raycaster();
-  private readonly atomPositions = new Map<number, THREE.Vector3>();
+  private readonly atomBasePositions = new Map<number, THREE.Vector3>();
+  private readonly modeDisplacementVectors = new Map<number, THREE.Vector3>();
+  private modeAnimationPlaying = false;
+  private modeAnimationStartTimeMs = 0;
 
   constructor() {
     this.scene.background = new THREE.Color(0x141922);
@@ -95,7 +105,9 @@ export class MoleculeScene {
 
   public setMolecule(document: MoleculeDocument | null): void {
     this.clearMoleculeObjects();
-    this.atomPositions.clear();
+    this.atomBasePositions.clear();
+    this.modeDisplacementVectors.clear();
+    this.modeAnimationPlaying = false;
 
     if (!document) {
       return;
@@ -105,7 +117,7 @@ export class MoleculeScene {
 
     for (const atom of document.atoms) {
       const position = new THREE.Vector3(atom.x, atom.y, atom.z);
-      this.atomPositions.set(atom.index, position);
+      this.atomBasePositions.set(atom.index, position);
 
       const geometry = new THREE.SphereGeometry(ATOM_RADIUS, 24, 24);
       const color = ELEMENT_COLORS[atom.element] ?? DEFAULT_ELEMENT_COLOR;
@@ -119,12 +131,14 @@ export class MoleculeScene {
       sphere.userData.frozenAtom = isFrozen;
       this.scene.add(sphere);
 
-      this.scene.add(createAtomLabel(`${atom.index} ${atom.element}`, position));
+      this.scene.add(
+        createAtomLabel(`${atom.index} ${atom.element}`, position, atom.index),
+      );
     }
 
     for (const bond of document.bonds) {
-      const start = this.atomPositions.get(bond.atom1);
-      const end = this.atomPositions.get(bond.atom2);
+      const start = this.atomBasePositions.get(bond.atom1);
+      const end = this.atomBasePositions.get(bond.atom2);
       if (!start || !end) {
         continue;
       }
@@ -133,11 +147,16 @@ export class MoleculeScene {
       const line = new THREE.Line(geometry, material);
       line.userData.moleculeObject = true;
       line.userData.bondObject = true;
+      line.userData.bondAtom1 = bond.atom1;
+      line.userData.bondAtom2 = bond.atom2;
       this.scene.add(line);
     }
   }
 
   public setModeDisplacementVectors(mode: VibrationalMode | null): void {
+    this.resetModeAnimationFrame();
+    this.modeAnimationPlaying = false;
+    this.modeDisplacementVectors.clear();
     this.clearModeDisplacementObjects();
 
     if (!mode) {
@@ -145,7 +164,7 @@ export class MoleculeScene {
     }
 
     for (const displacement of mode.displacements) {
-      const origin = this.atomPositions.get(displacement.atom_index);
+      const origin = this.atomBasePositions.get(displacement.atom_index);
       if (!origin) {
         continue;
       }
@@ -159,6 +178,7 @@ export class MoleculeScene {
       if (vectorLength === 0) {
         continue;
       }
+      this.modeDisplacementVectors.set(displacement.atom_index, vector.clone());
 
       const arrowLength = Math.min(
         MODE_DISPLACEMENT_ARROW_MAX_LENGTH,
@@ -168,7 +188,7 @@ export class MoleculeScene {
         ),
       );
       const arrow = new THREE.ArrowHelper(
-        vector.normalize(),
+        vector.clone().normalize(),
         origin,
         arrowLength,
         MODE_DISPLACEMENT_ARROW_COLOR,
@@ -181,6 +201,31 @@ export class MoleculeScene {
       arrow.userData.modeIndex = mode.index;
       this.scene.add(arrow);
     }
+  }
+
+  public setModeAnimationPlaying(
+    isPlaying: boolean,
+    timestampMs = performance.now(),
+  ): void {
+    if (!isPlaying || this.modeDisplacementVectors.size === 0) {
+      this.modeAnimationPlaying = false;
+      this.resetModeAnimationFrame();
+      return;
+    }
+
+    this.modeAnimationPlaying = true;
+    this.modeAnimationStartTimeMs = timestampMs;
+    this.updateModeAnimationFrame(timestampMs);
+  }
+
+  public updateModeAnimationFrame(timestampMs: number): void {
+    if (!this.modeAnimationPlaying || this.modeDisplacementVectors.size === 0) {
+      return;
+    }
+
+    const elapsedMs = timestampMs - this.modeAnimationStartTimeMs;
+    const phase = (elapsedMs / MODE_ANIMATION_PERIOD_MS) * Math.PI * 2;
+    this.applyModeAnimationOffset(Math.sin(phase));
   }
 
   public computeBoundingBox(): THREE.Box3 | null {
@@ -251,6 +296,97 @@ export class MoleculeScene {
         }
       }
     }
+  }
+
+  private resetModeAnimationFrame(): void {
+    this.applyModeAnimationOffset(0);
+  }
+
+  private applyModeAnimationOffset(amplitude: number): void {
+    for (const [atomIndex, basePosition] of this.atomBasePositions) {
+      const displacement = this.modeDisplacementVectors.get(atomIndex);
+      if (!displacement) {
+        this.updateAtomPosition(atomIndex, basePosition);
+        continue;
+      }
+
+      const animatedPosition = basePosition.clone().add(
+        displacement
+          .clone()
+          .multiplyScalar(amplitude * MODE_ANIMATION_AMPLITUDE_SCALE),
+      );
+      this.updateAtomPosition(atomIndex, animatedPosition);
+    }
+
+    this.updateBondPositions();
+    this.updateModeDisplacementArrowOrigins();
+  }
+
+  private updateAtomPosition(
+    atomIndex: number,
+    position: THREE.Vector3,
+  ): void {
+    for (const object of this.scene.children) {
+      if (
+        object instanceof THREE.Mesh &&
+        object.userData.atomIndex === atomIndex
+      ) {
+        object.position.copy(position);
+      }
+
+      if (object.userData.atomLabelIndex === atomIndex) {
+        object.position.copy(position);
+        object.position.y += LABEL_OFFSET;
+      }
+    }
+  }
+
+  private updateBondPositions(): void {
+    for (const object of this.scene.children) {
+      if (!(object instanceof THREE.Line) || !object.userData.bondObject) {
+        continue;
+      }
+
+      const start = this.getCurrentAtomPosition(object.userData.bondAtom1);
+      const end = this.getCurrentAtomPosition(object.userData.bondAtom2);
+      if (!start || !end) {
+        continue;
+      }
+
+      const positions = object.geometry.getAttribute(
+        'position',
+      ) as THREE.BufferAttribute;
+      positions.setXYZ(0, start.x, start.y, start.z);
+      positions.setXYZ(1, end.x, end.y, end.z);
+      positions.needsUpdate = true;
+      object.geometry.computeBoundingSphere();
+    }
+  }
+
+  private updateModeDisplacementArrowOrigins(): void {
+    for (const object of this.scene.children) {
+      if (!object.userData.modeDisplacementObject) {
+        continue;
+      }
+
+      const position = this.getCurrentAtomPosition(
+        object.userData.modeDisplacementAtomIndex,
+      );
+      if (position) {
+        object.position.copy(position);
+      }
+    }
+  }
+
+  private getCurrentAtomPosition(atomIndex: unknown): THREE.Vector3 | null {
+    if (typeof atomIndex !== 'number') {
+      return null;
+    }
+
+    const atom = this.scene.children.find((object) => (
+      object instanceof THREE.Mesh && object.userData.atomIndex === atomIndex
+    ));
+    return atom ? atom.position.clone() : null;
   }
 
   private clearMoleculeObjects(): void {

@@ -63,6 +63,10 @@ export function App(): JSX.Element {
     selectedVibrationalModeIndex,
     setSelectedVibrationalModeIndex,
   ] = useState<number | null>(null);
+  const [
+    activeVibrationalModeAnimationKey,
+    setActiveVibrationalModeAnimationKey,
+  ] = useState<string | null>(null);
   const vibrationalModes = currentDocument?.vibrational_modes ?? [];
   const vibrationalModeIndexSignature = vibrationalModes
     .map((mode) => mode.index)
@@ -71,6 +75,16 @@ export function App(): JSX.Element {
     vibrationalModes,
     selectedVibrationalModeIndex,
   );
+  const selectedVibrationalModeAnimationKey =
+    currentDocument && selectedVibrationalMode
+      ? `${currentDocument.id}:${selectedVibrationalMode.index}`
+      : null;
+  const selectedVibrationalModeCanAnimate =
+    (selectedVibrationalMode?.displacements.length ?? 0) > 0;
+  const isVibrationalModeAnimationPlaying =
+    selectedVibrationalModeCanAnimate &&
+    selectedVibrationalModeAnimationKey !== null &&
+    activeVibrationalModeAnimationKey === selectedVibrationalModeAnimationKey;
 
   useEffect(() => {
     healthCheck()
@@ -121,7 +135,19 @@ export function App(): JSX.Element {
 
   useEffect(() => {
     setSelectedVibrationalModeIndex(vibrationalModes[0]?.index ?? null);
+    setActiveVibrationalModeAnimationKey(null);
   }, [currentDocument?.id, vibrationalModeIndexSignature]);
+
+  const selectVibrationalMode = (modeIndex: number): void => {
+    setActiveVibrationalModeAnimationKey(null);
+    setSelectedVibrationalModeIndex(modeIndex);
+  };
+
+  const setVibrationalModeAnimationPlaying = (isPlaying: boolean): void => {
+    setActiveVibrationalModeAnimationKey(
+      isPlaying ? selectedVibrationalModeAnimationKey : null,
+    );
+  };
 
   const openDocumentPath = async (pathOverride?: string): Promise<void> => {
     setError(null);
@@ -216,6 +242,9 @@ export function App(): JSX.Element {
       {error ? <p style={{ color: '#ff8080' }}>Error: {error}</p> : null}
       <MolecularViewer
         document={currentDocument}
+        isVibrationalModeAnimationPlaying={
+          isVibrationalModeAnimationPlaying
+        }
         selectedVibrationalMode={selectedVibrationalMode}
       />
       <DocumentSummaryPanel
@@ -224,7 +253,9 @@ export function App(): JSX.Element {
       />
       <VibrationalModesPanel
         document={currentDocument}
-        onSelectedModeIndexChange={setSelectedVibrationalModeIndex}
+        isAnimationPlaying={isVibrationalModeAnimationPlaying}
+        onAnimationPlayingChange={setVibrationalModeAnimationPlaying}
+        onSelectedModeIndexChange={selectVibrationalMode}
         selectedModeIndex={selectedVibrationalMode?.index ?? null}
       />
       <MoleculeExportPreviewPanel

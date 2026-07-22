@@ -115,6 +115,16 @@ function atomObjects(scene: THREE.Scene): THREE.Object3D[] {
   );
 }
 
+function atomPosition(scene: THREE.Scene, atomIndex: number): number[] {
+  const atom = atomObjects(scene).find((object) => (
+    object.userData.atomIndex === atomIndex
+  ));
+  if (!atom) {
+    throw new Error(`Expected atom ${atomIndex} in scene`);
+  }
+  return atom.position.toArray();
+}
+
 function atomLabelObjects(scene: THREE.Scene): THREE.Object3D[] {
   return moleculeObjects(scene).filter((object) => object.userData.atomLabel);
 }
@@ -172,6 +182,23 @@ function spyOnDisposal(object: THREE.Object3D) {
     geometry: vi.spyOn(object.geometry, 'dispose'),
     materials: materials.map((material) => vi.spyOn(material, 'dispose')),
   };
+}
+
+function linePosition(line: THREE.Line, index: number): number[] {
+  const positions = line.geometry.getAttribute(
+    'position',
+  ) as THREE.BufferAttribute;
+  return [positions.getX(index), positions.getY(index), positions.getZ(index)];
+}
+
+function expectPositionCloseTo(
+  actual: number[],
+  expected: readonly number[],
+): void {
+  expect(actual).toHaveLength(expected.length);
+  for (const [index, expectedValue] of expected.entries()) {
+    expect(actual[index]).toBeCloseTo(expectedValue, 6);
+  }
 }
 
 describe('MoleculeScene', () => {
@@ -383,6 +410,72 @@ describe('MoleculeScene', () => {
     moleculeScene.setMolecule(null);
 
     expect(modeDisplacementObjects(scene)).toHaveLength(0);
+  });
+
+  it('animates selected mode atom positions and dependent geometry', () => {
+    const moleculeScene = new MoleculeScene();
+    moleculeScene.setMolecule(WATER_WITH_VIBRATIONAL_MODES);
+    moleculeScene.setModeDisplacementVectors(
+      WATER_WITH_VIBRATIONAL_MODES.vibrational_modes[0],
+    );
+    const scene = moleculeScene.getScene();
+
+    moleculeScene.setModeAnimationPlaying(true, 0);
+    moleculeScene.updateModeAnimationFrame(400);
+
+    expectPositionCloseTo(atomPosition(scene, 1), [0, 0, -0.15]);
+    expectPositionCloseTo(atomPosition(scene, 2), [1.1, 0.6, 0.15]);
+    expectPositionCloseTo(atomPosition(scene, 3), [-0.8, 0.6, 0]);
+    expectPositionCloseTo(atomLabelObjects(scene)[0].position.toArray(), [
+      0,
+      0.36,
+      -0.15,
+    ]);
+    const firstBond = bondObjects(scene)[0];
+    if (!(firstBond instanceof THREE.Line)) {
+      throw new Error('Expected first bond to be a Three.js line');
+    }
+    expectPositionCloseTo(linePosition(firstBond, 0), [0, 0, -0.15]);
+    expectPositionCloseTo(linePosition(firstBond, 1), [1.1, 0.6, 0.15]);
+    expectPositionCloseTo(
+      modeDisplacementObjects(scene)[1].position.toArray(),
+      [1.1, 0.6, 0.15],
+    );
+
+    moleculeScene.setModeAnimationPlaying(false, 400);
+
+    expectPositionCloseTo(atomPosition(scene, 1), [0, 0, 0]);
+    expectPositionCloseTo(atomPosition(scene, 2), [0.8, 0.6, 0]);
+    expectPositionCloseTo(linePosition(firstBond, 0), [0, 0, 0]);
+    expectPositionCloseTo(linePosition(firstBond, 1), [0.8, 0.6, 0]);
+    expectPositionCloseTo(
+      modeDisplacementObjects(scene)[1].position.toArray(),
+      [0.8, 0.6, 0],
+    );
+  });
+
+  it('resets animation when selected mode has no displacement vectors', () => {
+    const moleculeScene = new MoleculeScene();
+    moleculeScene.setMolecule(WATER_WITH_VIBRATIONAL_MODES);
+    const scene = moleculeScene.getScene();
+
+    moleculeScene.setModeDisplacementVectors(
+      WATER_WITH_VIBRATIONAL_MODES.vibrational_modes[0],
+    );
+    moleculeScene.setModeAnimationPlaying(true, 0);
+    moleculeScene.updateModeAnimationFrame(400);
+    expectPositionCloseTo(atomPosition(scene, 2), [1.1, 0.6, 0.15]);
+
+    moleculeScene.setModeDisplacementVectors(
+      WATER_WITH_VIBRATIONAL_MODES.vibrational_modes[1],
+    );
+    moleculeScene.setModeAnimationPlaying(true, 400);
+    moleculeScene.updateModeAnimationFrame(800);
+
+    expect(modeDisplacementObjects(scene)).toHaveLength(0);
+    expectPositionCloseTo(atomPosition(scene, 1), [0, 0, 0]);
+    expectPositionCloseTo(atomPosition(scene, 2), [0.8, 0.6, 0]);
+    expectPositionCloseTo(atomPosition(scene, 3), [-0.8, 0.6, 0]);
   });
 
   it('picks atom identity from normalized pointer input', () => {

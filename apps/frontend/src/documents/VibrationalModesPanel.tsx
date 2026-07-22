@@ -4,6 +4,8 @@ import type { MoleculeDocument, VibrationalMode } from '../shared/types';
 
 interface VibrationalModesPanelProps {
   document: MoleculeDocument | null;
+  isAnimationPlaying?: boolean;
+  onAnimationPlayingChange?: (isPlaying: boolean) => void;
   selectedModeIndex?: number | null;
   onSelectedModeIndexChange?: (modeIndex: number) => void;
 }
@@ -33,6 +35,8 @@ function selectedModeFromIndex(
 
 export function VibrationalModesPanel({
   document,
+  isAnimationPlaying = false,
+  onAnimationPlayingChange,
   selectedModeIndex,
   onSelectedModeIndexChange,
 }: VibrationalModesPanelProps): JSX.Element {
@@ -113,6 +117,18 @@ export function VibrationalModesPanel({
       {selectedMode ? (
         <div style={{ marginTop: 12 }}>
           <h3>Selected Mode {selectedMode.index}</h3>
+          <button
+            aria-pressed={isAnimationPlaying}
+            disabled={selectedMode.displacements.length === 0}
+            onClick={() => {
+              onAnimationPlayingChange?.(!isAnimationPlaying);
+            }}
+            type="button"
+          >
+            {isAnimationPlaying
+              ? 'Pause Mode Animation'
+              : 'Play Mode Animation'}
+          </button>
           <dl>
             <dt>Frequency (cm^-1)</dt>
             <dd>{formatNumber(selectedMode.frequency_cm_minus_1)}</dd>

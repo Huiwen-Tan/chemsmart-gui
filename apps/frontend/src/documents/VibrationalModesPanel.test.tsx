@@ -196,6 +196,60 @@ describe('VibrationalModesPanel', () => {
     expect(onSelectedModeIndexChange).toHaveBeenCalledWith(1);
   });
 
+  it('shows play and pause controls for selected mode animation', () => {
+    const onAnimationPlayingChange = vi.fn();
+    const { rerender } = render(
+      <VibrationalModesPanel
+        document={GAUSSIAN_OUTPUT_DOCUMENT}
+        isAnimationPlaying={false}
+        onAnimationPlayingChange={onAnimationPlayingChange}
+        selectedModeIndex={1}
+      />,
+    );
+
+    const playButton = screen.getByRole('button', {
+      name: 'Play Mode Animation',
+    });
+    expect(playButton).toBeEnabled();
+    expect(playButton).toHaveAttribute('aria-pressed', 'false');
+
+    fireEvent.click(playButton);
+
+    expect(onAnimationPlayingChange).toHaveBeenCalledWith(true);
+
+    rerender(
+      <VibrationalModesPanel
+        document={GAUSSIAN_OUTPUT_DOCUMENT}
+        isAnimationPlaying
+        onAnimationPlayingChange={onAnimationPlayingChange}
+        selectedModeIndex={1}
+      />,
+    );
+
+    const pauseButton = screen.getByRole('button', {
+      name: 'Pause Mode Animation',
+    });
+    expect(pauseButton).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(pauseButton);
+
+    expect(onAnimationPlayingChange).toHaveBeenCalledWith(false);
+  });
+
+  it('disables animation controls when selected mode has no vectors', () => {
+    render(
+      <VibrationalModesPanel
+        document={GAUSSIAN_OUTPUT_DOCUMENT}
+        onAnimationPlayingChange={vi.fn()}
+        selectedModeIndex={2}
+      />,
+    );
+
+    expect(
+      screen.getByRole('button', { name: 'Play Mode Animation' }),
+    ).toBeDisabled();
+  });
+
   it('resets selected mode when the active document changes', () => {
     const secondDocument: MoleculeDocument = {
       ...GAUSSIAN_OUTPUT_DOCUMENT,

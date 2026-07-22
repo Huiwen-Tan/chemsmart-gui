@@ -17,13 +17,18 @@ import { App } from './App';
 vi.mock('./viewer/MolecularViewer', () => ({
   MolecularViewer: ({
     document,
+    isVibrationalModeAnimationPlaying,
     selectedVibrationalMode,
   }: {
     document: MoleculeDocument | null;
+    isVibrationalModeAnimationPlaying: boolean;
     selectedVibrationalMode: VibrationalMode | null;
   }) => (
     <>
       <output data-testid="viewer-document">{JSON.stringify(document)}</output>
+      <output data-testid="viewer-animation">
+        {JSON.stringify(isVibrationalModeAnimationPlaying)}
+      </output>
       <output data-testid="viewer-mode">
         {JSON.stringify(selectedVibrationalMode)}
       </output>
@@ -958,6 +963,7 @@ describe('App', () => {
     expect(screen.getByTestId('viewer-mode')).toHaveTextContent(
       JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT.vibrational_modes[0]),
     );
+    expect(screen.getByTestId('viewer-animation')).toHaveTextContent('false');
     const modesPanel = screen.getByRole('region', {
       name: 'Vibrational Modes',
     });
@@ -977,6 +983,18 @@ describe('App', () => {
     });
     expect(within(displacementTable).getByText('-0.1')).toBeInTheDocument();
     expect(within(displacementTable).getByText('0.2')).toBeInTheDocument();
+    fireEvent.click(
+      within(modesPanel).getByRole('button', {
+        name: 'Play Mode Animation',
+      }),
+    );
+
+    expect(screen.getByTestId('viewer-animation')).toHaveTextContent('true');
+    expect(
+      within(modesPanel).getByRole('button', {
+        name: 'Pause Mode Animation',
+      }),
+    ).toHaveAttribute('aria-pressed', 'true');
 
     fireEvent.click(
       within(modesPanel).getByRole('button', { name: 'Select mode 2' }),
@@ -988,6 +1006,12 @@ describe('App', () => {
     expect(
       within(modesPanel).getByRole('heading', { name: 'Selected Mode 2' }),
     ).toBeInTheDocument();
+    expect(screen.getByTestId('viewer-animation')).toHaveTextContent('false');
+    expect(
+      within(modesPanel).getByRole('button', {
+        name: 'Play Mode Animation',
+      }),
+    ).toBeDisabled();
   });
 
   it('previews XYZ export content for the loaded document', async () => {

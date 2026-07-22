@@ -9,6 +9,7 @@ import { MoleculeScene } from './three/MoleculeScene';
 
 interface MolecularViewerProps {
   document: MoleculeDocument | null;
+  isVibrationalModeAnimationPlaying: boolean;
   selectedVibrationalMode: VibrationalMode | null;
 }
 
@@ -202,6 +203,7 @@ export function connectAtomPicking(
 
 export function MolecularViewer({
   document,
+  isVibrationalModeAnimationPlaying,
   selectedVibrationalMode,
 }: MolecularViewerProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -213,7 +215,12 @@ export function MolecularViewer({
   const selectedVibrationalModeRef = useRef<VibrationalMode | null>(
     selectedVibrationalMode,
   );
+  const isVibrationalModeAnimationPlayingRef = useRef(
+    isVibrationalModeAnimationPlaying,
+  );
   selectedVibrationalModeRef.current = selectedVibrationalMode;
+  isVibrationalModeAnimationPlayingRef.current =
+    isVibrationalModeAnimationPlaying;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -277,13 +284,14 @@ export function MolecularViewer({
     scene.add(directional);
 
     let animationFrameId = 0;
-    const animate = () => {
+    const animate = (timestampMs: number) => {
       controls.update();
+      sceneWrapper.updateModeAnimationFrame(timestampMs);
       renderer.render(scene, camera);
       labelRenderer.render(scene, camera);
       animationFrameId = requestAnimationFrame(animate);
     };
-    animate();
+    animationFrameId = requestAnimationFrame(animate);
 
     const onResize = () => {
       const nextWidth = container.clientWidth || 600;
@@ -325,6 +333,9 @@ export function MolecularViewer({
 
     sceneWrapper.setMolecule(document);
     sceneWrapper.setModeDisplacementVectors(selectedVibrationalModeRef.current);
+    sceneWrapper.setModeAnimationPlaying(
+      isVibrationalModeAnimationPlayingRef.current,
+    );
     applyAtomHighlights(
       sceneWrapper,
       useViewerStore.getState().selectedAtomIndices,
@@ -352,11 +363,23 @@ export function MolecularViewer({
     }
 
     sceneWrapper.setModeDisplacementVectors(selectedVibrationalMode);
+    sceneWrapper.setModeAnimationPlaying(
+      isVibrationalModeAnimationPlayingRef.current,
+    );
     const camera = cameraRef.current;
     if (camera) {
       labelRendererRef.current?.render(sceneWrapper.getScene(), camera);
     }
   }, [selectedVibrationalMode]);
+
+  useEffect(() => {
+    const sceneWrapper = sceneRef.current;
+    if (!sceneWrapper) {
+      return;
+    }
+
+    sceneWrapper.setModeAnimationPlaying(isVibrationalModeAnimationPlaying);
+  }, [isVibrationalModeAnimationPlaying]);
 
   return (
     <div
