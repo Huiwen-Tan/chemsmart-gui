@@ -41,6 +41,8 @@ const HELIUM: MoleculeDocument = {
 
 const MEDIUM_FIXTURE_ATOM_COUNT = 64;
 const MEDIUM_SCENE_GENERATION_BUDGET_MS = 1000;
+const FROZEN_ATOM_EMISSIVE_COLOR = 0x38bdf8;
+const FROZEN_ATOM_EMISSIVE_INTENSITY = 0.55;
 
 function createMediumFixture(): MoleculeDocument {
   return {
@@ -335,6 +337,67 @@ describe('MoleculeScene', () => {
       0x000000,
       0xffb300,
       0x000000,
+    ]);
+  });
+
+  it('highlights frozen atoms while preserving elemental colors', () => {
+    const moleculeScene = new MoleculeScene();
+    moleculeScene.setMolecule({
+      ...WATER,
+      frozen_atom_indices: [1, 3],
+    });
+
+    const atoms = atomObjects(moleculeScene.getScene());
+    const materials = atomMaterials(moleculeScene.getScene());
+    const baseColors = materials.map((material) => material.color.getHex());
+
+    expect(atoms.map((atom) => atom.userData.frozenAtom)).toEqual([
+      true,
+      false,
+      true,
+    ]);
+    expect(materials.map((material) => material.emissive.getHex())).toEqual([
+      FROZEN_ATOM_EMISSIVE_COLOR,
+      0x000000,
+      FROZEN_ATOM_EMISSIVE_COLOR,
+    ]);
+    expect(
+      materials.map((material) => material.emissiveIntensity),
+    ).toEqual([
+      FROZEN_ATOM_EMISSIVE_INTENSITY,
+      1,
+      FROZEN_ATOM_EMISSIVE_INTENSITY,
+    ]);
+    expect(materials.map((material) => material.color.getHex())).toEqual(
+      baseColors,
+    );
+  });
+
+  it('prioritizes selected highlights over frozen highlights', () => {
+    const moleculeScene = new MoleculeScene();
+    moleculeScene.setMolecule({
+      ...WATER,
+      frozen_atom_indices: [1, 3],
+    });
+    const materials = atomMaterials(moleculeScene.getScene());
+
+    moleculeScene.setSelectedAtomIndices([1]);
+
+    expect(materials.map((material) => material.emissive.getHex())).toEqual([
+      0xffb300,
+      0x000000,
+      FROZEN_ATOM_EMISSIVE_COLOR,
+    ]);
+    expect(
+      materials.map((material) => material.emissiveIntensity),
+    ).toEqual([0.8, 1, FROZEN_ATOM_EMISSIVE_INTENSITY]);
+
+    moleculeScene.setSelectedAtomIndices([]);
+
+    expect(materials.map((material) => material.emissive.getHex())).toEqual([
+      FROZEN_ATOM_EMISSIVE_COLOR,
+      0x000000,
+      FROZEN_ATOM_EMISSIVE_COLOR,
     ]);
   });
 });

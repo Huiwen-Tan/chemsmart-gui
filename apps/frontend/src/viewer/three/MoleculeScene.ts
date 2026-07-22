@@ -8,6 +8,10 @@ const ATOM_RADIUS = 0.2;
 const LABEL_OFFSET = ATOM_RADIUS * 1.8;
 const SELECTED_ATOM_EMISSIVE_COLOR = 0xffb300;
 const SELECTED_ATOM_EMISSIVE_INTENSITY = 0.8;
+const FROZEN_ATOM_EMISSIVE_COLOR = 0x38bdf8;
+const FROZEN_ATOM_EMISSIVE_INTENSITY = 0.55;
+const DEFAULT_ATOM_EMISSIVE_COLOR = 0x000000;
+const DEFAULT_ATOM_EMISSIVE_INTENSITY = 1;
 
 function createAtomLabel(text: string, position: THREE.Vector3): CSS2DObject {
   const element = document.createElement('span');
@@ -31,6 +35,27 @@ function createAtomLabel(text: string, position: THREE.Vector3): CSS2DObject {
   return label;
 }
 
+function applyAtomMaterialState(
+  material: THREE.MeshStandardMaterial,
+  isSelected: boolean,
+  isFrozen: boolean,
+): void {
+  if (isSelected) {
+    material.emissive.setHex(SELECTED_ATOM_EMISSIVE_COLOR);
+    material.emissiveIntensity = SELECTED_ATOM_EMISSIVE_INTENSITY;
+    return;
+  }
+
+  if (isFrozen) {
+    material.emissive.setHex(FROZEN_ATOM_EMISSIVE_COLOR);
+    material.emissiveIntensity = FROZEN_ATOM_EMISSIVE_INTENSITY;
+    return;
+  }
+
+  material.emissive.setHex(DEFAULT_ATOM_EMISSIVE_COLOR);
+  material.emissiveIntensity = DEFAULT_ATOM_EMISSIVE_INTENSITY;
+}
+
 export class MoleculeScene {
   private readonly scene = new THREE.Scene();
   private readonly raycaster = new THREE.Raycaster();
@@ -51,6 +76,7 @@ export class MoleculeScene {
     }
 
     const atomPositions = new Map<number, THREE.Vector3>();
+    const frozenAtomIndices = new Set(document.frozen_atom_indices);
 
     for (const atom of document.atoms) {
       const position = new THREE.Vector3(atom.x, atom.y, atom.z);
@@ -59,10 +85,13 @@ export class MoleculeScene {
       const geometry = new THREE.SphereGeometry(ATOM_RADIUS, 24, 24);
       const color = ELEMENT_COLORS[atom.element] ?? DEFAULT_ELEMENT_COLOR;
       const material = new THREE.MeshStandardMaterial({ color });
+      const isFrozen = frozenAtomIndices.has(atom.index);
+      applyAtomMaterialState(material, false, isFrozen);
       const sphere = new THREE.Mesh(geometry, material);
       sphere.position.copy(position);
       sphere.userData.moleculeObject = true;
       sphere.userData.atomIndex = atom.index;
+      sphere.userData.frozenAtom = isFrozen;
       this.scene.add(sphere);
 
       this.scene.add(createAtomLabel(`${atom.index} ${atom.element}`, position));
@@ -124,12 +153,11 @@ export class MoleculeScene {
       }
 
       const isSelected = selected.has(object.userData.atomIndex);
-      object.material.emissive.setHex(
-        isSelected ? SELECTED_ATOM_EMISSIVE_COLOR : 0x000000,
+      applyAtomMaterialState(
+        object.material,
+        isSelected,
+        object.userData.frozenAtom === true,
       );
-      object.material.emissiveIntensity = isSelected
-        ? SELECTED_ATOM_EMISSIVE_INTENSITY
-        : 1;
     }
   }
 
