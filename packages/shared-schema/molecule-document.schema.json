@@ -14,7 +14,8 @@
     "multiplicity",
     "atoms",
     "bonds",
-    "frozen_atom_indices"
+    "frozen_atom_indices",
+    "vibrational_modes"
   ],
   "properties": {
     "id": { "type": "string", "minLength": 1 },
@@ -109,6 +110,70 @@
         "minimum": 1
       },
       "description": "1-based atom indices currently frozen for constrained edits or future input generation."
+    },
+    "vibrational_modes": {
+      "type": "array",
+      "description": "CHEMSMART-normalized vibrational modes. Frequencies are in cm^-1; displacement values come from CHEMSMART parser normal-mode output.",
+      "items": {
+        "type": "object",
+        "required": [
+          "index",
+          "frequency_cm_minus_1",
+          "is_imaginary",
+          "reduced_mass_amu",
+          "force_constant_mdyne_per_angstrom",
+          "ir_intensity_km_per_mol",
+          "symmetry",
+          "displacements"
+        ],
+        "properties": {
+          "index": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "1-based vibrational mode index."
+          },
+          "frequency_cm_minus_1": {
+            "type": "number",
+            "description": "Vibrational frequency in cm^-1."
+          },
+          "is_imaginary": {
+            "type": "boolean",
+            "description": "True when frequency_cm_minus_1 is negative."
+          },
+          "reduced_mass_amu": {
+            "type": ["number", "null"],
+            "description": "Reduced mass in atomic mass units when available."
+          },
+          "force_constant_mdyne_per_angstrom": {
+            "type": ["number", "null"],
+            "description": "Force constant in mDyne/Angstrom when available."
+          },
+          "ir_intensity_km_per_mol": {
+            "type": ["number", "null"],
+            "description": "IR intensity in km/mol when available."
+          },
+          "symmetry": {
+            "type": ["string", "null"],
+            "description": "Mode symmetry label when available."
+          },
+          "displacements": {
+            "type": "array",
+            "description": "Per-atom normal-mode displacement vectors keyed by 1-based atom index.",
+            "items": {
+              "type": "object",
+              "required": ["atom_index", "x", "y", "z"],
+              "properties": {
+                "atom_index": { "type": "integer", "minimum": 1 },
+                "x": { "type": "number" },
+                "y": { "type": "number" },
+                "z": { "type": "number" }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
     }
   },
   "additionalProperties": false

@@ -2,7 +2,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from .molecule import Atom, Bond
+from .molecule import Atom, Bond, VibrationalMode
 
 MoleculeDocumentKind = Literal["structure"]
 TrajectoryDocumentKind = Literal["trajectory"]
@@ -44,6 +44,7 @@ class MoleculeDocument(BaseModel):
     atoms: list[Atom]
     bonds: list[Bond]
     frozen_atom_indices: list[AtomIndex] = Field(default_factory=list)
+    vibrational_modes: list[VibrationalMode] = Field(default_factory=list)
 
     @field_validator("frozen_atom_indices")
     @classmethod
@@ -69,6 +70,60 @@ class MoleculeDocument(BaseModel):
                 "frozen_atom_indices reference missing atom indices: "
                 f"{missing_atom_list}"
             )
+        return self
+
+    @model_validator(mode="after")
+    def vibrational_modes_reference_atoms(self) -> "MoleculeDocument":
+        existing_atom_indices = {atom.index for atom in self.atoms}
+        for mode in self.vibrational_modes:
+            if not mode.displacements:
+                continue
+
+            displacement_atom_indices = [
+                displacement.atom_index
+                for displacement in mode.displacements
+            ]
+            duplicate_indices = sorted(
+                {
+                    atom_index
+                    for atom_index in displacement_atom_indices
+                    if displacement_atom_indices.count(atom_index) > 1
+                }
+            )
+            if duplicate_indices:
+                duplicate_index_list = ", ".join(
+                    str(atom_index) for atom_index in duplicate_indices
+                )
+                raise ValueError(
+                    "vibrational mode displacements duplicate atom indices "
+                    f"for mode {mode.index}: {duplicate_index_list}"
+                )
+
+            displacement_atom_index_set = set(displacement_atom_indices)
+            missing_atoms = sorted(
+                displacement_atom_index_set - existing_atom_indices
+            )
+            if missing_atoms:
+                missing_atom_list = ", ".join(
+                    str(atom_index) for atom_index in missing_atoms
+                )
+                raise ValueError(
+                    "vibrational mode displacements reference missing atom "
+                    f"indices for mode {mode.index}: {missing_atom_list}"
+                )
+
+            missing_displacements = sorted(
+                existing_atom_indices - displacement_atom_index_set
+            )
+            if missing_displacements:
+                missing_displacement_list = ", ".join(
+                    str(atom_index) for atom_index in missing_displacements
+                )
+                raise ValueError(
+                    "vibrational mode displacements omit atom indices for "
+                    f"mode {mode.index}: {missing_displacement_list}"
+                )
+
         return self
 
 

@@ -36,6 +36,11 @@ function formatSourceModifiedTime(
   return `${source.modified_time_ns} ns`;
 }
 
+function countImaginaryModes(document: MoleculeDocument): number {
+  return document.vibrational_modes.filter((mode) => mode.is_imaginary)
+    .length;
+}
+
 export function DocumentSummaryPanel({
   document,
   hasUnsavedMoleculeEdits = false,
@@ -78,6 +83,16 @@ export function DocumentSummaryPanel({
           </dd>
           <dt>Calculation state</dt>
           <dd>{formatCalculationState(document.calculation)}</dd>
+          <dt>Vibrational modes</dt>
+          <dd>{document.vibrational_modes.length}</dd>
+          <dt>Imaginary vibrational modes</dt>
+          <dd>{countImaginaryModes(document)}</dd>
+          <dt>Vibrational frequency unit</dt>
+          <dd>
+            {document.vibrational_modes.length > 0
+              ? 'cm^-1'
+              : 'Unavailable'}
+          </dd>
         </dl>
       ) : (
         <p>No document loaded.</p>

@@ -21,7 +21,12 @@ from chemsmart_gui.domain.document import (
     DocumentSource,
     MoleculeDocument,
 )
-from chemsmart_gui.domain.molecule import Atom, Bond
+from chemsmart_gui.domain.molecule import (
+    Atom,
+    Bond,
+    VibrationalDisplacement,
+    VibrationalMode,
+)
 
 
 def _safe_filename_stem(name: str) -> str:
@@ -73,6 +78,105 @@ def _frozen_atom_mask_from_document(
     ]
 
 
+def _optional_float(values: object, index: int) -> float | None:
+    if not values:
+        return None
+
+    try:
+        value = values[index]  # type: ignore[index]
+    except (IndexError, TypeError):
+        return None
+
+    return None if value is None else float(value)
+
+
+def _optional_string(values: object, index: int) -> str | None:
+    if not values:
+        return None
+
+    try:
+        value = values[index]  # type: ignore[index]
+    except (IndexError, TypeError):
+        return None
+
+    return None if value is None else str(value)
+
+
+def _vibrational_displacements_from_mode(
+    mode: object,
+) -> list[VibrationalDisplacement]:
+    if mode is None:
+        return []
+
+    displacements: list[VibrationalDisplacement] = []
+    for atom_index, displacement in enumerate(mode, start=1):  # type: ignore[union-attr]
+        if len(displacement) != 3:
+            raise ValueError(
+                "Vibrational mode displacement must contain x, y, and z."
+            )
+        displacements.append(
+            VibrationalDisplacement(
+                atom_index=atom_index,
+                x=float(displacement[0]),
+                y=float(displacement[1]),
+                z=float(displacement[2]),
+            )
+        )
+    return displacements
+
+
+def _vibrational_modes_from_molecule(
+    molecule: Molecule,
+) -> list[VibrationalMode]:
+    frequencies = getattr(molecule, "vibrational_frequencies", None) or []
+    normal_modes = getattr(molecule, "vibrational_modes", None) or []
+    reduced_masses = (
+        getattr(molecule, "vibrational_reduced_masses", None) or []
+    )
+    force_constants = (
+        getattr(molecule, "vibrational_force_constants", None) or []
+    )
+    ir_intensities = (
+        getattr(molecule, "vibrational_ir_intensities", None)
+        or getattr(molecule, "integrated_absorption_coefficients", None)
+        or []
+    )
+    mode_symmetries = (
+        getattr(molecule, "vibrational_mode_symmetries", None) or []
+    )
+
+    vibrational_modes: list[VibrationalMode] = []
+    for index, frequency in enumerate(frequencies, start=1):
+        normal_mode = (
+            normal_modes[index - 1]
+            if index - 1 < len(normal_modes)
+            else None
+        )
+        frequency_value = float(frequency)
+        vibrational_modes.append(
+            VibrationalMode(
+                index=index,
+                frequency_cm_minus_1=frequency_value,
+                is_imaginary=frequency_value < 0.0,
+                reduced_mass_amu=_optional_float(reduced_masses, index - 1),
+                force_constant_mdyne_per_angstrom=_optional_float(
+                    force_constants,
+                    index - 1,
+                ),
+                ir_intensity_km_per_mol=_optional_float(
+                    ir_intensities,
+                    index - 1,
+                ),
+                symmetry=_optional_string(mode_symmetries, index - 1),
+                displacements=_vibrational_displacements_from_mode(
+                    normal_mode,
+                ),
+            )
+        )
+
+    return vibrational_modes
+
+
 @dataclass(frozen=True)
 class _PreviewJobRunner:
     num_cores: int = 1
@@ -118,6 +222,7 @@ class ChemsmartAdapter:
                 for atom1, atom2 in edges
             ],
             frozen_atom_indices=_frozen_atom_indices_from_molecule(molecule),
+            vibrational_modes=_vibrational_modes_from_molecule(molecule),
         )
 
     def to_molecule(

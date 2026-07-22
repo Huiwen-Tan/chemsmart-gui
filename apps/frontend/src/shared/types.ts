@@ -11,6 +11,24 @@ export interface Bond {
   atom2: number;
 }
 
+export interface VibrationalDisplacement {
+  atom_index: number;
+  x: number;
+  y: number;
+  z: number;
+}
+
+export interface VibrationalMode {
+  index: number;
+  frequency_cm_minus_1: number;
+  is_imaginary: boolean;
+  reduced_mass_amu: number | null;
+  force_constant_mdyne_per_angstrom: number | null;
+  ir_intensity_km_per_mol: number | null;
+  symmetry: string | null;
+  displacements: VibrationalDisplacement[];
+}
+
 export interface CartesianPosition {
   x: number;
   y: number;
@@ -54,6 +72,7 @@ export interface MoleculeDocument {
   atoms: Atom[];
   bonds: Bond[];
   frozen_atom_indices: number[];
+  vibrational_modes: VibrationalMode[];
 }
 
 export interface TrajectoryDocument {

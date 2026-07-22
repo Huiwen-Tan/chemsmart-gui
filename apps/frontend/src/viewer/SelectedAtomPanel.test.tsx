@@ -31,6 +31,7 @@ const WATER: MoleculeDocument = {
     { atom1: 1, atom2: 3 },
   ],
   frozen_atom_indices: [],
+  vibrational_modes: [],
 };
 
 const WATER_WITH_EXTRA_ATOM: MoleculeDocument = {
@@ -63,6 +64,7 @@ const DIHEDRAL_FRAGMENT: MoleculeDocument = {
   ],
   bonds: [],
   frozen_atom_indices: [],
+  vibrational_modes: [],
 };
 
 const DIHEDRAL_FRAGMENT_WITH_EXTRA_ATOM: MoleculeDocument = {

@@ -20,7 +20,7 @@ from .export import (
     MoleculeExportPreviewRequest,
     MoleculeExportPreviewResponse,
 )
-from .molecule import Atom, Bond
+from .molecule import Atom, Bond, VibrationalDisplacement, VibrationalMode
 
 __all__ = [
     "Atom",
@@ -39,4 +39,6 @@ __all__ = [
     "OpenDocumentRequest",
     "SetAtomPositionCommand",
     "TrajectoryDocument",
+    "VibrationalDisplacement",
+    "VibrationalMode",
 ]

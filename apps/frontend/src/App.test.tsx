@@ -43,6 +43,7 @@ const WATER_DOCUMENT = {
     { atom1: 1, atom2: 3 },
   ],
   frozen_atom_indices: [],
+  vibrational_modes: [],
 } satisfies MoleculeDocument;
 
 const EDITED_WATER_DOCUMENT = {
@@ -110,6 +111,7 @@ const DIHEDRAL_FRAGMENT_DOCUMENT = {
   ],
   bonds: [],
   frozen_atom_indices: [],
+  vibrational_modes: [],
 } satisfies MoleculeDocument;
 
 const DIHEDRAL_EDITED_FRAGMENT_DOCUMENT = {

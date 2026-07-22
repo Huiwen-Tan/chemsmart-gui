@@ -31,6 +31,7 @@ const WATER_DOCUMENT: MoleculeDocument = {
   ],
   bonds: [{ atom1: 1, atom2: 2 }],
   frozen_atom_indices: [],
+  vibrational_modes: [],
 };
 
 const HELIUM_DOCUMENT: MoleculeDocument = {

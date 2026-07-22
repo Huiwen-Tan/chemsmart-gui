@@ -124,6 +124,23 @@ def test_open_gaussian_output_from_path_returns_final_structure() -> None:
         (-0.0, 0.758169, -0.472896),
         (-0.0, -0.758169, -0.472896),
     ]
+    assert len(document.vibrational_modes) == 3
+    first_mode = document.vibrational_modes[0]
+    assert first_mode.index == 1
+    assert first_mode.frequency_cm_minus_1 == pytest.approx(1628.3334)
+    assert first_mode.is_imaginary is False
+    assert first_mode.reduced_mass_amu == pytest.approx(1.0828)
+    assert first_mode.force_constant_mdyne_per_angstrom == pytest.approx(
+        1.6916,
+    )
+    assert first_mode.ir_intensity_km_per_mol == pytest.approx(71.6875)
+    assert first_mode.symmetry == "A1"
+    assert [vector.atom_index for vector in first_mode.displacements] == [
+        1,
+        2,
+        3,
+    ]
+    assert first_mode.displacements[0].z == pytest.approx(-0.07)
 
 
 def test_open_orca_output_from_path_returns_final_structure() -> None:
@@ -148,6 +165,20 @@ def test_open_orca_output_from_path_returns_final_structure() -> None:
         (-0.75518, 0.0, -0.509674),
         (0.75518, 0.0, -0.509674),
     ]
+    assert len(document.vibrational_modes) == 3
+    first_mode = document.vibrational_modes[0]
+    assert first_mode.frequency_cm_minus_1 == pytest.approx(1625.35)
+    assert first_mode.is_imaginary is False
+    assert first_mode.reduced_mass_amu is None
+    assert first_mode.force_constant_mdyne_per_angstrom is None
+    assert first_mode.ir_intensity_km_per_mol == pytest.approx(64.27)
+    assert first_mode.symmetry is None
+    assert [vector.atom_index for vector in first_mode.displacements] == [
+        1,
+        2,
+        3,
+    ]
+    assert first_mode.displacements[0].z == pytest.approx(-0.069893)
 
 
 def test_preview_molecule_export_returns_xyz_text() -> None:
