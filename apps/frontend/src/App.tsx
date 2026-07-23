@@ -9,6 +9,7 @@ import {
 import { AppShell } from './app/AppShell';
 import { DocumentSummaryPanel } from './documents/DocumentSummaryPanel';
 import { MoleculeExportPreviewPanel } from './documents/MoleculeExportPreviewPanel';
+import { TrajectoryFramesPanel } from './documents/TrajectoryFramesPanel';
 import { VibrationalModesPanel } from './documents/VibrationalModesPanel';
 import { useDocumentStore } from './state/useDocumentStore';
 import { useViewerStore } from './state/useViewerStore';
@@ -17,6 +18,9 @@ import { SelectedAtomPanel } from './viewer/SelectedAtomPanel';
 import { downloadTextFile } from './shared/download';
 import type {
   ModeDisplacementDirection,
+  MoleculeDocument,
+  OpenedDocument,
+  TrajectoryDocument,
   VibrationalMode,
 } from './shared/types';
 
@@ -50,6 +54,38 @@ function selectedVibrationalModeFromIndex(
   );
 }
 
+function isTrajectoryDocument(
+  document: OpenedDocument | null,
+): document is TrajectoryDocument {
+  return document?.document_kind === 'trajectory';
+}
+
+function moleculeDocumentForViewer(
+  document: OpenedDocument | null,
+  selectedTrajectoryFrameIndex: number,
+): MoleculeDocument | null {
+  if (!document) {
+    return null;
+  }
+  if (document.document_kind === 'structure') {
+    return document;
+  }
+  if (document.document_kind === 'trajectory') {
+    return (
+      document.frames[selectedTrajectoryFrameIndex] ??
+      document.frames[0] ??
+      null
+    );
+  }
+  return document.molecules[0] ?? null;
+}
+
+function editableMoleculeDocument(
+  document: OpenedDocument | null,
+): MoleculeDocument | null {
+  return document?.document_kind === 'structure' ? document : null;
+}
+
 export function App(): JSX.Element {
   const {
     canRedoMoleculeEdit,
@@ -68,6 +104,9 @@ export function App(): JSX.Element {
     (state) => state.setShowAtomLabels,
   );
   const requestViewReset = useViewerStore((state) => state.requestViewReset);
+  const clearAtomSelection = useViewerStore(
+    (state) => state.clearAtomSelection,
+  );
   const [healthStatus, setHealthStatus] = useState('checking...');
   const [error, setError] = useState<string | null>(null);
   const [documentPath, setDocumentPath] = useState('sample-data/water.xyz');
@@ -87,7 +126,21 @@ export function App(): JSX.Element {
     isDownloadingDisplacedStructure,
     setIsDownloadingDisplacedStructure,
   ] = useState(false);
-  const vibrationalModes = currentDocument?.vibrational_modes ?? [];
+  const [
+    selectedTrajectoryFrameIndex,
+    setSelectedTrajectoryFrameIndex,
+  ] = useState(0);
+  const trajectoryDocument = isTrajectoryDocument(currentDocument)
+    ? currentDocument
+    : null;
+  const activeMoleculeDocument = moleculeDocumentForViewer(
+    currentDocument,
+    selectedTrajectoryFrameIndex,
+  );
+  const activeEditableMoleculeDocument = editableMoleculeDocument(
+    currentDocument,
+  );
+  const vibrationalModes = activeMoleculeDocument?.vibrational_modes ?? [];
   const vibrationalModeIndexSignature = vibrationalModes
     .map((mode) => mode.index)
     .join(',');
@@ -96,8 +149,8 @@ export function App(): JSX.Element {
     selectedVibrationalModeIndex,
   );
   const selectedVibrationalModeAnimationKey =
-    currentDocument && selectedVibrationalMode
-      ? `${currentDocument.id}:${selectedVibrationalMode.index}`
+    activeMoleculeDocument && selectedVibrationalMode
+      ? `${activeMoleculeDocument.id}:${selectedVibrationalMode.index}`
       : null;
   const selectedVibrationalModeCanAnimate =
     (selectedVibrationalMode?.displacements.length ?? 0) > 0;
@@ -156,11 +209,30 @@ export function App(): JSX.Element {
   useEffect(() => {
     setSelectedVibrationalModeIndex(vibrationalModes[0]?.index ?? null);
     setActiveVibrationalModeAnimationKey(null);
-  }, [currentDocument?.id, vibrationalModeIndexSignature]);
+  }, [activeMoleculeDocument?.id, vibrationalModeIndexSignature]);
+
+  useEffect(() => {
+    setSelectedTrajectoryFrameIndex(0);
+  }, [currentDocument?.id]);
+
+  useEffect(() => {
+    if (
+      trajectoryDocument &&
+      selectedTrajectoryFrameIndex >= trajectoryDocument.frames.length
+    ) {
+      setSelectedTrajectoryFrameIndex(0);
+    }
+  }, [selectedTrajectoryFrameIndex, trajectoryDocument]);
 
   const selectVibrationalMode = (modeIndex: number): void => {
     setActiveVibrationalModeAnimationKey(null);
     setSelectedVibrationalModeIndex(modeIndex);
+  };
+
+  const selectTrajectoryFrame = (frameIndex: number): void => {
+    setActiveVibrationalModeAnimationKey(null);
+    clearAtomSelection();
+    setSelectedTrajectoryFrameIndex(frameIndex);
   };
 
   const setVibrationalModeAnimationPlaying = (isPlaying: boolean): void => {
@@ -172,7 +244,7 @@ export function App(): JSX.Element {
   const generateSelectedModeDisplacedStructure = async (
     direction: ModeDisplacementDirection,
   ): Promise<void> => {
-    if (!currentDocument || !selectedVibrationalMode) {
+    if (!activeMoleculeDocument || !selectedVibrationalMode) {
       setError(
         'A vibrational mode is required before generating a displaced structure.',
       );
@@ -194,7 +266,7 @@ export function App(): JSX.Element {
     setActiveVibrationalModeAnimationKey(null);
     try {
       const response = await generateMoleculeModeDisplacement({
-        document: currentDocument,
+        document: activeMoleculeDocument,
         mode_index: selectedVibrationalMode.index,
         direction,
         amplitude: 1,
@@ -210,7 +282,7 @@ export function App(): JSX.Element {
   const downloadSelectedModeDisplacedStructure = async (
     direction: ModeDisplacementDirection,
   ): Promise<void> => {
-    if (!currentDocument || !selectedVibrationalMode) {
+    if (!activeMoleculeDocument || !selectedVibrationalMode) {
       setError(
         'A vibrational mode is required before downloading a displaced structure.',
       );
@@ -225,7 +297,7 @@ export function App(): JSX.Element {
     setIsDownloadingDisplacedStructure(true);
     try {
       const displacementResponse = await generateMoleculeModeDisplacement({
-        document: currentDocument,
+        document: activeMoleculeDocument,
         mode_index: selectedVibrationalMode.index,
         direction,
         amplitude: 1,
@@ -337,19 +409,26 @@ export function App(): JSX.Element {
         Redo Edit
       </button>
       {error ? <p style={{ color: '#ff8080' }}>Error: {error}</p> : null}
+      {trajectoryDocument ? (
+        <TrajectoryFramesPanel
+          document={trajectoryDocument}
+          onSelectedFrameIndexChange={selectTrajectoryFrame}
+          selectedFrameIndex={selectedTrajectoryFrameIndex}
+        />
+      ) : null}
       <MolecularViewer
-        document={currentDocument}
+        document={activeMoleculeDocument}
         isVibrationalModeAnimationPlaying={
           isVibrationalModeAnimationPlaying
         }
         selectedVibrationalMode={selectedVibrationalMode}
       />
       <DocumentSummaryPanel
-        document={currentDocument}
+        document={activeMoleculeDocument}
         hasUnsavedMoleculeEdits={hasUnsavedMoleculeEdits}
       />
       <VibrationalModesPanel
-        document={currentDocument}
+        document={activeMoleculeDocument}
         isDownloadingDisplacedStructure={isDownloadingDisplacedStructure}
         isGeneratingDisplacedStructure={isGeneratingDisplacedStructure}
         isAnimationPlaying={isVibrationalModeAnimationPlaying}
@@ -364,11 +443,11 @@ export function App(): JSX.Element {
         selectedModeIndex={selectedVibrationalMode?.index ?? null}
       />
       <MoleculeExportPreviewPanel
-        document={currentDocument}
+        document={activeEditableMoleculeDocument}
         onReopenSource={openDocumentPath}
         onSourceWrite={markMoleculeDocumentSaved}
       />
-      <SelectedAtomPanel document={currentDocument} />
+      <SelectedAtomPanel document={activeEditableMoleculeDocument} />
     </AppShell>
   );
 }

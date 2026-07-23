@@ -99,6 +99,11 @@ export interface CalculationResultDocument {
   provenance: Record<string, JsonValue>;
 }
 
+export type OpenedDocument =
+  | MoleculeDocument
+  | TrajectoryDocument
+  | CalculationResultDocument;
+
 export type MoleculeEditCommandType =
   | 'set_atom_position'
   | 'set_atom_distance'

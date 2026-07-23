@@ -1,7 +1,11 @@
 import { create } from 'zustand';
 
 import { applyMoleculeEdit } from '../api/client';
-import type { MoleculeDocument, MoleculeEditCommand } from '../shared/types';
+import type {
+  MoleculeDocument,
+  MoleculeEditCommand,
+  OpenedDocument,
+} from '../shared/types';
 import { useViewerStore } from './useViewerStore';
 
 interface MoleculeEditSnapshot {
@@ -10,7 +14,7 @@ interface MoleculeEditSnapshot {
 }
 
 interface DocumentState {
-  currentDocument: MoleculeDocument | null;
+  currentDocument: OpenedDocument | null;
   canUndoMoleculeEdit: boolean;
   canRedoMoleculeEdit: boolean;
   hasUnsavedMoleculeEdits: boolean;
@@ -18,7 +22,7 @@ interface DocumentState {
   moleculeEditError: string | null;
   moleculeEditUndoStack: MoleculeEditSnapshot[];
   moleculeEditRedoStack: MoleculeEditSnapshot[];
-  setCurrentDocument: (document: MoleculeDocument | null) => void;
+  setCurrentDocument: (document: OpenedDocument | null) => void;
   markMoleculeDocumentSaved: (document: MoleculeDocument) => void;
   applyMoleculeEditCommand: (command: MoleculeEditCommand) => Promise<void>;
   undoMoleculeEdit: () => void;
@@ -59,6 +63,12 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
       });
       return;
     }
+    if (currentDocument.document_kind !== 'structure') {
+      set({
+        moleculeEditError: 'No editable molecule document is loaded.',
+      });
+      return;
+    }
     if (currentDocument.id !== document.id) {
       set({
         moleculeEditError: 'Saved document does not match the active document.',
@@ -83,6 +93,13 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
       set({
         isApplyingMoleculeEdit: false,
         moleculeEditError: 'No document is loaded.',
+      });
+      return;
+    }
+    if (document.document_kind !== 'structure') {
+      set({
+        isApplyingMoleculeEdit: false,
+        moleculeEditError: 'No editable molecule document is loaded.',
       });
       return;
     }

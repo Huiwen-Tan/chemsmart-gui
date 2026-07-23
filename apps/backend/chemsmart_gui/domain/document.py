@@ -165,6 +165,11 @@ class CalculationResultDocument(BaseModel):
         return self
 
 
+OpenedDocument = (
+    MoleculeDocument | TrajectoryDocument | CalculationResultDocument
+)
+
+
 class OpenDocumentRequest(BaseModel):
     path: str | None = None
     document_id: str | None = None

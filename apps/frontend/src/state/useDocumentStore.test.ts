@@ -10,6 +10,7 @@ import type {
   SetAtomDistanceCommand,
   SetAtomPositionCommand,
   SetFrozenAtomsCommand,
+  TrajectoryDocument,
 } from '../shared/types';
 import { useViewerStore } from './useViewerStore';
 import { useDocumentStore } from './useDocumentStore';
@@ -55,6 +56,17 @@ const SAVED_EDITED_WATER: MoleculeDocument = {
     size_bytes: 128,
     modified_time_ns: 123,
   },
+};
+
+const WATER_TRAJECTORY: TrajectoryDocument = {
+  id: 'water-trajectory',
+  name: 'water-trajectory',
+  document_kind: 'trajectory',
+  source: null,
+  calculation: null,
+  coordinate_unit: 'angstrom',
+  frames: [WATER, EDITED_WATER],
+  frame_properties: [{ energy_hartree: -76.1 }, { energy_hartree: -76.2 }],
 };
 
 const REEDITED_WATER: MoleculeDocument = {
@@ -782,6 +794,21 @@ describe('useDocumentStore', () => {
       'No document is loaded.',
     );
     expect(useDocumentStore.getState().isApplyingMoleculeEdit).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('does not submit molecule edits for trajectory documents', async () => {
+    useDocumentStore.setState({ currentDocument: WATER_TRAJECTORY });
+
+    await useDocumentStore
+      .getState()
+      .applyMoleculeEditCommand(SET_ATOM_POSITION);
+
+    expect(useDocumentStore.getState().currentDocument).toBe(WATER_TRAJECTORY);
+    expect(useDocumentStore.getState().hasUnsavedMoleculeEdits).toBe(false);
+    expect(useDocumentStore.getState().moleculeEditError).toBe(
+      'No editable molecule document is loaded.',
+    );
     expect(fetchMock).not.toHaveBeenCalled();
   });
 

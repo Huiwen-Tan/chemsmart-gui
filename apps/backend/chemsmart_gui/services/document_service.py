@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from chemsmart_gui.domain.document import MoleculeDocument, OpenDocumentRequest
+from chemsmart_gui.domain.document import OpenedDocument, OpenDocumentRequest
 from chemsmart_gui.domain.displacement import (
     MoleculeModeDisplacementRequest,
     MoleculeModeDisplacementResponse,
@@ -21,11 +21,11 @@ class DocumentService(ABC):
     """Service abstraction for molecule document lifecycle operations."""
 
     @abstractmethod
-    def open_document(self, request: OpenDocumentRequest) -> MoleculeDocument:
+    def open_document(self, request: OpenDocumentRequest) -> OpenedDocument:
         """Open a molecular document and return normalized data."""
 
     @abstractmethod
-    def get_document(self, document_id: str) -> MoleculeDocument | None:
+    def get_document(self, document_id: str) -> OpenedDocument | None:
         """Retrieve an existing molecule document by identifier."""
 
     @abstractmethod

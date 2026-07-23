@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from chemsmart_gui.domain.document import MoleculeDocument, OpenDocumentRequest
+from chemsmart_gui.domain.document import OpenedDocument, OpenDocumentRequest
 from chemsmart_gui.domain.displacement import (
     MoleculeModeDisplacementRequest,
     MoleculeModeDisplacementResponse,
@@ -34,11 +34,11 @@ def get_document_service() -> DocumentService:
     return _document_service
 
 
-@router.post("/open", response_model=MoleculeDocument)
+@router.post("/open", response_model=OpenedDocument)
 def open_document(
     request: OpenDocumentRequest,
     document_service: DocumentService = Depends(get_document_service),
-) -> MoleculeDocument:
+) -> OpenedDocument:
     try:
         return document_service.open_document(request)
     except FileNotFoundError as exc:
@@ -156,11 +156,11 @@ def write_document_source(
         ) from exc
 
 
-@router.get("/{document_id}", response_model=MoleculeDocument)
+@router.get("/{document_id}", response_model=OpenedDocument)
 def get_document(
     document_id: str,
     document_service: DocumentService = Depends(get_document_service),
-) -> MoleculeDocument:
+) -> OpenedDocument:
     document = document_service.get_document(document_id)
     if document is None:
         raise HTTPException(

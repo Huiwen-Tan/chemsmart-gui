@@ -12,6 +12,7 @@ import type {
   MoleculeSourceStatusResponse,
   MoleculeSourceWriteRequest,
   MoleculeSourceWriteResponse,
+  OpenedDocument,
   OpenDocumentRequest,
 } from '../shared/types';
 
@@ -55,7 +56,9 @@ export function healthCheck(): Promise<{ status: string }> {
   return request('/api/health');
 }
 
-export function openDocument(payload: OpenDocumentRequest): Promise<MoleculeDocument> {
+export function openDocument(
+  payload: OpenDocumentRequest,
+): Promise<OpenedDocument> {
   return request('/api/documents/open', {
     method: 'POST',
     body: JSON.stringify(payload),
@@ -116,6 +119,6 @@ export function checkMoleculeSourceStatus(
   });
 }
 
-export function getDocument(documentId: string): Promise<MoleculeDocument> {
+export function getDocument(documentId: string): Promise<OpenedDocument> {
   return request(`/api/documents/${encodeURIComponent(documentId)}`);
 }

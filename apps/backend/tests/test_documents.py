@@ -5,7 +5,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 from chemsmart_gui.api.documents import get_document_service, open_document
-from chemsmart_gui.domain.document import OpenDocumentRequest
+from chemsmart_gui.domain.document import (
+    MoleculeDocument,
+    OpenDocumentRequest,
+    TrajectoryDocument,
+)
 from chemsmart_gui.main import app
 from chemsmart_gui.services.chemsmart_document_service import (
     ChemsmartDocumentService,
@@ -60,6 +64,50 @@ def test_open_document_returns_molecule_document() -> None:
     assert [atom["index"] for atom in body["atoms"]] == [1, 2, 3]
     assert len(body["atoms"]) == 3
     assert len(body["bonds"]) == 2
+
+
+def test_open_document_response_model_accepts_trajectory_document() -> None:
+    frame = MoleculeDocument(
+        id="trajectory-frame-one",
+        name="trajectory-frame-one",
+        document_kind="structure",
+        source=None,
+        calculation=None,
+        coordinate_unit="angstrom",
+        charge=0,
+        multiplicity=1,
+        atoms=[
+            {"index": 1, "element": "O", "x": 0.0, "y": 0.0, "z": 0.0},
+        ],
+        bonds=[],
+    )
+    trajectory = TrajectoryDocument(
+        id="trajectory-document",
+        name="water-optimization",
+        document_kind="trajectory",
+        source=None,
+        calculation={"program": "gaussian", "normal_termination": True},
+        coordinate_unit="angstrom",
+        frames=[frame],
+        frame_properties=[{"energy_hartree": -76.1}],
+    )
+    document_service = Mock()
+    document_service.open_document.return_value = trajectory
+    app.dependency_overrides[get_document_service] = lambda: document_service
+
+    try:
+        response = client.post(
+            "/api/documents/open",
+            json={"path": "sample-data/water.log"},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["document_kind"] == "trajectory"
+    assert body["frames"][0]["document_kind"] == "structure"
+    assert body["frame_properties"] == [{"energy_hartree": -76.1}]
 
 
 def test_get_document_returns_existing_document() -> None:

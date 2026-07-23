@@ -9,7 +9,11 @@ import {
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { MoleculeDocument, VibrationalMode } from './shared/types';
+import type {
+  MoleculeDocument,
+  TrajectoryDocument,
+  VibrationalMode,
+} from './shared/types';
 import { useDocumentStore } from './state/useDocumentStore';
 import { useViewerStore } from './state/useViewerStore';
 import { App } from './App';
@@ -205,6 +209,65 @@ const HELIUM_DOCUMENT = {
   atoms: [{ index: 1, element: 'He', x: 0, y: 0, z: 0 }],
   bonds: [],
 } satisfies MoleculeDocument;
+
+const TRAJECTORY_FRAME_ONE = {
+  ...WATER_DOCUMENT,
+  id: 'trajectory-frame-one',
+  name: 'water-frame-one',
+} satisfies MoleculeDocument;
+
+const TRAJECTORY_FRAME_TWO = {
+  ...WATER_DOCUMENT,
+  id: 'trajectory-frame-two',
+  name: 'water-frame-two',
+  atoms: [
+    WATER_DOCUMENT.atoms[0],
+    { index: 2, element: 'H', x: 0.85, y: 0.62, z: 0.1 },
+    WATER_DOCUMENT.atoms[2],
+  ],
+} satisfies MoleculeDocument;
+
+const TRAJECTORY_DOCUMENT = {
+  id: 'trajectory-document',
+  name: 'water-optimization',
+  document_kind: 'trajectory',
+  source: {
+    path: 'sample-data/water.log',
+    filename: 'water.log',
+    filetype: 'log',
+  },
+  calculation: {
+    program: 'gaussian',
+    normal_termination: true,
+  },
+  coordinate_unit: 'angstrom',
+  frames: [TRAJECTORY_FRAME_ONE, TRAJECTORY_FRAME_TWO],
+  frame_properties: [
+    {
+      energy_hartree: -76.1,
+      normal_termination: true,
+    },
+    {
+      energy_hartree: -76.2,
+      step_index: 2,
+    },
+  ],
+} satisfies TrajectoryDocument;
+
+const SECOND_TRAJECTORY_DOCUMENT = {
+  ...TRAJECTORY_DOCUMENT,
+  id: 'second-trajectory-document',
+  name: 'second-water-optimization',
+  frames: [HELIUM_DOCUMENT, TRAJECTORY_FRAME_TWO],
+  frame_properties: [
+    {
+      energy_hartree: -2.9,
+    },
+    {
+      energy_hartree: -76.2,
+    },
+  ],
+} satisfies TrajectoryDocument;
 
 const GAUSSIAN_DOCUMENT = {
   ...WATER_DOCUMENT,
@@ -420,6 +483,114 @@ describe('App', () => {
         body: JSON.stringify({ path: 'sample-data/water.xyz' }),
       }),
     );
+  });
+
+  it('passes the selected trajectory frame to the viewer', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
+      .mockResolvedValueOnce(jsonResponse(TRAJECTORY_DOCUMENT));
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText('Document path'), {
+      target: { value: 'sample-data/water.log' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(TRAJECTORY_FRAME_ONE),
+      );
+    });
+
+    const trajectoryPanel = screen.getByRole('region', {
+      name: 'Trajectory Frames',
+    });
+    expect(
+      within(trajectoryPanel).getByText('water-optimization'),
+    ).toBeInTheDocument();
+    expect(within(trajectoryPanel).getByText('Frame 1 of 2')).toBeInTheDocument();
+    expect(
+      within(trajectoryPanel).getByRole('button', { name: 'Previous Frame' }),
+    ).toBeDisabled();
+    expect(
+      within(trajectoryPanel).getByRole('button', { name: 'Next Frame' }),
+    ).toBeEnabled();
+    expect(within(trajectoryPanel).getByText('energy_hartree')).toBeInTheDocument();
+    expect(within(trajectoryPanel).getByText('-76.1')).toBeInTheDocument();
+
+    act(() => {
+      useViewerStore.setState({ selectedAtomIndices: [1] });
+    });
+    fireEvent.click(
+      within(trajectoryPanel).getByRole('button', { name: 'Next Frame' }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(TRAJECTORY_FRAME_TWO),
+      );
+    });
+    expect(useViewerStore.getState().selectedAtomIndices).toEqual([]);
+    expect(within(trajectoryPanel).getByText('Frame 2 of 2')).toBeInTheDocument();
+    expect(
+      within(trajectoryPanel).getByRole('button', { name: 'Previous Frame' }),
+    ).toBeEnabled();
+    expect(
+      within(trajectoryPanel).getByRole('button', { name: 'Next Frame' }),
+    ).toBeDisabled();
+    expect(within(trajectoryPanel).getByText('-76.2')).toBeInTheDocument();
+    expect(screen.queryByText('Unsaved edits')).not.toBeInTheDocument();
+  });
+
+  it('resets selected trajectory frame when opening another document', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
+      .mockResolvedValueOnce(jsonResponse(TRAJECTORY_DOCUMENT))
+      .mockResolvedValueOnce(jsonResponse(SECOND_TRAJECTORY_DOCUMENT));
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText('Document path'), {
+      target: { value: 'sample-data/water.log' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(TRAJECTORY_FRAME_ONE),
+      );
+    });
+
+    const trajectoryPanel = screen.getByRole('region', {
+      name: 'Trajectory Frames',
+    });
+    fireEvent.click(
+      within(trajectoryPanel).getByRole('button', { name: 'Next Frame' }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(TRAJECTORY_FRAME_TWO),
+      );
+    });
+
+    fireEvent.change(screen.getByLabelText('Document path'), {
+      target: { value: 'sample-data/second-water.log' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(HELIUM_DOCUMENT),
+      );
+    });
+    expect(within(trajectoryPanel).getByText('Frame 1 of 2')).toBeInTheDocument();
+    expect(
+      within(trajectoryPanel).getByLabelText('Trajectory frame'),
+    ).toHaveValue('0');
   });
 
   it('submits the edited document path to the open-document API', async () => {

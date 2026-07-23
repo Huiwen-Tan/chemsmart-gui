@@ -5,6 +5,7 @@ from .document import (
     CalculationMetadata,
     DocumentSource,
     MoleculeDocument,
+    OpenedDocument,
     OpenDocumentRequest,
     TrajectoryDocument,
 )
@@ -44,6 +45,7 @@ __all__ = [
     "MoleculeModeDisplacementRequest",
     "MoleculeModeDisplacementResponse",
     "ModeDisplacementDirection",
+    "OpenedDocument",
     "OpenDocumentRequest",
     "SetAtomPositionCommand",
     "TrajectoryDocument",
