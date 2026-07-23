@@ -313,7 +313,7 @@ const GAUSSIAN_OUTPUT_DOCUMENT = {
       is_imaginary: false,
       reduced_mass_amu: null,
       force_constant_mdyne_per_angstrom: null,
-      ir_intensity_km_per_mol: null,
+      ir_intensity_km_per_mol: 5.5,
       symmetry: null,
       displacements: [],
     },
@@ -1331,6 +1331,27 @@ describe('App', () => {
     expect(rows[1]).toHaveTextContent('Imaginary');
     expect(rows[2]).toHaveTextContent('1628.3334');
     expect(rows[2]).toHaveTextContent('Real');
+    expect(
+      within(modesPanel).getByRole('region', { name: 'IR Stick Spectrum' }),
+    ).toBeInTheDocument();
+    fireEvent.click(
+      within(modesPanel).getByRole('button', {
+        name: 'Select IR peak mode 2',
+      }),
+    );
+    expect(screen.getByTestId('viewer-mode')).toHaveTextContent(
+      JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT.vibrational_modes[1]),
+    );
+    expect(
+      within(modesPanel).getByRole('heading', { name: 'Selected Mode 2' }),
+    ).toBeInTheDocument();
+
+    expect(
+      within(modesPanel).queryByRole('heading', { name: 'Selected Mode 1' }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(
+      within(modesPanel).getByRole('button', { name: 'Select mode 1' }),
+    );
     expect(
       within(modesPanel).getByRole('heading', { name: 'Selected Mode 1' }),
     ).toBeInTheDocument();

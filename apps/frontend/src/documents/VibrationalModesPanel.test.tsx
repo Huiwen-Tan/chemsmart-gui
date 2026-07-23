@@ -97,6 +97,14 @@ describe('VibrationalModesPanel', () => {
     expect(
       within(panel).queryByRole('table', { name: 'Vibrational mode table' }),
     ).not.toBeInTheDocument();
+    expect(
+      within(panel).getByRole('region', { name: 'IR Stick Spectrum' }),
+    ).toBeInTheDocument();
+    expect(
+      within(panel).getByText(
+        'No positive ir_intensity_km_per_mol values available.',
+      ),
+    ).toBeInTheDocument();
   });
 
   it('shows vibrational modes in a formatted table', () => {
@@ -128,6 +136,9 @@ describe('VibrationalModesPanel', () => {
     expect(rows[2]).toHaveTextContent('Real');
     expect(within(rows[2]).getAllByText('Unavailable')).toHaveLength(4);
     expect(rows[2]).toHaveTextContent('0');
+    expect(
+      screen.getByRole('region', { name: 'IR Stick Spectrum' }),
+    ).toBeInTheDocument();
   });
 
   it('shows selected mode displacement vectors by atom index', () => {
@@ -173,6 +184,13 @@ describe('VibrationalModesPanel', () => {
     expect(
       screen.getByText('No displacement vectors available for selected mode.'),
     ).toBeInTheDocument();
+    const spectrumPanel = screen.getByRole('region', {
+      name: 'IR Stick Spectrum',
+    });
+    expect(within(spectrumPanel).getByText('Selected IR peak'))
+      .toBeInTheDocument();
+    expect(within(spectrumPanel).getByText('Unavailable'))
+      .toBeInTheDocument();
   });
 
   it('can receive selected mode state from its parent', () => {
@@ -194,6 +212,31 @@ describe('VibrationalModesPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Select mode 1' }));
 
     expect(onSelectedModeIndexChange).toHaveBeenCalledWith(1);
+  });
+
+  it('selects a mode from the IR stick spectrum', () => {
+    const spectrumDocument: MoleculeDocument = {
+      ...GAUSSIAN_OUTPUT_DOCUMENT,
+      vibrational_modes: GAUSSIAN_OUTPUT_DOCUMENT.vibrational_modes.map(
+        (mode) => (
+          mode.index === 2
+            ? { ...mode, ir_intensity_km_per_mol: 5.5 }
+            : mode
+        ),
+      ),
+    };
+
+    render(<VibrationalModesPanel document={spectrumDocument} />);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Select IR peak mode 2' }),
+    );
+
+    expect(screen.getByRole('heading', { name: 'Selected Mode 2' }))
+      .toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Select IR mode 2' }),
+    ).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('shows play and pause controls for selected mode animation', () => {

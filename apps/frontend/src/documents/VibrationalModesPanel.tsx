@@ -5,6 +5,7 @@ import type {
   MoleculeDocument,
   VibrationalMode,
 } from '../shared/types';
+import { IrSpectrumPanel } from './IrSpectrumPanel';
 
 interface VibrationalModesPanelProps {
   document: MoleculeDocument | null;
@@ -139,6 +140,13 @@ export function VibrationalModesPanel({
             ))}
           </tbody>
         </table>
+      ) : null}
+      {document ? (
+        <IrSpectrumPanel
+          document={document}
+          onSelectedModeIndexChange={selectMode}
+          selectedModeIndex={selectedMode?.index ?? null}
+        />
       ) : null}
       {selectedMode ? (
         <div style={{ marginTop: 12 }}>
