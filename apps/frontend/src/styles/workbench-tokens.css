@@ -185,6 +185,10 @@ textarea:focus-visible {
 }
 
 .workbench-main {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: var(--csw-space-4);
   grid-area: workspace;
   overflow: auto;
   padding: var(--csw-space-4);
@@ -211,6 +215,21 @@ textarea:focus-visible {
   margin: 0;
   color: var(--csw-color-text-subtle);
   font-size: var(--csw-font-size-sm);
+}
+
+.workbench-viewer-slot {
+  min-height: 32rem;
+  padding: var(--csw-space-3);
+  border: 1px solid var(--csw-color-border);
+  border-radius: var(--csw-radius-lg);
+  background: var(--csw-color-surface-sunken);
+}
+
+.workbench-legacy-content {
+  padding: var(--csw-space-4);
+  border: 1px solid var(--csw-color-divider);
+  border-radius: var(--csw-radius-lg);
+  background: rgba(8, 12, 18, 0.42);
 }
 
 @media (max-width: 1200px) {

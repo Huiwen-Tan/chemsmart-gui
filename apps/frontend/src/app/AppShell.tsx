@@ -2,9 +2,13 @@ import type { ReactNode } from 'react';
 
 interface AppShellProps {
   children: ReactNode;
+  workspace?: ReactNode;
 }
 
-export function AppShell({ children }: AppShellProps): JSX.Element {
+export function AppShell({
+  children,
+  workspace,
+}: AppShellProps): JSX.Element {
   return (
     <div className="workbench-root">
       <header className="workbench-header">
@@ -24,7 +28,24 @@ export function AppShell({ children }: AppShellProps): JSX.Element {
           </p>
         </aside>
         <main aria-label="Active workspace" className="workbench-main">
-          {children}
+          {workspace ? (
+            <>
+              <section
+                aria-label="Molecular viewer workspace"
+                className="workbench-viewer-slot"
+              >
+                {workspace}
+              </section>
+              <section
+                aria-label="Legacy workspace content"
+                className="workbench-legacy-content"
+              >
+                {children}
+              </section>
+            </>
+          ) : (
+            children
+          )}
         </main>
         <aside aria-label="Context panel" className="workbench-right-rail">
           <p className="workbench-region-label">Context</p>

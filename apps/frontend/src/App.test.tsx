@@ -642,6 +642,28 @@ describe('App', () => {
     );
   });
 
+  it('places the viewer in the central workbench workspace', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ status: 'ok' }));
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+
+    const viewerWorkspace = screen.getByRole('region', {
+      name: 'Molecular viewer workspace',
+    });
+    const legacyContent = screen.getByRole('region', {
+      name: 'Legacy workspace content',
+    });
+
+    expect(
+      within(viewerWorkspace).getByTestId('viewer-document'),
+    ).toHaveTextContent('null');
+    expect(
+      within(legacyContent).getByRole('button', { name: 'Open Document' }),
+    ).toBeInTheDocument();
+  });
+
   it('passes the selected trajectory frame to the viewer', async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))

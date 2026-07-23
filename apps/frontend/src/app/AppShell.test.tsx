@@ -58,4 +58,27 @@ describe('AppShell', () => {
     expect(shell.getByText('Context')).toBeInTheDocument();
     expect(shell.getByText('Dock')).toBeInTheDocument();
   });
+
+  it('renders a dedicated workspace slot before legacy content', () => {
+    const { container } = render(
+      <AppShell workspace={<p>Molecular viewer</p>}>
+        <p>Legacy controls</p>
+      </AppShell>,
+    );
+    const shell = within(container);
+    const workspace = shell.getByRole('main', { name: 'Active workspace' });
+    const viewerSlot = within(workspace).getByRole('region', {
+      name: 'Molecular viewer workspace',
+    });
+    const legacyContent = within(workspace).getByRole('region', {
+      name: 'Legacy workspace content',
+    });
+
+    expect(viewerSlot).toHaveClass('workbench-viewer-slot');
+    expect(within(viewerSlot).getByText('Molecular viewer')).toBeInTheDocument();
+    expect(legacyContent).toHaveClass('workbench-legacy-content');
+    expect(
+      within(legacyContent).getByText('Legacy controls'),
+    ).toBeInTheDocument();
+  });
 });

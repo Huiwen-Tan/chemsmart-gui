@@ -438,7 +438,17 @@ export function App(): JSX.Element {
   };
 
   return (
-    <AppShell>
+    <AppShell
+      workspace={(
+        <MolecularViewer
+          document={activeMoleculeDocument}
+          isVibrationalModeAnimationPlaying={
+            isVibrationalModeAnimationPlaying
+          }
+          selectedVibrationalMode={selectedVibrationalMode}
+        />
+      )}
+    >
       <p>Backend health: <strong>{healthStatus}</strong></p>
       <form
         onSubmit={(event) => {
@@ -512,13 +522,6 @@ export function App(): JSX.Element {
           selectedFrameIndex={selectedTrajectoryFrameIndex}
         />
       ) : null}
-      <MolecularViewer
-        document={activeMoleculeDocument}
-        isVibrationalModeAnimationPlaying={
-          isVibrationalModeAnimationPlaying
-        }
-        selectedVibrationalMode={selectedVibrationalMode}
-      />
       <DocumentSummaryPanel
         document={activeMoleculeDocument}
         hasUnsavedMoleculeEdits={hasUnsavedMoleculeEdits}
