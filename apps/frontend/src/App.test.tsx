@@ -518,14 +518,25 @@ describe('App', () => {
     expect(
       within(trajectoryPanel).getByRole('button', { name: 'Next Frame' }),
     ).toBeEnabled();
-    expect(within(trajectoryPanel).getByText('energy_hartree')).toBeInTheDocument();
-    expect(within(trajectoryPanel).getByText('-76.1')).toBeInTheDocument();
+    const propertiesTable = within(trajectoryPanel).getByRole('table', {
+      name: 'Selected trajectory frame properties',
+    });
+    expect(within(propertiesTable).getByText('energy_hartree'))
+      .toBeInTheDocument();
+    expect(within(propertiesTable).getByText('-76.1')).toBeInTheDocument();
+    expect(
+      within(trajectoryPanel).getByRole('region', {
+        name: 'Trajectory Energy Profile',
+      }),
+    ).toBeInTheDocument();
 
     act(() => {
       useViewerStore.setState({ selectedAtomIndices: [1] });
     });
     fireEvent.click(
-      within(trajectoryPanel).getByRole('button', { name: 'Next Frame' }),
+      within(trajectoryPanel).getByRole('button', {
+        name: 'Select energy frame 2',
+      }),
     );
 
     await waitFor(() => {
@@ -541,7 +552,12 @@ describe('App', () => {
     expect(
       within(trajectoryPanel).getByRole('button', { name: 'Next Frame' }),
     ).toBeDisabled();
-    expect(within(trajectoryPanel).getByText('-76.2')).toBeInTheDocument();
+    const selectedFramePropertiesTable = within(trajectoryPanel).getByRole(
+      'table',
+      { name: 'Selected trajectory frame properties' },
+    );
+    expect(within(selectedFramePropertiesTable).getByText('-76.2'))
+      .toBeInTheDocument();
     expect(screen.queryByText('Unsaved edits')).not.toBeInTheDocument();
   });
 

@@ -1,4 +1,5 @@
 import type { JsonScalar, TrajectoryDocument } from '../shared/types';
+import { TrajectoryEnergyProfile } from './TrajectoryEnergyProfile';
 
 interface TrajectoryFramesPanelProps {
   document: TrajectoryDocument | null;
@@ -141,6 +142,11 @@ export function TrajectoryFramesPanel({
               </select>
             </label>
           </div>
+          <TrajectoryEnergyProfile
+            document={document}
+            onSelectedFrameIndexChange={selectFrame}
+            selectedFrameIndex={effectiveFrameIndex}
+          />
           <h3>Frame Properties</h3>
           {selectedFramePropertyEntries.length > 0 ? (
             <table aria-label="Selected trajectory frame properties">

@@ -117,6 +117,11 @@ describe('TrajectoryFramesPanel', () => {
     expect(
       within(panel).getByLabelText('Trajectory playback speed'),
     ).toHaveValue('2');
+    expect(
+      within(panel).getByRole('region', {
+        name: 'Trajectory Energy Profile',
+      }),
+    ).toBeInTheDocument();
 
     const propertiesTable = within(panel).getByRole('table', {
       name: 'Selected trajectory frame properties',
@@ -143,6 +148,11 @@ describe('TrajectoryFramesPanel', () => {
       },
     );
     expect(onPlaybackFramesPerSecondChange).toHaveBeenCalledWith(5);
+
+    fireEvent.click(
+      within(panel).getByRole('button', { name: 'Select energy frame 2' }),
+    );
+    expect(onSelectedFrameIndexChange).toHaveBeenLastCalledWith(1);
   });
 
   it('selects frames by dropdown and formats unavailable scalar properties', () => {
