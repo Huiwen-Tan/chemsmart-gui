@@ -7,7 +7,10 @@ import {
 } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { MoleculeDocument } from '../shared/types';
+import type {
+  BroadenedIrSpectrumResponse,
+  MoleculeDocument,
+} from '../shared/types';
 import { IrSpectrumPanel } from './IrSpectrumPanel';
 
 const WATER_DOCUMENT: MoleculeDocument = {
@@ -66,6 +69,31 @@ const WATER_DOCUMENT: MoleculeDocument = {
       symmetry: 'B2',
       displacements: [],
     },
+  ],
+};
+
+const BROADENED_IR_SPECTRUM: BroadenedIrSpectrumResponse = {
+  broadening: 'gaussian',
+  width_cm_minus_1: 20,
+  point_count: 3,
+  frequency_unit: 'cm^-1',
+  intensity_unit: 'km/mol',
+  peaks: [
+    {
+      mode_index: 1,
+      frequency_cm_minus_1: -530.2,
+      ir_intensity_km_per_mol: 12.34567,
+    },
+    {
+      mode_index: 3,
+      frequency_cm_minus_1: 3745.5,
+      ir_intensity_km_per_mol: 4.5,
+    },
+  ],
+  points: [
+    { wavenumber_cm_minus_1: -630.2, intensity_km_per_mol: 0.5 },
+    { wavenumber_cm_minus_1: -530.2, intensity_km_per_mol: 12.34567 },
+    { wavenumber_cm_minus_1: -430.2, intensity_km_per_mol: 0.5 },
   ],
 };
 
@@ -171,6 +199,103 @@ describe('IrSpectrumPanel', () => {
 
     expect(onSelectedModeIndexChange).toHaveBeenNthCalledWith(1, 3);
     expect(onSelectedModeIndexChange).toHaveBeenNthCalledWith(2, 1);
+  });
+
+  it('requests a broadened IR spectrum with selected options', () => {
+    const onBroadenedSpectrumPreview = vi.fn();
+    render(
+      <IrSpectrumPanel
+        document={WATER_DOCUMENT}
+        onBroadenedSpectrumPreview={onBroadenedSpectrumPreview}
+        selectedModeIndex={1}
+      />,
+    );
+
+    fireEvent.change(
+      screen.getByLabelText('IR spectrum broadening'),
+      { target: { value: 'lorentzian' } },
+    );
+    fireEvent.change(
+      screen.getByLabelText('IR broadening width'),
+      { target: { value: '15' } },
+    );
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Preview Broadened IR Spectrum',
+      }),
+    );
+
+    expect(onBroadenedSpectrumPreview).toHaveBeenCalledWith({
+      broadening: 'lorentzian',
+      point_count: 121,
+      width_cm_minus_1: 15,
+    });
+  });
+
+  it('shows broadened IR spectrum points returned by the backend', () => {
+    render(
+      <IrSpectrumPanel
+        broadenedSpectrum={BROADENED_IR_SPECTRUM}
+        document={WATER_DOCUMENT}
+        selectedModeIndex={1}
+      />,
+    );
+
+    const panel = screen.getByRole('region', {
+      name: 'Broadened IR Spectrum',
+    });
+    expect(
+      within(panel).getByRole('img', {
+        name: 'Broadened IR spectrum chart',
+      }),
+    ).toBeInTheDocument();
+    expect(within(panel).getByText('gaussian')).toBeInTheDocument();
+    expect(within(panel).getByText('20')).toBeInTheDocument();
+    expect(within(panel).getByText('3')).toBeInTheDocument();
+
+    const table = within(panel).getByRole('table', {
+      name: 'Broadened IR spectrum points',
+    });
+    const rows = within(table).getAllByRole('row');
+
+    expect(rows).toHaveLength(4);
+    expect(rows[0]).toHaveTextContent('wavenumber_cm_minus_1 (cm^-1)');
+    expect(rows[0]).toHaveTextContent('intensity_km_per_mol (km/mol)');
+    expect(rows[1]).toHaveTextContent('-630.2');
+    expect(rows[2]).toHaveTextContent('-530.2');
+    expect(rows[2]).toHaveTextContent('12.3457');
+  });
+
+  it('shows broadened spectrum loading, error, and invalid-width states', () => {
+    render(
+      <IrSpectrumPanel
+        broadenedSpectrumError="Spectrum preview failed."
+        document={WATER_DOCUMENT}
+        isBroadenedSpectrumLoading
+        selectedModeIndex={1}
+      />,
+    );
+
+    const panel = screen.getByRole('region', {
+      name: 'Broadened IR Spectrum',
+    });
+    expect(
+      within(panel).getByText('Generating broadened IR spectrum...'),
+    ).toBeInTheDocument();
+    expect(
+      within(panel).getByText('Error: Spectrum preview failed.'),
+    ).toBeInTheDocument();
+
+    fireEvent.change(
+      within(panel).getByLabelText('IR broadening width'),
+      { target: { value: '0' } },
+    );
+
+    expect(
+      within(panel).getByText(
+        'IR broadening width must be greater than zero.',
+      ),
+    ).toBeInTheDocument();
   });
 
   it('reports unavailable selected peaks when selected mode is not IR-active', () => {

@@ -226,6 +226,40 @@ export interface MoleculeModeDisplacementResponse {
   amplitude: number;
 }
 
+export type IrSpectrumBroadening = 'gaussian' | 'lorentzian';
+
+export interface IrSpectrumPeak {
+  mode_index: number;
+  frequency_cm_minus_1: number;
+  ir_intensity_km_per_mol: number;
+}
+
+export interface IrSpectrumPoint {
+  wavenumber_cm_minus_1: number;
+  intensity_km_per_mol: number;
+}
+
+export interface BroadenedIrSpectrumOptions {
+  broadening: IrSpectrumBroadening;
+  width_cm_minus_1: number;
+  point_count: number;
+}
+
+export interface BroadenedIrSpectrumRequest
+  extends BroadenedIrSpectrumOptions {
+  document: MoleculeDocument;
+}
+
+export interface BroadenedIrSpectrumResponse {
+  broadening: IrSpectrumBroadening;
+  width_cm_minus_1: number;
+  point_count: number;
+  frequency_unit: 'cm^-1';
+  intensity_unit: 'km/mol';
+  peaks: IrSpectrumPeak[];
+  points: IrSpectrumPoint[];
+}
+
 export type MoleculeExportFiletype = 'xyz' | 'com' | 'gjf' | 'inp';
 export type MoleculeExportPreviewFiletype = MoleculeExportFiletype;
 export type MoleculeSourceWriteFiletype = 'xyz' | 'com' | 'gjf' | 'inp';

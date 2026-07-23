@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type {
   ApplyMoleculeEditRequest,
+  BroadenedIrSpectrumRequest,
+  BroadenedIrSpectrumResponse,
   MoleculeDocument,
   MoleculeExportPreviewRequest,
   MoleculeExportPreviewResponse,
@@ -20,6 +22,7 @@ import {
   checkMoleculeSourceStatus,
   generateMoleculeModeDisplacement,
   openDocument,
+  previewBroadenedIrSpectrum,
   previewMoleculeExport,
   writeMoleculeExport,
   writeMoleculeSource,
@@ -269,6 +272,35 @@ const MODE_DISPLACEMENT_RESPONSE: MoleculeModeDisplacementResponse = {
   mode_index: 1,
   direction: 'positive',
   amplitude: 1,
+};
+
+const BROADENED_IR_SPECTRUM_REQUEST: BroadenedIrSpectrumRequest = {
+  document: WATER_DOCUMENT,
+  broadening: 'gaussian',
+  width_cm_minus_1: 20,
+  point_count: 5,
+};
+
+const BROADENED_IR_SPECTRUM_RESPONSE: BroadenedIrSpectrumResponse = {
+  broadening: 'gaussian',
+  width_cm_minus_1: 20,
+  point_count: 5,
+  frequency_unit: 'cm^-1',
+  intensity_unit: 'km/mol',
+  peaks: [
+    {
+      mode_index: 1,
+      frequency_cm_minus_1: 1000,
+      ir_intensity_km_per_mol: 10,
+    },
+  ],
+  points: [
+    { wavenumber_cm_minus_1: 900, intensity_km_per_mol: 0.1 },
+    { wavenumber_cm_minus_1: 950, intensity_km_per_mol: 2 },
+    { wavenumber_cm_minus_1: 1000, intensity_km_per_mol: 10 },
+    { wavenumber_cm_minus_1: 1050, intensity_km_per_mol: 2 },
+    { wavenumber_cm_minus_1: 1100, intensity_km_per_mol: 0.1 },
+  ],
 };
 
 const EXPORT_PREVIEW_REQUEST: MoleculeExportPreviewRequest = {
@@ -531,6 +563,25 @@ describe('api client', () => {
         headers: { 'Content-Type': 'application/json' },
         method: 'POST',
         body: JSON.stringify(MODE_DISPLACEMENT_REQUEST),
+      },
+    );
+  });
+
+  it('posts broadened IR spectrum previews to the document API', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(BROADENED_IR_SPECTRUM_RESPONSE),
+    );
+
+    await expect(
+      previewBroadenedIrSpectrum(BROADENED_IR_SPECTRUM_REQUEST),
+    ).resolves.toEqual(BROADENED_IR_SPECTRUM_RESPONSE);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/api/documents/ir-spectrum-preview',
+      {
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        body: JSON.stringify(BROADENED_IR_SPECTRUM_REQUEST),
       },
     );
   });

@@ -10,6 +10,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type {
+  BroadenedIrSpectrumResponse,
   MoleculeDocument,
   TrajectoryDocument,
   VibrationalMode,
@@ -319,6 +320,31 @@ const GAUSSIAN_OUTPUT_DOCUMENT = {
     },
   ],
 } satisfies MoleculeDocument;
+
+const BROADENED_IR_SPECTRUM_RESPONSE = {
+  broadening: 'gaussian',
+  width_cm_minus_1: 20,
+  point_count: 3,
+  frequency_unit: 'cm^-1',
+  intensity_unit: 'km/mol',
+  peaks: [
+    {
+      mode_index: 1,
+      frequency_cm_minus_1: -530.2,
+      ir_intensity_km_per_mol: 12.3,
+    },
+    {
+      mode_index: 2,
+      frequency_cm_minus_1: 1628.3334,
+      ir_intensity_km_per_mol: 5.5,
+    },
+  ],
+  points: [
+    { wavenumber_cm_minus_1: -630.2, intensity_km_per_mol: 0.5 },
+    { wavenumber_cm_minus_1: -530.2, intensity_km_per_mol: 12.3 },
+    { wavenumber_cm_minus_1: -430.2, intensity_km_per_mol: 0.5 },
+  ],
+} satisfies BroadenedIrSpectrumResponse;
 
 const DISPLACED_GAUSSIAN_OUTPUT_DOCUMENT = {
   ...GAUSSIAN_OUTPUT_DOCUMENT,
@@ -1389,6 +1415,66 @@ describe('App', () => {
         name: 'Play Mode Animation',
       }),
     ).toBeDisabled();
+  });
+
+  it('previews a broadened IR spectrum for output documents', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
+      .mockResolvedValueOnce(jsonResponse(GAUSSIAN_OUTPUT_DOCUMENT))
+      .mockResolvedValueOnce(jsonResponse(BROADENED_IR_SPECTRUM_RESPONSE));
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText('Document path'), {
+      target: { value: 'sample-data/water.log' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT),
+      );
+    });
+    const modesPanel = screen.getByRole('region', {
+      name: 'Vibrational Modes',
+    });
+    fireEvent.click(
+      within(modesPanel).getByRole('button', {
+        name: 'Preview Broadened IR Spectrum',
+      }),
+    );
+
+    await waitFor(() => {
+      expect(
+        within(modesPanel).getByRole('img', {
+          name: 'Broadened IR spectrum chart',
+        }),
+      ).toBeInTheDocument();
+    });
+    const broadenedPanel = within(modesPanel).getByRole('region', {
+      name: 'Broadened IR Spectrum',
+    });
+    expect(
+      within(broadenedPanel).getByRole('table', {
+        name: 'Broadened IR spectrum points',
+      }),
+    ).toBeInTheDocument();
+    expect(within(broadenedPanel).getByText('-530.2')).toBeInTheDocument();
+    expect(within(broadenedPanel).getByText('12.3')).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      'http://127.0.0.1:8000/api/documents/ir-spectrum-preview',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          document: GAUSSIAN_OUTPUT_DOCUMENT,
+          broadening: 'gaussian',
+          point_count: 121,
+          width_cm_minus_1: 20,
+        }),
+      }),
+    );
   });
 
   it('generates a displaced structure from the selected vibrational mode', async () => {

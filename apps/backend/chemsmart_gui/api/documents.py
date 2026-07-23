@@ -19,15 +19,21 @@ from chemsmart_gui.domain.export import (
     MoleculeSourceWriteRequest,
     MoleculeSourceWriteResponse,
 )
+from chemsmart_gui.domain.spectrum import (
+    BroadenedIrSpectrumRequest,
+    BroadenedIrSpectrumResponse,
+)
 from chemsmart_gui.services.chemsmart_document_service import (
     ChemsmartDocumentService,
 )
 from chemsmart_gui.services.document_service import DocumentService
+from chemsmart_gui.services.ir_spectrum_service import IrSpectrumService
 from chemsmart_gui.services.molecule_edit_history import MoleculeEditHistory
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
 _document_service: DocumentService = ChemsmartDocumentService()
+_ir_spectrum_service = IrSpectrumService()
 
 
 def get_document_service() -> DocumentService:
@@ -98,6 +104,22 @@ def generate_mode_displacement(
 ) -> MoleculeModeDisplacementResponse:
     try:
         return document_service.generate_mode_displacement(request)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+
+@router.post(
+    "/ir-spectrum-preview",
+    response_model=BroadenedIrSpectrumResponse,
+)
+def preview_ir_spectrum(
+    request: BroadenedIrSpectrumRequest,
+) -> BroadenedIrSpectrumResponse:
+    try:
+        return _ir_spectrum_service.preview_broadened_ir_spectrum(request)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

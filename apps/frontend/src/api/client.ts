@@ -1,5 +1,7 @@
 import type {
   ApplyMoleculeEditRequest,
+  BroadenedIrSpectrumRequest,
+  BroadenedIrSpectrumResponse,
   MoleculeDocument,
   MoleculeExportPreviewRequest,
   MoleculeExportPreviewResponse,
@@ -78,6 +80,15 @@ export function generateMoleculeModeDisplacement(
   payload: MoleculeModeDisplacementRequest,
 ): Promise<MoleculeModeDisplacementResponse> {
   return request('/api/documents/mode-displacement', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function previewBroadenedIrSpectrum(
+  payload: BroadenedIrSpectrumRequest,
+): Promise<BroadenedIrSpectrumResponse> {
+  return request('/api/documents/ir-spectrum-preview', {
     method: 'POST',
     body: JSON.stringify(payload),
   });

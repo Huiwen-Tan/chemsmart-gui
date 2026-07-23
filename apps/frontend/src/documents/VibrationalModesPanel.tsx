@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 
 import type {
+  BroadenedIrSpectrumOptions,
+  BroadenedIrSpectrumResponse,
   ModeDisplacementDirection,
   MoleculeDocument,
   VibrationalMode,
@@ -8,9 +10,15 @@ import type {
 import { IrSpectrumPanel } from './IrSpectrumPanel';
 
 interface VibrationalModesPanelProps {
+  broadenedSpectrum?: BroadenedIrSpectrumResponse | null;
+  broadenedSpectrumError?: string | null;
   document: MoleculeDocument | null;
   isAnimationPlaying?: boolean;
+  isBroadenedSpectrumLoading?: boolean;
   onAnimationPlayingChange?: (isPlaying: boolean) => void;
+  onBroadenedSpectrumPreview?: (
+    options: BroadenedIrSpectrumOptions,
+  ) => void;
   selectedModeIndex?: number | null;
   onSelectedModeIndexChange?: (modeIndex: number) => void;
   isGeneratingDisplacedStructure?: boolean;
@@ -47,9 +55,13 @@ function selectedModeFromIndex(
 }
 
 export function VibrationalModesPanel({
+  broadenedSpectrum = null,
+  broadenedSpectrumError = null,
   document,
   isAnimationPlaying = false,
+  isBroadenedSpectrumLoading = false,
   onAnimationPlayingChange,
+  onBroadenedSpectrumPreview,
   selectedModeIndex,
   onSelectedModeIndexChange,
   isGeneratingDisplacedStructure = false,
@@ -143,7 +155,11 @@ export function VibrationalModesPanel({
       ) : null}
       {document ? (
         <IrSpectrumPanel
+          broadenedSpectrum={broadenedSpectrum}
+          broadenedSpectrumError={broadenedSpectrumError}
           document={document}
+          isBroadenedSpectrumLoading={isBroadenedSpectrumLoading}
+          onBroadenedSpectrumPreview={onBroadenedSpectrumPreview}
           onSelectedModeIndexChange={selectMode}
           selectedModeIndex={selectedMode?.index ?? null}
         />

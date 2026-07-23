@@ -4,6 +4,7 @@ import {
   generateMoleculeModeDisplacement,
   healthCheck,
   openDocument,
+  previewBroadenedIrSpectrum,
   previewMoleculeExport,
 } from './api/client';
 import { AppShell } from './app/AppShell';
@@ -20,6 +21,8 @@ import type {
   ModeDisplacementDirection,
   MoleculeDocument,
   OpenedDocument,
+  BroadenedIrSpectrumOptions,
+  BroadenedIrSpectrumResponse,
   TrajectoryDocument,
   VibrationalMode,
 } from './shared/types';
@@ -128,6 +131,18 @@ export function App(): JSX.Element {
     setIsDownloadingDisplacedStructure,
   ] = useState(false);
   const [
+    broadenedIrSpectrum,
+    setBroadenedIrSpectrum,
+  ] = useState<BroadenedIrSpectrumResponse | null>(null);
+  const [
+    broadenedIrSpectrumError,
+    setBroadenedIrSpectrumError,
+  ] = useState<string | null>(null);
+  const [
+    isPreviewingBroadenedIrSpectrum,
+    setIsPreviewingBroadenedIrSpectrum,
+  ] = useState(false);
+  const [
     selectedTrajectoryFrameIndex,
     setSelectedTrajectoryFrameIndex,
   ] = useState(0);
@@ -218,6 +233,8 @@ export function App(): JSX.Element {
   useEffect(() => {
     setSelectedVibrationalModeIndex(vibrationalModes[0]?.index ?? null);
     setActiveVibrationalModeAnimationKey(null);
+    setBroadenedIrSpectrum(null);
+    setBroadenedIrSpectrumError(null);
   }, [activeMoleculeDocument?.id, vibrationalModeIndexSignature]);
 
   useEffect(() => {
@@ -321,6 +338,34 @@ export function App(): JSX.Element {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setIsGeneratingDisplacedStructure(false);
+    }
+  };
+
+  const previewActiveBroadenedIrSpectrum = async (
+    options: BroadenedIrSpectrumOptions,
+  ): Promise<void> => {
+    if (!activeMoleculeDocument) {
+      setBroadenedIrSpectrumError(
+        'A molecule document is required before previewing an IR spectrum.',
+      );
+      return;
+    }
+
+    setBroadenedIrSpectrum(null);
+    setBroadenedIrSpectrumError(null);
+    setIsPreviewingBroadenedIrSpectrum(true);
+    try {
+      const response = await previewBroadenedIrSpectrum({
+        document: activeMoleculeDocument,
+        ...options,
+      });
+      setBroadenedIrSpectrum(response);
+    } catch (err: unknown) {
+      setBroadenedIrSpectrumError(
+        err instanceof Error ? err.message : 'Unknown error',
+      );
+    } finally {
+      setIsPreviewingBroadenedIrSpectrum(false);
     }
   };
 
@@ -479,11 +524,15 @@ export function App(): JSX.Element {
         hasUnsavedMoleculeEdits={hasUnsavedMoleculeEdits}
       />
       <VibrationalModesPanel
+        broadenedSpectrum={broadenedIrSpectrum}
+        broadenedSpectrumError={broadenedIrSpectrumError}
         document={activeMoleculeDocument}
+        isBroadenedSpectrumLoading={isPreviewingBroadenedIrSpectrum}
         isDownloadingDisplacedStructure={isDownloadingDisplacedStructure}
         isGeneratingDisplacedStructure={isGeneratingDisplacedStructure}
         isAnimationPlaying={isVibrationalModeAnimationPlaying}
         onAnimationPlayingChange={setVibrationalModeAnimationPlaying}
+        onBroadenedSpectrumPreview={previewActiveBroadenedIrSpectrum}
         onDownloadDisplacedStructure={
           downloadSelectedModeDisplacedStructure
         }
