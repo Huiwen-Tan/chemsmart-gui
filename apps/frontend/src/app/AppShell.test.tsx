@@ -16,4 +16,15 @@ describe('AppShell', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('Workspace content')).toBeInTheDocument();
   });
+
+  it('uses the workbench token classes', () => {
+    const { container } = render(
+      <AppShell>
+        <p>Workspace content</p>
+      </AppShell>,
+    );
+
+    expect(container.querySelector('main')).toHaveClass('workbench-root');
+    expect(container.querySelector('h1')).toHaveClass('workbench-title');
+  });
 });

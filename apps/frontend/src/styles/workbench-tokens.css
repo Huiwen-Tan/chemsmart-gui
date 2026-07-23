@@ -1,0 +1,127 @@
+:root {
+  color-scheme: dark;
+
+  --csw-font-family-sans: Inter, ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --csw-font-family-mono: "SFMono-Regular", Consolas, "Liberation Mono",
+    monospace;
+
+  --csw-font-size-xs: 0.75rem;
+  --csw-font-size-sm: 0.875rem;
+  --csw-font-size-md: 1rem;
+  --csw-font-size-lg: 1.125rem;
+  --csw-font-size-xl: 1.5rem;
+
+  --csw-font-weight-regular: 400;
+  --csw-font-weight-medium: 500;
+  --csw-font-weight-semibold: 600;
+  --csw-line-height-tight: 1.2;
+  --csw-line-height-normal: 1.5;
+
+  --csw-space-1: 0.25rem;
+  --csw-space-2: 0.5rem;
+  --csw-space-3: 0.75rem;
+  --csw-space-4: 1rem;
+  --csw-space-5: 1.25rem;
+  --csw-space-6: 1.5rem;
+  --csw-space-8: 2rem;
+
+  --csw-radius-sm: 0.375rem;
+  --csw-radius-md: 0.625rem;
+  --csw-radius-lg: 0.875rem;
+  --csw-radius-xl: 1.125rem;
+
+  --csw-color-app-bg: #0b0f17;
+  --csw-color-app-bg-soft: #0d1117;
+  --csw-color-surface: #101826;
+  --csw-color-surface-raised: #151f2e;
+  --csw-color-surface-sunken: #080c12;
+  --csw-color-surface-hover: #1a2638;
+  --csw-color-panel: rgba(16, 24, 38, 0.92);
+  --csw-color-panel-strong: rgba(21, 31, 46, 0.96);
+
+  --csw-color-border-subtle: #223047;
+  --csw-color-border: #324055;
+  --csw-color-border-strong: #475569;
+  --csw-color-divider: rgba(148, 163, 184, 0.18);
+
+  --csw-color-text: #f3f6fa;
+  --csw-color-text-muted: #cbd5e1;
+  --csw-color-text-subtle: #94a3b8;
+  --csw-color-text-inverse: #0f172a;
+
+  --csw-color-accent-primary: #38bdf8;
+  --csw-color-accent-primary-strong: #0ea5e9;
+  --csw-color-accent-secondary: #a78bfa;
+  --csw-color-accent-analysis: #f472b6;
+  --csw-color-accent-selection: #fbbf24;
+
+  --csw-color-status-success: #8fd18f;
+  --csw-color-status-warning: #ffb86c;
+  --csw-color-status-danger: #ff8080;
+  --csw-color-status-info: #60a5fa;
+  --csw-color-status-idle: #64748b;
+
+  --csw-shadow-panel: 0 18px 50px rgba(0, 0, 0, 0.32);
+  --csw-shadow-popover: 0 24px 70px rgba(0, 0, 0, 0.42);
+  --csw-focus-ring: 0 0 0 3px rgba(56, 189, 248, 0.32);
+
+  --csw-workbench-header-height: 3.5rem;
+  --csw-workbench-sidebar-width: 17.5rem;
+  --csw-workbench-right-panel-width: 22rem;
+  --csw-workbench-bottom-panel-height: 16rem;
+}
+
+html {
+  background: var(--csw-color-app-bg);
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--csw-color-app-bg);
+  color: var(--csw-color-text);
+  font-family: var(--csw-font-family-sans);
+  font-size: var(--csw-font-size-md);
+  line-height: var(--csw-line-height-normal);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  box-shadow: var(--csw-focus-ring);
+}
+
+.workbench-root {
+  min-height: 100vh;
+  padding: var(--csw-space-4);
+  background:
+    radial-gradient(
+      circle at 20% 0%,
+      rgba(56, 189, 248, 0.12),
+      transparent 26rem
+    ),
+    linear-gradient(
+      180deg,
+      var(--csw-color-app-bg-soft) 0%,
+      var(--csw-color-app-bg) 100%
+    );
+  color: var(--csw-color-text);
+}
+
+.workbench-title {
+  margin-top: 0;
+  color: var(--csw-color-text);
+  font-size: var(--csw-font-size-xl);
+  font-weight: var(--csw-font-weight-semibold);
+  line-height: var(--csw-line-height-tight);
+}
