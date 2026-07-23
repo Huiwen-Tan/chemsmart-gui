@@ -60,8 +60,15 @@ describe('AppShell', () => {
     expect(
       shell.getByRole('region', { name: 'Explorer sidebar panel' }),
     ).toBeInTheDocument();
-    expect(shell.getByText('Context')).toBeInTheDocument();
-    expect(shell.getByText('Dock')).toBeInTheDocument();
+    expect(
+      shell.getByRole('complementary', { name: 'Context panel' }),
+    ).toBeInTheDocument();
+    expect(
+      shell.getByRole('tablist', { name: 'Context panel tabs' }),
+    ).toBeInTheDocument();
+    expect(
+      shell.getByRole('tablist', { name: 'Workbench dock tabs' }),
+    ).toBeInTheDocument();
   });
 
   it('defaults the primary sidebar to Explorer', () => {
@@ -142,5 +149,122 @@ describe('AppShell', () => {
     expect(
       within(legacyContent).getByText('Legacy controls'),
     ).toBeInTheDocument();
+  });
+
+  it('defaults the bottom dock and right panel to their first tabs', () => {
+    const { container } = render(
+      <AppShell>
+        <p>Workspace content</p>
+      </AppShell>,
+    );
+    const shell = within(container);
+    const dock = shell.getByRole('region', { name: 'Workbench dock' });
+    const rightPanel = shell.getByRole('complementary', {
+      name: 'Context panel',
+    });
+
+    expect(
+      within(dock).getByRole('tab', { name: 'Properties' }),
+    ).toHaveAttribute('aria-selected', 'true');
+    expect(
+      within(dock).getByRole('tabpanel', { name: 'Properties' }),
+    ).toHaveTextContent('Document and selection properties will appear here.');
+    expect(
+      within(rightPanel).getByRole('tab', { name: 'Details' }),
+    ).toHaveAttribute('aria-selected', 'true');
+    expect(
+      within(rightPanel).getByRole('tabpanel', { name: 'Details' }),
+    ).toHaveTextContent('Contextual analysis details will appear here.');
+  });
+
+  it('switches bottom dock and right panel tabs', () => {
+    const { container } = render(
+      <AppShell>
+        <p>Workspace content</p>
+      </AppShell>,
+    );
+    const shell = within(container);
+    const dock = shell.getByRole('region', { name: 'Workbench dock' });
+    const rightPanel = shell.getByRole('complementary', {
+      name: 'Context panel',
+    });
+
+    fireEvent.click(within(dock).getByRole('tab', { name: 'Export' }));
+    expect(
+      within(dock).getByRole('tab', { name: 'Properties' }),
+    ).toHaveAttribute('aria-selected', 'false');
+    expect(within(dock).getByRole('tab', { name: 'Export' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    expect(
+      within(dock).getByRole('tabpanel', { name: 'Export' }),
+    ).toHaveTextContent('Export previews and save actions will appear here.');
+
+    fireEvent.click(within(dock).getByRole('tab', { name: 'Logs' }));
+    expect(within(dock).getByRole('tab', { name: 'Logs' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    expect(
+      within(dock).getByRole('tabpanel', { name: 'Logs' }),
+    ).toHaveTextContent('Application and workflow logs will appear here.');
+
+    fireEvent.click(within(dock).getByRole('tab', { name: 'Analysis' }));
+    expect(within(dock).getByRole('tab', { name: 'Analysis' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    expect(
+      within(dock).getByRole('tabpanel', { name: 'Analysis' }),
+    ).toHaveTextContent(
+      'Frequency, trajectory, and spectrum panels will appear here.',
+    );
+
+    fireEvent.click(within(rightPanel).getByRole('tab', { name: 'Inspector' }));
+    expect(
+      within(rightPanel).getByRole('tab', { name: 'Details' }),
+    ).toHaveAttribute('aria-selected', 'false');
+    expect(
+      within(rightPanel).getByRole('tab', { name: 'Inspector' }),
+    ).toHaveAttribute('aria-selected', 'true');
+    expect(
+      within(rightPanel).getByRole('tabpanel', { name: 'Inspector' }),
+    ).toHaveTextContent(
+      'Document and viewer inspector controls will appear here.',
+    );
+  });
+
+  it('renders custom bottom dock and right panel slot content', () => {
+    const { container } = render(
+      <AppShell
+        bottomDock={<p>Custom dock content</p>}
+        rightPanel={<p>Custom right panel content</p>}
+      >
+        <p>Workspace content</p>
+      </AppShell>,
+    );
+    const shell = within(container);
+    const dock = shell.getByRole('region', { name: 'Workbench dock' });
+    const rightPanel = shell.getByRole('complementary', {
+      name: 'Context panel',
+    });
+
+    expect(
+      within(dock).getByRole('region', { name: 'Custom bottom dock content' }),
+    ).toHaveTextContent('Custom dock content');
+    expect(
+      within(rightPanel).getByRole('region', {
+        name: 'Custom right panel content',
+      }),
+    ).toHaveTextContent('Custom right panel content');
+    expect(
+      within(dock).queryByRole('tablist', { name: 'Workbench dock tabs' }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(rightPanel).queryByRole('tablist', {
+        name: 'Context panel tabs',
+      }),
+    ).not.toBeInTheDocument();
   });
 });
