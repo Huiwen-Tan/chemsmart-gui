@@ -7,7 +7,7 @@ import {
   previewBroadenedIrSpectrum,
   previewMoleculeExport,
 } from './api/client';
-import { AppShell } from './app/AppShell';
+import { AppShell, type WorkbenchMenuItems } from './app/AppShell';
 import { DocumentSummaryPanel } from './documents/DocumentSummaryPanel';
 import { MoleculeExportPreviewPanel } from './documents/MoleculeExportPreviewPanel';
 import { TrajectoryFramesPanel } from './documents/TrajectoryFramesPanel';
@@ -441,6 +441,58 @@ export function App(): JSX.Element {
     await openDocumentPath();
   };
 
+  const applicationMenuItems: WorkbenchMenuItems = {
+    edit: [
+      {
+        disabled: !canUndoMoleculeEdit,
+        id: 'undo-edit',
+        kind: 'action',
+        label: 'Undo Edit',
+        onSelect: undoMoleculeEdit,
+      },
+      {
+        disabled: !canRedoMoleculeEdit,
+        id: 'redo-edit',
+        kind: 'action',
+        label: 'Redo Edit',
+        onSelect: redoMoleculeEdit,
+      },
+    ],
+    file: [
+      {
+        disabled: documentPath.trim().length === 0,
+        id: 'open-document',
+        kind: 'action',
+        label: 'Open Document',
+        onSelect: () => {
+          void openCurrentDocument();
+        },
+      },
+    ],
+    view: [
+      {
+        id: 'reset-view',
+        kind: 'action',
+        label: 'Reset View',
+        onSelect: requestViewReset,
+      },
+      {
+        checked: showBonds,
+        id: 'show-bonds',
+        kind: 'checkbox',
+        label: 'Show Bonds',
+        onSelect: () => setShowBonds(!showBonds),
+      },
+      {
+        checked: showAtomLabels,
+        id: 'show-atom-labels',
+        kind: 'checkbox',
+        label: 'Show Atom Labels',
+        onSelect: () => setShowAtomLabels(!showAtomLabels),
+      },
+    ],
+  };
+
   const explorerSidebarPanel = (
     <>
       <p className="workbench-status-line">
@@ -572,6 +624,7 @@ export function App(): JSX.Element {
           />
         ),
       }}
+      menuItems={applicationMenuItems}
       rightPanelPanels={{
         details: (
           <SelectedAtomPanel document={activeEditableMoleculeDocument} />

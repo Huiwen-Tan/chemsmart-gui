@@ -83,6 +83,132 @@ describe('AppShell', () => {
     ).toBeInTheDocument();
   });
 
+  it('renders the application menu command groups', () => {
+    const { container } = render(
+      <AppShell>
+        <p>Workspace content</p>
+      </AppShell>,
+    );
+    const shell = within(container);
+    const menu = shell.getByRole('navigation', { name: 'Application menu' });
+
+    for (const groupName of [
+      'File',
+      'Edit',
+      'View',
+      'Calculate',
+      'Results',
+      'Settings',
+    ]) {
+      expect(within(menu).getByRole('button', { name: groupName }))
+        .toBeInTheDocument();
+    }
+  });
+
+  it('runs custom application menu actions', () => {
+    const openDocument = vi.fn();
+    const { container } = render(
+      <AppShell
+        menuItems={{
+          file: [
+            {
+              id: 'open-document',
+              kind: 'action',
+              label: 'Open Document',
+              onSelect: openDocument,
+            },
+          ],
+        }}
+      >
+        <p>Workspace content</p>
+      </AppShell>,
+    );
+    const shell = within(container);
+
+    fireEvent.click(shell.getByRole('button', { name: 'File' }));
+    const fileMenu = shell.getByRole('menu', { name: 'File menu' });
+    fireEvent.click(
+      within(fileMenu).getByRole('menuitem', { name: 'Open Document' }),
+    );
+
+    expect(openDocument).toHaveBeenCalledTimes(1);
+    expect(
+      shell.queryByRole('menu', { name: 'File menu' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('switches workbench regions from application menu commands', () => {
+    const { container } = render(
+      <AppShell>
+        <p>Workspace content</p>
+      </AppShell>,
+    );
+    const shell = within(container);
+    const sidebar = shell.getByRole('complementary', {
+      name: 'Primary workspace navigation',
+    });
+    const dock = shell.getByRole('region', { name: 'Workbench dock' });
+
+    fireEvent.click(shell.getByRole('button', { name: 'View' }));
+    fireEvent.click(
+      within(shell.getByRole('menu', { name: 'View menu' })).getByRole(
+        'menuitem',
+        { name: 'Show Tasks Sidebar' },
+      ),
+    );
+    expect(
+      within(sidebar).getByRole('button', { name: 'Tasks' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(shell.getByRole('button', { name: 'Results' }));
+    fireEvent.click(
+      within(shell.getByRole('menu', { name: 'Results menu' })).getByRole(
+        'menuitem',
+        { name: 'Show Analysis Dock' },
+      ),
+    );
+    expect(within(dock).getByRole('tab', { name: 'Analysis' }))
+      .toHaveAttribute('aria-selected', 'true');
+
+    fireEvent.click(shell.getByRole('button', { name: 'File' }));
+    fireEvent.click(
+      within(shell.getByRole('menu', { name: 'File menu' })).getByRole(
+        'menuitem',
+        { name: 'Show Export Dock' },
+      ),
+    );
+    expect(within(dock).getByRole('tab', { name: 'Export' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+  });
+
+  it('shows future calculation and settings commands as disabled placeholders', () => {
+    const { container } = render(
+      <AppShell>
+        <p>Workspace content</p>
+      </AppShell>,
+    );
+    const shell = within(container);
+
+    fireEvent.click(shell.getByRole('button', { name: 'Calculate' }));
+    expect(
+      within(shell.getByRole('menu', { name: 'Calculate menu' })).getByRole(
+        'menuitem',
+        { name: 'Gaussian Calculation...' },
+      ),
+    ).toBeDisabled();
+    fireEvent.click(shell.getByRole('button', { name: 'Calculate' }));
+
+    fireEvent.click(shell.getByRole('button', { name: 'Settings' }));
+    expect(
+      within(shell.getByRole('menu', { name: 'Settings menu' })).getByRole(
+        'menuitem',
+        { name: 'Server Settings...' },
+      ),
+    ).toBeDisabled();
+  });
+
   it('defaults the primary sidebar to Explorer', () => {
     const { container } = render(
       <AppShell>

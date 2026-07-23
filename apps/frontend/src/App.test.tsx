@@ -731,6 +731,66 @@ describe('App', () => {
     ).toBeInTheDocument();
   });
 
+  it('wires current actions into the application menu', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ status: 'ok' }));
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    const applicationMenu = screen.getByRole('navigation', {
+      name: 'Application menu',
+    });
+
+    fireEvent.click(within(applicationMenu).getByRole('button', {
+      name: 'File',
+    }));
+    expect(
+      within(screen.getByRole('menu', { name: 'File menu' })).getByRole(
+        'menuitem',
+        { name: 'Open Document' },
+      ),
+    ).toBeInTheDocument();
+
+    fireEvent.click(within(applicationMenu).getByRole('button', {
+      name: 'Edit',
+    }));
+    expect(
+      within(screen.getByRole('menu', { name: 'Edit menu' })).getByRole(
+        'menuitem',
+        { name: 'Undo Edit' },
+      ),
+    ).toBeDisabled();
+
+    fireEvent.click(within(applicationMenu).getByRole('button', {
+      name: 'View',
+    }));
+    const viewMenu = screen.getByRole('menu', { name: 'View menu' });
+    expect(
+      within(viewMenu).getByRole('menuitemcheckbox', { name: 'Show Bonds' }),
+    ).toHaveAttribute('aria-checked', 'true');
+    const showAtomLabelsItem = within(viewMenu).getByRole(
+      'menuitemcheckbox',
+      { name: 'Show Atom Labels' },
+    );
+    expect(showAtomLabelsItem).toHaveAttribute('aria-checked', 'false');
+
+    fireEvent.click(showAtomLabelsItem);
+
+    expect(useViewerStore.getState().showAtomLabels).toBe(true);
+
+    fireEvent.click(within(applicationMenu).getByRole('button', {
+      name: 'View',
+    }));
+    fireEvent.click(
+      within(screen.getByRole('menu', { name: 'View menu' })).getByRole(
+        'menuitem',
+        { name: 'Reset View' },
+      ),
+    );
+
+    expect(useViewerStore.getState().viewResetRequestId).toBe(1);
+  });
+
   it('passes the selected trajectory frame to the viewer', async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))

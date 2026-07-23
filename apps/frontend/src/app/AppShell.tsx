@@ -1,8 +1,21 @@
 import { useEffect, useState, type ReactNode } from 'react';
 
+import {
+  WorkbenchMenuBar,
+  type WorkbenchMenuGroup,
+  type WorkbenchMenuItem,
+} from './WorkbenchMenuBar';
+
 type SidebarView = 'explorer' | 'tasks' | 'display';
 type BottomDockTab = 'properties' | 'export' | 'logs' | 'analysis';
 type RightPanelTab = 'details' | 'inspector';
+type ApplicationMenuId =
+  | 'file'
+  | 'edit'
+  | 'view'
+  | 'calculate'
+  | 'results'
+  | 'settings';
 
 interface PlaceholderTab<T extends string> {
   description: string;
@@ -88,10 +101,56 @@ const DEFAULT_WORKBENCH_LAYOUT_PREFERENCES: WorkbenchLayoutPreferences = {
   sidebarView: 'explorer',
 };
 
+const DEFAULT_CALCULATE_MENU_ITEMS: ReadonlyArray<WorkbenchMenuItem> = [
+  {
+    description: 'Project and job builder support will enable this.',
+    disabled: true,
+    id: 'gaussian-calculation',
+    kind: 'action',
+    label: 'Gaussian Calculation...',
+  },
+  {
+    description: 'Project and job builder support will enable this.',
+    disabled: true,
+    id: 'orca-calculation',
+    kind: 'action',
+    label: 'ORCA Calculation...',
+  },
+  {
+    description: 'Batch workflow support will enable this.',
+    disabled: true,
+    id: 'thermochemistry-workflow',
+    kind: 'action',
+    label: 'Thermochemistry Workflow...',
+  },
+];
+
+const DEFAULT_SETTINGS_MENU_ITEMS: ReadonlyArray<WorkbenchMenuItem> = [
+  {
+    description: 'Project settings drawer will enable this.',
+    disabled: true,
+    id: 'project-settings',
+    kind: 'action',
+    label: 'Project Settings...',
+  },
+  {
+    description: 'Server settings drawer will enable this.',
+    disabled: true,
+    id: 'server-settings',
+    kind: 'action',
+    label: 'Server Settings...',
+  },
+];
+
+export type WorkbenchMenuItems = Partial<
+  Record<ApplicationMenuId, readonly WorkbenchMenuItem[]>
+>;
+
 interface AppShellProps {
   bottomDock?: ReactNode;
   bottomDockPanels?: Partial<Record<BottomDockTab, ReactNode>>;
   children?: ReactNode;
+  menuItems?: WorkbenchMenuItems;
   rightPanel?: ReactNode;
   rightPanelPanels?: Partial<Record<RightPanelTab, ReactNode>>;
   sidebarPanels?: Partial<Record<SidebarView, ReactNode>>;
@@ -102,6 +161,7 @@ export function AppShell({
   bottomDock,
   bottomDockPanels,
   children,
+  menuItems,
   rightPanel,
   rightPanelPanels,
   sidebarPanels,
@@ -113,6 +173,15 @@ export function AppShell({
   const activeSidebarContent = SIDEBAR_VIEW_CONTENT[sidebarView];
   const activeSidebarPanel = sidebarPanels?.[sidebarView];
   const hasLegacyContent = children !== undefined && children !== null;
+  const applicationMenuGroups = createApplicationMenuGroups({
+    bottomDockTab,
+    menuItems,
+    rightPanelTab,
+    setActiveBottomDockTab,
+    setActiveRightPanelTab,
+    setActiveSidebarView,
+    sidebarView,
+  });
 
   useEffect(() => {
     writeWorkbenchLayoutPreferences(layoutPreferences);
@@ -142,10 +211,11 @@ export function AppShell({
   return (
     <div className="workbench-root">
       <header className="workbench-header">
-        <div>
+        <div className="workbench-header-brand">
           <p className="workbench-eyebrow">CHEMSMART Workbench</p>
           <h1 className="workbench-title">CHEMSMART GUI</h1>
         </div>
+        <WorkbenchMenuBar groups={applicationMenuGroups} />
       </header>
       <div className="workbench-layout">
         <aside
@@ -249,6 +319,150 @@ export function AppShell({
       </div>
     </div>
   );
+}
+
+interface ApplicationMenuGroupsOptions {
+  bottomDockTab: BottomDockTab;
+  menuItems?: WorkbenchMenuItems;
+  rightPanelTab: RightPanelTab;
+  setActiveBottomDockTab: (tab: BottomDockTab) => void;
+  setActiveRightPanelTab: (tab: RightPanelTab) => void;
+  setActiveSidebarView: (view: SidebarView) => void;
+  sidebarView: SidebarView;
+}
+
+function createApplicationMenuGroups({
+  bottomDockTab,
+  menuItems,
+  rightPanelTab,
+  setActiveBottomDockTab,
+  setActiveRightPanelTab,
+  setActiveSidebarView,
+  sidebarView,
+}: ApplicationMenuGroupsOptions): WorkbenchMenuGroup[] {
+  return [
+    {
+      id: 'file',
+      label: 'File',
+      items: composeMenuItems(menuItems?.file, [
+        {
+          active: sidebarView === 'explorer',
+          id: 'show-explorer-sidebar',
+          kind: 'action',
+          label: 'Show Explorer Sidebar',
+          onSelect: () => setActiveSidebarView('explorer'),
+        },
+        {
+          active: bottomDockTab === 'export',
+          id: 'show-export-dock',
+          kind: 'action',
+          label: 'Show Export Dock',
+          onSelect: () => setActiveBottomDockTab('export'),
+        },
+      ]),
+    },
+    {
+      id: 'edit',
+      label: 'Edit',
+      items: menuItems?.edit ?? [],
+    },
+    {
+      id: 'view',
+      label: 'View',
+      items: composeMenuItems(menuItems?.view, [
+        {
+          active: sidebarView === 'explorer',
+          id: 'view-explorer-sidebar',
+          kind: 'action',
+          label: 'Show Explorer Sidebar',
+          onSelect: () => setActiveSidebarView('explorer'),
+        },
+        {
+          active: sidebarView === 'tasks',
+          id: 'view-tasks-sidebar',
+          kind: 'action',
+          label: 'Show Tasks Sidebar',
+          onSelect: () => setActiveSidebarView('tasks'),
+        },
+        {
+          active: sidebarView === 'display',
+          id: 'view-display-sidebar',
+          kind: 'action',
+          label: 'Show Display Sidebar',
+          onSelect: () => setActiveSidebarView('display'),
+        },
+        {
+          active: rightPanelTab === 'details',
+          id: 'view-details-panel',
+          kind: 'action',
+          label: 'Show Details Panel',
+          onSelect: () => setActiveRightPanelTab('details'),
+        },
+        {
+          active: rightPanelTab === 'inspector',
+          id: 'view-inspector-panel',
+          kind: 'action',
+          label: 'Show Inspector Panel',
+          onSelect: () => setActiveRightPanelTab('inspector'),
+        },
+      ]),
+    },
+    {
+      id: 'calculate',
+      label: 'Calculate',
+      items: menuItems?.calculate ?? DEFAULT_CALCULATE_MENU_ITEMS,
+    },
+    {
+      id: 'results',
+      label: 'Results',
+      items: composeMenuItems(menuItems?.results, [
+        {
+          active: bottomDockTab === 'properties',
+          id: 'show-properties-dock',
+          kind: 'action',
+          label: 'Show Properties Dock',
+          onSelect: () => setActiveBottomDockTab('properties'),
+        },
+        {
+          active: bottomDockTab === 'analysis',
+          id: 'show-analysis-dock',
+          kind: 'action',
+          label: 'Show Analysis Dock',
+          onSelect: () => setActiveBottomDockTab('analysis'),
+        },
+        {
+          active: bottomDockTab === 'logs',
+          id: 'show-logs-dock',
+          kind: 'action',
+          label: 'Show Logs Dock',
+          onSelect: () => setActiveBottomDockTab('logs'),
+        },
+      ]),
+    },
+    {
+      id: 'settings',
+      label: 'Settings',
+      items: menuItems?.settings ?? DEFAULT_SETTINGS_MENU_ITEMS,
+    },
+  ];
+}
+
+function composeMenuItems(
+  primaryItems: readonly WorkbenchMenuItem[] | undefined,
+  secondaryItems: readonly WorkbenchMenuItem[],
+): WorkbenchMenuItem[] {
+  if (!primaryItems || primaryItems.length === 0) {
+    return [...secondaryItems];
+  }
+  if (secondaryItems.length === 0) {
+    return [...primaryItems];
+  }
+
+  return [
+    ...primaryItems,
+    { id: 'custom-menu-separator', kind: 'separator' },
+    ...secondaryItems,
+  ];
 }
 
 function readWorkbenchLayoutPreferences(): WorkbenchLayoutPreferences {
