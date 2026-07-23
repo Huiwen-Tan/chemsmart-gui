@@ -649,6 +649,14 @@ describe('App', () => {
     expect(
       within(documentSummary).getByText('sample-data/water.xyz'),
     ).toBeInTheDocument();
+    const viewerStatus = screen.getByRole('region', {
+      name: 'Viewer status',
+    });
+    expect(viewerStatus).toHaveTextContent('3 atoms');
+    expect(viewerStatus).toHaveTextContent('2 bonds');
+    expect(viewerStatus).toHaveTextContent('charge unavailable');
+    expect(viewerStatus).toHaveTextContent('multiplicity unavailable');
+    expect(viewerStatus).toHaveTextContent('No atoms selected');
     expect(useViewerStore.getState().selectedAtomIndices).toEqual([]);
 
     expect(fetchMock).toHaveBeenNthCalledWith(
@@ -682,6 +690,11 @@ describe('App', () => {
     expect(
       within(viewerWorkspace).getByTestId('viewer-document'),
     ).toHaveTextContent('null');
+    expect(
+      within(viewerWorkspace).getByRole('region', {
+        name: 'Viewer status',
+      }),
+    ).toHaveTextContent('No molecule loaded');
     expect(
       within(sidebar).getByRole('button', { name: 'Open Document' }),
     ).toBeInTheDocument();
@@ -746,6 +759,9 @@ describe('App', () => {
     ).toBeInTheDocument();
     expect(within(trajectoryPanel).getByText('Frame 1 of 2')).toBeInTheDocument();
     expect(
+      screen.getByRole('region', { name: 'Viewer status' }),
+    ).toHaveTextContent('Frame 1 of 2');
+    expect(
       within(trajectoryPanel).getByRole('button', { name: 'Previous Frame' }),
     ).toBeDisabled();
     expect(
@@ -779,6 +795,9 @@ describe('App', () => {
     });
     expect(useViewerStore.getState().selectedAtomIndices).toEqual([]);
     expect(within(trajectoryPanel).getByText('Frame 2 of 2')).toBeInTheDocument();
+    expect(
+      screen.getByRole('region', { name: 'Viewer status' }),
+    ).toHaveTextContent('Frame 2 of 2');
     expect(
       within(trajectoryPanel).getByRole('button', { name: 'Previous Frame' }),
     ).toBeEnabled();
@@ -1648,6 +1667,9 @@ describe('App', () => {
         JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT),
       );
     });
+    expect(
+      screen.getByRole('region', { name: 'Viewer status' }),
+    ).toHaveTextContent('Mode 1: -530.2 cm^-1 (imaginary)');
     const dock = activateBottomDockTab('Analysis');
     const modesPanel = within(dock).getByRole('region', {
       name: 'Vibrational Modes',

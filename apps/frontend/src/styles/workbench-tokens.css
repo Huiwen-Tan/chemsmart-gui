@@ -378,11 +378,47 @@ textarea:focus-visible {
 }
 
 .workbench-viewer-slot {
+  display: flex;
   min-height: 32rem;
+  flex-direction: column;
   padding: var(--csw-space-3);
   border: 1px solid var(--csw-color-border);
   border-radius: var(--csw-radius-lg);
   background: var(--csw-color-surface-sunken);
+}
+
+.workbench-viewer-workspace {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--csw-space-2);
+}
+
+.workbench-viewer-status-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--csw-space-2);
+  align-items: center;
+  padding: var(--csw-space-2) var(--csw-space-3);
+  border: 1px solid var(--csw-color-divider);
+  border-radius: var(--csw-radius-md);
+  background: var(--csw-color-panel-strong);
+  color: var(--csw-color-text-muted);
+  font-size: var(--csw-font-size-sm);
+}
+
+.workbench-viewer-status-item {
+  display: inline-flex;
+  align-items: center;
+  border-right: 1px solid var(--csw-color-divider);
+  padding-right: var(--csw-space-2);
+  line-height: var(--csw-line-height-tight);
+}
+
+.workbench-viewer-status-item:last-child {
+  border-right: 0;
+  padding-right: 0;
 }
 
 .workbench-legacy-content {

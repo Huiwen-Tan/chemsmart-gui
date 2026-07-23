@@ -16,6 +16,7 @@ import { useDocumentStore } from './state/useDocumentStore';
 import { useViewerStore } from './state/useViewerStore';
 import { MolecularViewer } from './viewer/MolecularViewer';
 import { SelectedAtomPanel } from './viewer/SelectedAtomPanel';
+import { ViewerStatusBar } from './viewer/ViewerStatusBar';
 import { downloadTextFile } from './shared/download';
 import type {
   ModeDisplacementDirection,
@@ -102,6 +103,9 @@ export function App(): JSX.Element {
     undoMoleculeEdit,
   } = useDocumentStore();
   const showBonds = useViewerStore((state) => state.showBonds);
+  const selectedAtomIndices = useViewerStore(
+    (state) => state.selectedAtomIndices,
+  );
   const setShowBonds = useViewerStore((state) => state.setShowBonds);
   const showAtomLabels = useViewerStore((state) => state.showAtomLabels);
   const setShowAtomLabels = useViewerStore(
@@ -578,13 +582,24 @@ export function App(): JSX.Element {
         display: displaySidebarPanel,
       }}
       workspace={(
-        <MolecularViewer
-          document={activeMoleculeDocument}
-          isVibrationalModeAnimationPlaying={
-            isVibrationalModeAnimationPlaying
-          }
-          selectedVibrationalMode={selectedVibrationalMode}
-        />
+        <div className="workbench-viewer-workspace">
+          <MolecularViewer
+            document={activeMoleculeDocument}
+            isVibrationalModeAnimationPlaying={
+              isVibrationalModeAnimationPlaying
+            }
+            selectedVibrationalMode={selectedVibrationalMode}
+          />
+          <ViewerStatusBar
+            document={activeMoleculeDocument}
+            selectedAtomIndices={selectedAtomIndices}
+            selectedTrajectoryFrameIndex={
+              trajectoryDocument ? selectedTrajectoryFrameIndex : null
+            }
+            selectedVibrationalMode={selectedVibrationalMode}
+            trajectoryFrameCount={trajectoryDocument?.frames.length ?? null}
+          />
+        </div>
       )}
     />
   );
