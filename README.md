@@ -2,4 +2,8 @@
 
 Desktop GUI monorepo starter for the CHEMSMART ecosystem.
 
-See `/docs` for architecture, development setup, and roadmap details.
+See `/docs` for:
+
+- [Architecture](docs/architecture.md)
+- [Analysis results](docs/analysis-results.md)
+- [Development setup](docs/development.md)

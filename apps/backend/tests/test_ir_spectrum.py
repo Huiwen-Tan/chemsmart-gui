@@ -164,6 +164,85 @@ def test_preview_broadened_ir_spectrum_api_returns_points() -> None:
     assert len(body["points"]) == 5
 
 
+@pytest.mark.parametrize(
+    ("path", "program", "expected_modes"),
+    [
+        (
+            "sample-data/water.log",
+            "gaussian",
+            [
+                (1, 1628.3334, 71.6875),
+                (2, 3821.7812, 5.5605),
+                (3, 3947.6507, 75.4856),
+            ],
+        ),
+        (
+            "sample-data/water.out",
+            "orca",
+            [
+                (1, 1625.35, 64.27),
+                (2, 3875.61, 15.0),
+                (3, 3971.9, 50.03),
+            ],
+        ),
+    ],
+)
+def test_preview_broadened_ir_spectrum_api_accepts_output_fixtures(
+    path: str,
+    program: str,
+    expected_modes: list[tuple[int, float, float]],
+) -> None:
+    open_response = client.post(
+        "/api/documents/open",
+        json={"path": path},
+    )
+
+    assert open_response.status_code == 200
+    opened_document = open_response.json()
+    assert opened_document["calculation"]["program"] == program
+    final_frame = opened_document["frames"][-1]
+    assert len(final_frame["vibrational_modes"]) == len(expected_modes)
+    for mode, expected_mode in zip(
+        final_frame["vibrational_modes"],
+        expected_modes,
+        strict=True,
+    ):
+        expected_index, expected_frequency, expected_intensity = expected_mode
+        assert mode["index"] == expected_index
+        assert mode["frequency_cm_minus_1"] == pytest.approx(expected_frequency)
+        assert mode["ir_intensity_km_per_mol"] == pytest.approx(
+            expected_intensity
+        )
+
+    spectrum_response = client.post(
+        "/api/documents/ir-spectrum-preview",
+        json={
+            "document": final_frame,
+            "broadening": "gaussian",
+            "width_cm_minus_1": 20.0,
+            "point_count": 7,
+        },
+    )
+
+    assert spectrum_response.status_code == 200
+    spectrum = spectrum_response.json()
+    assert spectrum["broadening"] == "gaussian"
+    assert spectrum["width_cm_minus_1"] == 20.0
+    assert spectrum["point_count"] == 7
+    assert len(spectrum["peaks"]) == len(expected_modes)
+    assert len(spectrum["points"]) == 7
+    assert [peak["mode_index"] for peak in spectrum["peaks"]] == [
+        expected_mode[0] for expected_mode in expected_modes
+    ]
+    assert [
+        peak["frequency_cm_minus_1"] for peak in spectrum["peaks"]
+    ] == pytest.approx([expected_mode[1] for expected_mode in expected_modes])
+    assert all(
+        point["intensity_km_per_mol"] >= 0
+        for point in spectrum["points"]
+    )
+
+
 def test_preview_broadened_ir_spectrum_api_reports_service_errors() -> None:
     document = make_vibrational_document().model_copy(
         update={"vibrational_modes": []}

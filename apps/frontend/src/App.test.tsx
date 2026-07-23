@@ -321,6 +321,106 @@ const GAUSSIAN_OUTPUT_DOCUMENT = {
   ],
 } satisfies MoleculeDocument;
 
+const ORCA_OUTPUT_INITIAL_FRAME = {
+  ...WATER_DOCUMENT,
+  id: 'orca-output-initial-frame',
+  name: 'orca-water-initial-frame',
+  source: {
+    path: 'sample-data/water.out',
+    filename: 'water.out',
+    filetype: 'out',
+  },
+  calculation: {
+    program: 'orca',
+    normal_termination: true,
+  },
+  charge: 0,
+  multiplicity: 1,
+  vibrational_modes: [],
+} satisfies MoleculeDocument;
+
+const ORCA_OUTPUT_FINAL_FRAME = {
+  ...WATER_DOCUMENT,
+  id: 'orca-output-final-frame',
+  name: 'orca-water-final-frame',
+  source: {
+    path: 'sample-data/water.out',
+    filename: 'water.out',
+    filetype: 'out',
+  },
+  calculation: {
+    program: 'orca',
+    normal_termination: true,
+  },
+  charge: 0,
+  multiplicity: 1,
+  atoms: [
+    { index: 1, element: 'O', x: -0, y: 0, z: 0.087348 },
+    { index: 2, element: 'H', x: -0.75518, y: 0, z: -0.509674 },
+    { index: 3, element: 'H', x: 0.75518, y: 0, z: -0.509674 },
+  ],
+  vibrational_modes: [
+    {
+      index: 1,
+      frequency_cm_minus_1: 1625.35,
+      is_imaginary: false,
+      reduced_mass_amu: null,
+      force_constant_mdyne_per_angstrom: null,
+      ir_intensity_km_per_mol: 64.27,
+      symmetry: null,
+      displacements: [],
+    },
+    {
+      index: 2,
+      frequency_cm_minus_1: 3875.61,
+      is_imaginary: false,
+      reduced_mass_amu: null,
+      force_constant_mdyne_per_angstrom: null,
+      ir_intensity_km_per_mol: 15,
+      symmetry: null,
+      displacements: [],
+    },
+    {
+      index: 3,
+      frequency_cm_minus_1: 3971.9,
+      is_imaginary: false,
+      reduced_mass_amu: null,
+      force_constant_mdyne_per_angstrom: null,
+      ir_intensity_km_per_mol: 50.03,
+      symmetry: null,
+      displacements: [],
+    },
+  ],
+} satisfies MoleculeDocument;
+
+const ORCA_OUTPUT_TRAJECTORY_DOCUMENT = {
+  id: 'orca-output-trajectory-document',
+  name: 'orca-water-optimization',
+  document_kind: 'trajectory',
+  source: {
+    path: 'sample-data/water.out',
+    filename: 'water.out',
+    filetype: 'out',
+  },
+  calculation: {
+    program: 'orca',
+    normal_termination: true,
+  },
+  coordinate_unit: 'angstrom',
+  frames: [ORCA_OUTPUT_INITIAL_FRAME, ORCA_OUTPUT_FINAL_FRAME],
+  frame_properties: [
+    {
+      energy_hartree: -76.259,
+      normal_termination: true,
+    },
+    {
+      energy_hartree: -76.26,
+      is_optimized_structure: true,
+      normal_termination: true,
+    },
+  ],
+} satisfies TrajectoryDocument;
+
 const BROADENED_IR_SPECTRUM_RESPONSE = {
   broadening: 'gaussian',
   width_cm_minus_1: 20,
@@ -343,6 +443,36 @@ const BROADENED_IR_SPECTRUM_RESPONSE = {
     { wavenumber_cm_minus_1: -630.2, intensity_km_per_mol: 0.5 },
     { wavenumber_cm_minus_1: -530.2, intensity_km_per_mol: 12.3 },
     { wavenumber_cm_minus_1: -430.2, intensity_km_per_mol: 0.5 },
+  ],
+} satisfies BroadenedIrSpectrumResponse;
+
+const ORCA_BROADENED_IR_SPECTRUM_RESPONSE = {
+  broadening: 'gaussian',
+  width_cm_minus_1: 20,
+  point_count: 121,
+  frequency_unit: 'cm^-1',
+  intensity_unit: 'km/mol',
+  peaks: [
+    {
+      mode_index: 1,
+      frequency_cm_minus_1: 1625.35,
+      ir_intensity_km_per_mol: 64.27,
+    },
+    {
+      mode_index: 2,
+      frequency_cm_minus_1: 3875.61,
+      ir_intensity_km_per_mol: 15,
+    },
+    {
+      mode_index: 3,
+      frequency_cm_minus_1: 3971.9,
+      ir_intensity_km_per_mol: 50.03,
+    },
+  ],
+  points: [
+    { wavenumber_cm_minus_1: 1525.35, intensity_km_per_mol: 0.5 },
+    { wavenumber_cm_minus_1: 1625.35, intensity_km_per_mol: 64.27 },
+    { wavenumber_cm_minus_1: 3971.9, intensity_km_per_mol: 50.03 },
   ],
 } satisfies BroadenedIrSpectrumResponse;
 
@@ -1469,6 +1599,83 @@ describe('App', () => {
         method: 'POST',
         body: JSON.stringify({
           document: GAUSSIAN_OUTPUT_DOCUMENT,
+          broadening: 'gaussian',
+          point_count: 121,
+          width_cm_minus_1: 20,
+        }),
+      }),
+    );
+  });
+
+  it('previews a broadened IR spectrum for selected ORCA trajectory frames', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
+      .mockResolvedValueOnce(jsonResponse(ORCA_OUTPUT_TRAJECTORY_DOCUMENT))
+      .mockResolvedValueOnce(jsonResponse(ORCA_BROADENED_IR_SPECTRUM_RESPONSE));
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText('Document path'), {
+      target: { value: 'sample-data/water.out' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(ORCA_OUTPUT_INITIAL_FRAME),
+      );
+    });
+
+    const trajectoryPanel = screen.getByRole('region', {
+      name: 'Trajectory Frames',
+    });
+    fireEvent.change(
+      within(trajectoryPanel).getByLabelText('Trajectory frame'),
+      {
+        target: { value: '1' },
+      },
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(ORCA_OUTPUT_FINAL_FRAME),
+      );
+    });
+    const modesPanel = screen.getByRole('region', {
+      name: 'Vibrational Modes',
+    });
+    const spectrumPanel = within(modesPanel).getByRole('region', {
+      name: 'IR Stick Spectrum',
+    });
+    expect(within(spectrumPanel).getByText('1625.35')).toBeInTheDocument();
+    expect(within(spectrumPanel).getByText('64.27')).toBeInTheDocument();
+
+    fireEvent.click(
+      within(modesPanel).getByRole('button', {
+        name: 'Preview Broadened IR Spectrum',
+      }),
+    );
+
+    await waitFor(() => {
+      expect(
+        within(modesPanel).getByRole('img', {
+          name: 'Broadened IR spectrum chart',
+        }),
+      ).toBeInTheDocument();
+    });
+    expect(
+      within(modesPanel).getByRole('table', {
+        name: 'Broadened IR spectrum points',
+      }),
+    ).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      'http://127.0.0.1:8000/api/documents/ir-spectrum-preview',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          document: ORCA_OUTPUT_FINAL_FRAME,
           broadening: 'gaussian',
           point_count: 121,
           width_cm_minus_1: 20,
