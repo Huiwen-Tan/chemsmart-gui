@@ -81,11 +81,17 @@ describe('TrajectoryFramesPanel', () => {
 
   it('shows frame metadata, boundary controls, and scalar properties', () => {
     const onSelectedFrameIndexChange = vi.fn();
+    const onPlaybackFramesPerSecondChange = vi.fn();
+    const onPlaybackPlayingChange = vi.fn();
 
     render(
       <TrajectoryFramesPanel
         document={TRAJECTORY_DOCUMENT}
+        isPlaybackPlaying={false}
+        onPlaybackFramesPerSecondChange={onPlaybackFramesPerSecondChange}
+        onPlaybackPlayingChange={onPlaybackPlayingChange}
         onSelectedFrameIndexChange={onSelectedFrameIndexChange}
+        playbackFramesPerSecond={2}
         selectedFrameIndex={0}
       />,
     );
@@ -102,6 +108,15 @@ describe('TrajectoryFramesPanel', () => {
       within(panel).getByRole('button', { name: 'Next Frame' }),
     ).toBeEnabled();
     expect(within(panel).getByLabelText('Trajectory frame')).toHaveValue('0');
+    expect(
+      within(panel).getByRole('button', { name: 'Play Trajectory' }),
+    ).toBeEnabled();
+    expect(
+      within(panel).getByRole('button', { name: 'Play Trajectory' }),
+    ).toHaveAttribute('aria-pressed', 'false');
+    expect(
+      within(panel).getByLabelText('Trajectory playback speed'),
+    ).toHaveValue('2');
 
     const propertiesTable = within(panel).getByRole('table', {
       name: 'Selected trajectory frame properties',
@@ -115,6 +130,19 @@ describe('TrajectoryFramesPanel', () => {
 
     fireEvent.click(within(panel).getByRole('button', { name: 'Next Frame' }));
     expect(onSelectedFrameIndexChange).toHaveBeenCalledWith(1);
+
+    fireEvent.click(
+      within(panel).getByRole('button', { name: 'Play Trajectory' }),
+    );
+    expect(onPlaybackPlayingChange).toHaveBeenCalledWith(true);
+
+    fireEvent.change(
+      within(panel).getByLabelText('Trajectory playback speed'),
+      {
+        target: { value: '5' },
+      },
+    );
+    expect(onPlaybackFramesPerSecondChange).toHaveBeenCalledWith(5);
   });
 
   it('selects frames by dropdown and formats unavailable scalar properties', () => {
@@ -123,6 +151,8 @@ describe('TrajectoryFramesPanel', () => {
     render(
       <TrajectoryFramesPanel
         document={TRAJECTORY_DOCUMENT}
+        isPlaybackPlaying
+        onPlaybackPlayingChange={onSelectedFrameIndexChange}
         onSelectedFrameIndexChange={onSelectedFrameIndexChange}
         selectedFrameIndex={1}
       />,
@@ -137,6 +167,9 @@ describe('TrajectoryFramesPanel', () => {
     expect(
       within(panel).getByRole('button', { name: 'Next Frame' }),
     ).toBeDisabled();
+    expect(
+      within(panel).getByRole('button', { name: 'Pause Trajectory' }),
+    ).toHaveAttribute('aria-pressed', 'true');
     expect(within(panel).getByText('gradient_norm')).toBeInTheDocument();
     expect(within(panel).getByText('Unavailable')).toBeInTheDocument();
 

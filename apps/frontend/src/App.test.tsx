@@ -435,6 +435,7 @@ describe('App', () => {
 
   afterEach(() => {
     cleanup();
+    vi.useRealTimers();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
@@ -544,6 +545,119 @@ describe('App', () => {
     expect(screen.queryByText('Unsaved edits')).not.toBeInTheDocument();
   });
 
+  it('plays trajectory frames and loops to the first frame', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
+      .mockResolvedValueOnce(jsonResponse(TRAJECTORY_DOCUMENT));
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText('Document path'), {
+      target: { value: 'sample-data/water.log' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(TRAJECTORY_FRAME_ONE),
+      );
+    });
+
+    const trajectoryPanel = screen.getByRole('region', {
+      name: 'Trajectory Frames',
+    });
+    vi.useFakeTimers();
+
+    fireEvent.click(
+      within(trajectoryPanel).getByRole('button', {
+        name: 'Play Trajectory',
+      }),
+    );
+    expect(
+      within(trajectoryPanel).getByRole('button', {
+        name: 'Pause Trajectory',
+      }),
+    ).toHaveAttribute('aria-pressed', 'true');
+
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+      JSON.stringify(TRAJECTORY_FRAME_TWO),
+    );
+    expect(within(trajectoryPanel).getByText('Frame 2 of 2')).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+      JSON.stringify(TRAJECTORY_FRAME_ONE),
+    );
+    expect(within(trajectoryPanel).getByText('Frame 1 of 2')).toBeInTheDocument();
+
+    fireEvent.click(
+      within(trajectoryPanel).getByRole('button', {
+        name: 'Pause Trajectory',
+      }),
+    );
+    expect(
+      within(trajectoryPanel).getByRole('button', {
+        name: 'Play Trajectory',
+      }),
+    ).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('uses selected trajectory playback speed', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
+      .mockResolvedValueOnce(jsonResponse(TRAJECTORY_DOCUMENT));
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText('Document path'), {
+      target: { value: 'sample-data/water.log' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(TRAJECTORY_FRAME_ONE),
+      );
+    });
+
+    const trajectoryPanel = screen.getByRole('region', {
+      name: 'Trajectory Frames',
+    });
+    fireEvent.change(
+      within(trajectoryPanel).getByLabelText('Trajectory playback speed'),
+      {
+        target: { value: '1' },
+      },
+    );
+    vi.useFakeTimers();
+    fireEvent.click(
+      within(trajectoryPanel).getByRole('button', {
+        name: 'Play Trajectory',
+      }),
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(999);
+    });
+    expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+      JSON.stringify(TRAJECTORY_FRAME_ONE),
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+      JSON.stringify(TRAJECTORY_FRAME_TWO),
+    );
+  });
+
   it('resets selected trajectory frame when opening another document', async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
@@ -576,6 +690,16 @@ describe('App', () => {
         JSON.stringify(TRAJECTORY_FRAME_TWO),
       );
     });
+    fireEvent.click(
+      within(trajectoryPanel).getByRole('button', {
+        name: 'Play Trajectory',
+      }),
+    );
+    expect(
+      within(trajectoryPanel).getByRole('button', {
+        name: 'Pause Trajectory',
+      }),
+    ).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Document path'), {
       target: { value: 'sample-data/second-water.log' },
@@ -591,6 +715,11 @@ describe('App', () => {
     expect(
       within(trajectoryPanel).getByLabelText('Trajectory frame'),
     ).toHaveValue('0');
+    expect(
+      within(trajectoryPanel).getByRole('button', {
+        name: 'Play Trajectory',
+      }),
+    ).toBeInTheDocument();
   });
 
   it('submits the edited document path to the open-document API', async () => {

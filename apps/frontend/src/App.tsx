@@ -29,6 +29,7 @@ const REPLACE_UNSAVED_EDITS_MESSAGE =
 const REPLACE_UNSAVED_EDITS_FOR_DISPLACEMENT_MESSAGE =
   'Current molecule has unsaved edits. Generate a displaced structure and discard them?';
 const XYZ_EXPORT_CONTENT_TYPE = 'chemical/x-xyz;charset=utf-8';
+const DEFAULT_TRAJECTORY_PLAYBACK_FRAMES_PER_SECOND = 2;
 
 function isEditableShortcutTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) {
@@ -130,6 +131,14 @@ export function App(): JSX.Element {
     selectedTrajectoryFrameIndex,
     setSelectedTrajectoryFrameIndex,
   ] = useState(0);
+  const [
+    isTrajectoryPlaybackPlaying,
+    setIsTrajectoryPlaybackPlaying,
+  ] = useState(false);
+  const [
+    trajectoryPlaybackFramesPerSecond,
+    setTrajectoryPlaybackFramesPerSecond,
+  ] = useState(DEFAULT_TRAJECTORY_PLAYBACK_FRAMES_PER_SECOND);
   const trajectoryDocument = isTrajectoryDocument(currentDocument)
     ? currentDocument
     : null;
@@ -213,6 +222,7 @@ export function App(): JSX.Element {
 
   useEffect(() => {
     setSelectedTrajectoryFrameIndex(0);
+    setIsTrajectoryPlaybackPlaying(false);
   }, [currentDocument?.id]);
 
   useEffect(() => {
@@ -223,6 +233,41 @@ export function App(): JSX.Element {
       setSelectedTrajectoryFrameIndex(0);
     }
   }, [selectedTrajectoryFrameIndex, trajectoryDocument]);
+
+  useEffect(() => {
+    if (!trajectoryDocument || trajectoryDocument.frames.length <= 1) {
+      setIsTrajectoryPlaybackPlaying(false);
+    }
+  }, [trajectoryDocument]);
+
+  useEffect(() => {
+    if (
+      !trajectoryDocument ||
+      !isTrajectoryPlaybackPlaying ||
+      trajectoryDocument.frames.length <= 1
+    ) {
+      return undefined;
+    }
+
+    const frameCount = trajectoryDocument.frames.length;
+    const intervalMs = 1000 / trajectoryPlaybackFramesPerSecond;
+    const intervalId = window.setInterval(() => {
+      setActiveVibrationalModeAnimationKey(null);
+      clearAtomSelection();
+      setSelectedTrajectoryFrameIndex((currentFrameIndex) => (
+        (currentFrameIndex + 1) % frameCount
+      ));
+    }, intervalMs);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [
+    clearAtomSelection,
+    isTrajectoryPlaybackPlaying,
+    trajectoryDocument,
+    trajectoryPlaybackFramesPerSecond,
+  ]);
 
   const selectVibrationalMode = (modeIndex: number): void => {
     setActiveVibrationalModeAnimationKey(null);
@@ -412,7 +457,13 @@ export function App(): JSX.Element {
       {trajectoryDocument ? (
         <TrajectoryFramesPanel
           document={trajectoryDocument}
+          isPlaybackPlaying={isTrajectoryPlaybackPlaying}
           onSelectedFrameIndexChange={selectTrajectoryFrame}
+          onPlaybackFramesPerSecondChange={
+            setTrajectoryPlaybackFramesPerSecond
+          }
+          onPlaybackPlayingChange={setIsTrajectoryPlaybackPlaying}
+          playbackFramesPerSecond={trajectoryPlaybackFramesPerSecond}
           selectedFrameIndex={selectedTrajectoryFrameIndex}
         />
       ) : null}

@@ -2,9 +2,15 @@ import type { JsonScalar, TrajectoryDocument } from '../shared/types';
 
 interface TrajectoryFramesPanelProps {
   document: TrajectoryDocument | null;
+  isPlaybackPlaying?: boolean;
+  onPlaybackFramesPerSecondChange?: (framesPerSecond: number) => void;
+  onPlaybackPlayingChange?: (isPlaying: boolean) => void;
   selectedFrameIndex: number;
+  playbackFramesPerSecond?: number;
   onSelectedFrameIndexChange: (frameIndex: number) => void;
 }
+
+const PLAYBACK_SPEED_OPTIONS = [1, 2, 5, 10];
 
 function formatScalarValue(value: JsonScalar): string {
   return value === null ? 'Unavailable' : String(value);
@@ -22,7 +28,11 @@ function selectedFrameIndexForDocument(
 
 export function TrajectoryFramesPanel({
   document,
+  isPlaybackPlaying = false,
+  onPlaybackFramesPerSecondChange,
+  onPlaybackPlayingChange,
   selectedFrameIndex,
+  playbackFramesPerSecond = 2,
   onSelectedFrameIndexChange,
 }: TrajectoryFramesPanelProps): JSX.Element {
   const effectiveFrameIndex = document
@@ -35,6 +45,7 @@ export function TrajectoryFramesPanel({
     selectedFrameProperties,
   );
   const frameCount = document?.frames.length ?? 0;
+  const canPlay = frameCount > 1 && onPlaybackPlayingChange !== undefined;
 
   const selectFrame = (frameIndex: number): void => {
     if (!document || frameIndex < 0 || frameIndex >= document.frames.length) {
@@ -98,6 +109,37 @@ export function TrajectoryFramesPanel({
             >
               Next Frame
             </button>
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <button
+              aria-pressed={isPlaybackPlaying}
+              disabled={!canPlay}
+              onClick={() => {
+                onPlaybackPlayingChange?.(!isPlaybackPlaying);
+              }}
+              type="button"
+            >
+              {isPlaybackPlaying ? 'Pause Trajectory' : 'Play Trajectory'}
+            </button>
+            <label style={{ display: 'inline-flex', gap: 6, marginLeft: 8 }}>
+              Playback speed
+              <select
+                aria-label="Trajectory playback speed"
+                disabled={onPlaybackFramesPerSecondChange === undefined}
+                onChange={(event) => {
+                  onPlaybackFramesPerSecondChange?.(
+                    Number(event.currentTarget.value),
+                  );
+                }}
+                value={playbackFramesPerSecond}
+              >
+                {PLAYBACK_SPEED_OPTIONS.map((framesPerSecond) => (
+                  <option key={framesPerSecond} value={framesPerSecond}>
+                    {framesPerSecond} fps
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
           <h3>Frame Properties</h3>
           {selectedFramePropertyEntries.length > 0 ? (
