@@ -267,4 +267,67 @@ describe('AppShell', () => {
       }),
     ).not.toBeInTheDocument();
   });
+
+  it('renders custom primary sidebar view content', () => {
+    const { container } = render(
+      <AppShell
+        sidebarPanels={{
+          explorer: <p>Open document controls</p>,
+          display: <p>Viewer display controls</p>,
+        }}
+      >
+        <p>Workspace content</p>
+      </AppShell>,
+    );
+    const shell = within(container);
+    const sidebar = shell.getByRole('complementary', {
+      name: 'Primary workspace navigation',
+    });
+
+    expect(
+      within(sidebar).getByRole('region', { name: 'Explorer sidebar panel' }),
+    ).toHaveTextContent('Open document controls');
+    fireEvent.click(within(sidebar).getByRole('button', { name: 'Tasks' }));
+    expect(
+      within(sidebar).getByRole('region', { name: 'Tasks sidebar panel' }),
+    ).toHaveTextContent('CHEMSMART task catalog shortcuts will appear here.');
+    fireEvent.click(within(sidebar).getByRole('button', { name: 'Display' }));
+    expect(
+      within(sidebar).getByRole('region', { name: 'Display sidebar panel' }),
+    ).toHaveTextContent('Viewer display controls');
+  });
+
+  it('renders custom bottom dock and right panel tab content', () => {
+    const { container } = render(
+      <AppShell
+        bottomDockPanels={{ properties: <p>Document properties</p> }}
+        rightPanelPanels={{ details: <p>Selection details</p> }}
+      >
+        <p>Workspace content</p>
+      </AppShell>,
+    );
+    const shell = within(container);
+    const dock = shell.getByRole('region', { name: 'Workbench dock' });
+    const rightPanel = shell.getByRole('complementary', {
+      name: 'Context panel',
+    });
+
+    expect(
+      within(dock).getByRole('tabpanel', { name: 'Properties' }),
+    ).toHaveTextContent('Document properties');
+    expect(
+      within(rightPanel).getByRole('tabpanel', { name: 'Details' }),
+    ).toHaveTextContent('Selection details');
+
+    fireEvent.click(within(dock).getByRole('tab', { name: 'Export' }));
+    expect(
+      within(dock).getByRole('tabpanel', { name: 'Export' }),
+    ).toHaveTextContent('Export previews and save actions will appear here.');
+    fireEvent.click(within(rightPanel).getByRole('tab', { name: 'Inspector' }));
+    expect(
+      within(rightPanel).getByRole('tabpanel', { name: 'Inspector' }),
+    ).toHaveTextContent(
+      'Document and viewer inspector controls will appear here.',
+    );
+  });
 });

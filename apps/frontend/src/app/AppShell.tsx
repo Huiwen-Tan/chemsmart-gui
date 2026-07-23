@@ -75,15 +75,21 @@ const RIGHT_PANEL_TABS: ReadonlyArray<PlaceholderTab<RightPanelTab>> = [
 
 interface AppShellProps {
   bottomDock?: ReactNode;
+  bottomDockPanels?: Partial<Record<BottomDockTab, ReactNode>>;
   children: ReactNode;
   rightPanel?: ReactNode;
+  rightPanelPanels?: Partial<Record<RightPanelTab, ReactNode>>;
+  sidebarPanels?: Partial<Record<SidebarView, ReactNode>>;
   workspace?: ReactNode;
 }
 
 export function AppShell({
   bottomDock,
+  bottomDockPanels,
   children,
   rightPanel,
+  rightPanelPanels,
+  sidebarPanels,
   workspace,
 }: AppShellProps): JSX.Element {
   const [activeSidebarView, setActiveSidebarView] =
@@ -93,6 +99,7 @@ export function AppShell({
   const [activeRightPanelTab, setActiveRightPanelTab] =
     useState<RightPanelTab>('details');
   const activeSidebarContent = SIDEBAR_VIEW_CONTENT[activeSidebarView];
+  const activeSidebarPanel = sidebarPanels?.[activeSidebarView];
 
   return (
     <div className="workbench-root">
@@ -130,9 +137,15 @@ export function AppShell({
             <p className="workbench-region-label">
               {activeSidebarContent.heading}
             </p>
-            <p className="workbench-placeholder">
-              {activeSidebarContent.description}
-            </p>
+            {activeSidebarPanel ? (
+              <div className="workbench-panel-stack">
+                {activeSidebarPanel}
+              </div>
+            ) : (
+              <p className="workbench-placeholder">
+                {activeSidebarContent.description}
+              </p>
+            )}
           </section>
         </aside>
         <main aria-label="Active workspace" className="workbench-main">
@@ -169,6 +182,7 @@ export function AppShell({
               ariaLabel="Context panel tabs"
               idPrefix="workbench-right-panel"
               onActiveTabChange={setActiveRightPanelTab}
+              panelContent={rightPanelPanels}
               tabs={RIGHT_PANEL_TABS}
             />
           )}
@@ -187,6 +201,7 @@ export function AppShell({
               ariaLabel="Workbench dock tabs"
               idPrefix="workbench-bottom-dock"
               onActiveTabChange={setActiveBottomDockTab}
+              panelContent={bottomDockPanels}
               tabs={BOTTOM_DOCK_TABS}
             />
           )}
@@ -201,6 +216,7 @@ interface PlaceholderTabsProps<T extends string> {
   ariaLabel: string;
   idPrefix: string;
   onActiveTabChange: (tab: T) => void;
+  panelContent?: Partial<Record<T, ReactNode>>;
   tabs: ReadonlyArray<PlaceholderTab<T>>;
 }
 
@@ -209,6 +225,7 @@ function PlaceholderTabs<T extends string>({
   ariaLabel,
   idPrefix,
   onActiveTabChange,
+  panelContent,
   tabs,
 }: PlaceholderTabsProps<T>): JSX.Element {
   return (
@@ -250,8 +267,12 @@ function PlaceholderTabs<T extends string>({
             key={tab.id}
             role="tabpanel"
           >
-            <p className="workbench-region-label">{tab.label}</p>
-            <p className="workbench-placeholder">{tab.description}</p>
+            {panelContent?.[tab.id] ?? (
+              <>
+                <p className="workbench-region-label">{tab.label}</p>
+                <p className="workbench-placeholder">{tab.description}</p>
+              </>
+            )}
           </section>
         );
       })}

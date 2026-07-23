@@ -567,6 +567,14 @@ function setRedoHistory(): void {
   });
 }
 
+function activateDisplaySidebar(): HTMLElement {
+  const sidebar = screen.getByRole('complementary', {
+    name: 'Primary workspace navigation',
+  });
+  fireEvent.click(within(sidebar).getByRole('button', { name: 'Display' }));
+  return sidebar;
+}
+
 describe('App', () => {
   beforeEach(() => {
     useDocumentStore.setState({
@@ -642,7 +650,7 @@ describe('App', () => {
     );
   });
 
-  it('places the viewer in the central workbench workspace', async () => {
+  it('places document and selection panels in workbench regions', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ status: 'ok' }));
 
     render(<App />);
@@ -655,12 +663,40 @@ describe('App', () => {
     const legacyContent = screen.getByRole('region', {
       name: 'Legacy workspace content',
     });
+    const sidebar = screen.getByRole('complementary', {
+      name: 'Primary workspace navigation',
+    });
+    const dock = screen.getByRole('region', { name: 'Workbench dock' });
+    const rightPanel = screen.getByRole('complementary', {
+      name: 'Context panel',
+    });
 
     expect(
       within(viewerWorkspace).getByTestId('viewer-document'),
     ).toHaveTextContent('null');
     expect(
-      within(legacyContent).getByRole('button', { name: 'Open Document' }),
+      within(sidebar).getByRole('button', { name: 'Open Document' }),
+    ).toBeInTheDocument();
+    expect(
+      within(legacyContent).queryByRole('button', { name: 'Open Document' }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dock).getByRole('tabpanel', { name: 'Properties' }),
+    ).toContainElement(
+      within(dock).getByRole('region', { name: 'Current Document' }),
+    );
+    expect(
+      within(rightPanel).getByRole('tabpanel', { name: 'Details' }),
+    ).toContainElement(
+      within(rightPanel).getByRole('region', { name: 'Selected Atoms' }),
+    );
+    expect(
+      within(legacyContent).queryByRole('region', { name: 'Selected Atoms' }),
+    ).not.toBeInTheDocument();
+
+    activateDisplaySidebar();
+    expect(
+      within(sidebar).getByRole('checkbox', { name: 'Show Bonds' }),
     ).toBeInTheDocument();
   });
 
@@ -1075,6 +1111,7 @@ describe('App', () => {
       );
     });
     expect(screen.getByText('Unsaved edits')).toBeInTheDocument();
+    activateDisplaySidebar();
     expect(screen.getByRole('button', { name: 'Undo Edit' })).toBeEnabled();
     expect(fetchMock).toHaveBeenNthCalledWith(
       3,
@@ -2115,6 +2152,7 @@ describe('App', () => {
     expect(confirm).toHaveBeenCalledWith(
       expect.stringContaining('sample-data/water.xyz'),
     );
+    activateDisplaySidebar();
     expect(screen.getByRole('button', { name: 'Undo Edit' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Redo Edit' })).toBeDisabled();
     expect(screen.getByTestId('viewer-document')).toHaveTextContent(
@@ -2235,6 +2273,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    activateDisplaySidebar();
     const showBondsControl = screen.getByRole('checkbox', {
       name: 'Show Bonds',
     });
@@ -2255,6 +2294,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    activateDisplaySidebar();
     const showAtomLabelsControl = screen.getByRole('checkbox', {
       name: 'Show Atom Labels',
     });
@@ -2275,6 +2315,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    activateDisplaySidebar();
 
     fireEvent.click(screen.getByRole('button', { name: 'Reset View' }));
 
@@ -2288,6 +2329,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    activateDisplaySidebar();
 
     expect(screen.getByRole('button', { name: 'Undo Edit' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Redo Edit' })).toBeDisabled();
@@ -2300,6 +2342,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    activateDisplaySidebar();
     expect(screen.getByRole('button', { name: 'Undo Edit' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Redo Edit' })).toBeDisabled();
 
@@ -2319,6 +2362,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    activateDisplaySidebar();
     expect(screen.getByRole('button', { name: 'Undo Edit' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Redo Edit' })).toBeEnabled();
 
@@ -2338,6 +2382,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    activateDisplaySidebar();
 
     fireEvent.keyDown(window, { key: 'z', metaKey: true });
 
@@ -2355,6 +2400,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    activateDisplaySidebar();
 
     fireEvent.keyDown(window, { key: 'Z', ctrlKey: true, shiftKey: true });
 
@@ -2372,6 +2418,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    activateDisplaySidebar();
 
     fireEvent.keyDown(window, { key: 'y', ctrlKey: true });
 
@@ -2396,6 +2443,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    activateDisplaySidebar();
 
     fireEvent.keyDown(window, { key: 'z', metaKey: true });
     fireEvent.keyDown(window, { key: 'y', ctrlKey: true });
@@ -2419,6 +2467,7 @@ describe('App', () => {
       key: 'z',
       metaKey: true,
     });
+    activateDisplaySidebar();
 
     expect(screen.getByTestId('viewer-document')).toHaveTextContent(
       JSON.stringify(EDITED_WATER_DOCUMENT),

@@ -437,8 +437,103 @@ export function App(): JSX.Element {
     await openDocumentPath();
   };
 
+  const explorerSidebarPanel = (
+    <>
+      <p className="workbench-status-line">
+        Backend health: <strong>{healthStatus}</strong>
+      </p>
+      <form
+        className="workbench-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void openCurrentDocument();
+        }}
+      >
+        <label className="workbench-field">
+          <span className="workbench-field-label">Document path</span>
+          <input
+            className="workbench-input"
+            onChange={(event) => setDocumentPath(event.currentTarget.value)}
+            type="text"
+            value={documentPath}
+          />
+        </label>
+        <button
+          className="workbench-button workbench-button-primary"
+          type="submit"
+        >
+          Open Document
+        </button>
+      </form>
+      {error ? <p className="workbench-error">Error: {error}</p> : null}
+    </>
+  );
+
+  const displaySidebarPanel = (
+    <>
+      <label className="workbench-inline-control">
+        <input
+          checked={showBonds}
+          onChange={(event) => setShowBonds(event.currentTarget.checked)}
+          type="checkbox"
+        />
+        Show Bonds
+      </label>
+      <label className="workbench-inline-control">
+        <input
+          checked={showAtomLabels}
+          onChange={(event) => setShowAtomLabels(event.currentTarget.checked)}
+          type="checkbox"
+        />
+        Show Atom Labels
+      </label>
+      <div className="workbench-button-row">
+        <button
+          className="workbench-button"
+          onClick={requestViewReset}
+          type="button"
+        >
+          Reset View
+        </button>
+        <button
+          className="workbench-button"
+          disabled={!canUndoMoleculeEdit}
+          onClick={undoMoleculeEdit}
+          type="button"
+        >
+          Undo Edit
+        </button>
+        <button
+          className="workbench-button"
+          disabled={!canRedoMoleculeEdit}
+          onClick={redoMoleculeEdit}
+          type="button"
+        >
+          Redo Edit
+        </button>
+      </div>
+    </>
+  );
+
   return (
     <AppShell
+      bottomDockPanels={{
+        properties: (
+          <DocumentSummaryPanel
+            document={activeMoleculeDocument}
+            hasUnsavedMoleculeEdits={hasUnsavedMoleculeEdits}
+          />
+        ),
+      }}
+      rightPanelPanels={{
+        details: (
+          <SelectedAtomPanel document={activeEditableMoleculeDocument} />
+        ),
+      }}
+      sidebarPanels={{
+        explorer: explorerSidebarPanel,
+        display: displaySidebarPanel,
+      }}
       workspace={(
         <MolecularViewer
           document={activeMoleculeDocument}
@@ -449,66 +544,6 @@ export function App(): JSX.Element {
         />
       )}
     >
-      <p>Backend health: <strong>{healthStatus}</strong></p>
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          void openCurrentDocument();
-        }}
-        style={{ marginBottom: 12 }}
-      >
-        <label style={{ display: 'inline-flex', gap: 6 }}>
-          Document path
-          <input
-            onChange={(event) => setDocumentPath(event.currentTarget.value)}
-            type="text"
-            value={documentPath}
-          />
-        </label>
-        <button style={{ marginLeft: 12 }} type="submit">
-          Open Document
-        </button>
-      </form>
-      <label style={{ display: 'inline-flex', gap: 6, marginLeft: 12 }}>
-        <input
-          checked={showBonds}
-          onChange={(event) => setShowBonds(event.currentTarget.checked)}
-          type="checkbox"
-        />
-        Show Bonds
-      </label>
-      <label style={{ display: 'inline-flex', gap: 6, marginLeft: 12 }}>
-        <input
-          checked={showAtomLabels}
-          onChange={(event) => setShowAtomLabels(event.currentTarget.checked)}
-          type="checkbox"
-        />
-        Show Atom Labels
-      </label>
-      <button
-        onClick={requestViewReset}
-        style={{ marginLeft: 12 }}
-        type="button"
-      >
-        Reset View
-      </button>
-      <button
-        disabled={!canUndoMoleculeEdit}
-        onClick={undoMoleculeEdit}
-        style={{ marginLeft: 12 }}
-        type="button"
-      >
-        Undo Edit
-      </button>
-      <button
-        disabled={!canRedoMoleculeEdit}
-        onClick={redoMoleculeEdit}
-        style={{ marginLeft: 12 }}
-        type="button"
-      >
-        Redo Edit
-      </button>
-      {error ? <p style={{ color: '#ff8080' }}>Error: {error}</p> : null}
       {trajectoryDocument ? (
         <TrajectoryFramesPanel
           document={trajectoryDocument}
@@ -522,10 +557,6 @@ export function App(): JSX.Element {
           selectedFrameIndex={selectedTrajectoryFrameIndex}
         />
       ) : null}
-      <DocumentSummaryPanel
-        document={activeMoleculeDocument}
-        hasUnsavedMoleculeEdits={hasUnsavedMoleculeEdits}
-      />
       <VibrationalModesPanel
         broadenedSpectrum={broadenedIrSpectrum}
         broadenedSpectrumError={broadenedIrSpectrumError}
@@ -550,7 +581,6 @@ export function App(): JSX.Element {
         onReopenSource={openDocumentPath}
         onSourceWrite={markMoleculeDocumentSaved}
       />
-      <SelectedAtomPanel document={activeEditableMoleculeDocument} />
     </AppShell>
   );
 }
