@@ -208,7 +208,8 @@ def test_open_document_parses_gaussian_output() -> None:
 
     assert response.status_code == 200
     body = response.json()
-    assert body["document_kind"] == "structure"
+    assert body["document_kind"] == "trajectory"
+    assert body["name"].startswith("traj-water-")
     assert body["source"] == expected_source_payload(
         "sample-data/water.log",
         "water.log",
@@ -218,9 +219,23 @@ def test_open_document_parses_gaussian_output() -> None:
         "program": "gaussian",
         "normal_termination": True,
     }
-    assert body["charge"] == 0
-    assert body["multiplicity"] == 1
-    assert body["atoms"] == [
+    assert len(body["frames"]) == 4
+    assert len(body["frame_properties"]) == 4
+    assert all(
+        "structure_id" in frame_properties
+        for frame_properties in body["frame_properties"]
+    )
+    assert all(
+        "energy_hartree" in frame_properties
+        for frame_properties in body["frame_properties"]
+    )
+    assert body["frame_properties"][-1]["is_optimized_structure"] is True
+
+    final_frame = body["frames"][-1]
+    assert final_frame["document_kind"] == "structure"
+    assert final_frame["charge"] == 0
+    assert final_frame["multiplicity"] == 1
+    assert final_frame["atoms"] == [
         {"index": 1, "element": "O", "x": 0.0, "y": 0.0, "z": 0.118224},
         {
             "index": 2,
@@ -237,6 +252,7 @@ def test_open_document_parses_gaussian_output() -> None:
             "z": -0.472896,
         },
     ]
+    assert len(final_frame["vibrational_modes"]) == 3
 
 
 def test_open_document_parses_orca_output() -> None:
@@ -247,7 +263,8 @@ def test_open_document_parses_orca_output() -> None:
 
     assert response.status_code == 200
     body = response.json()
-    assert body["document_kind"] == "structure"
+    assert body["document_kind"] == "trajectory"
+    assert body["name"].startswith("traj-water-")
     assert body["source"] == expected_source_payload(
         "sample-data/water.out",
         "water.out",
@@ -257,9 +274,23 @@ def test_open_document_parses_orca_output() -> None:
         "program": "orca",
         "normal_termination": True,
     }
-    assert body["charge"] == 0
-    assert body["multiplicity"] == 1
-    assert body["atoms"] == [
+    assert len(body["frames"]) == 5
+    assert len(body["frame_properties"]) == 5
+    assert all(
+        "structure_id" in frame_properties
+        for frame_properties in body["frame_properties"]
+    )
+    assert all(
+        "energy_hartree" in frame_properties
+        for frame_properties in body["frame_properties"]
+    )
+    assert body["frame_properties"][-1]["is_optimized_structure"] is True
+
+    final_frame = body["frames"][-1]
+    assert final_frame["document_kind"] == "structure"
+    assert final_frame["charge"] == 0
+    assert final_frame["multiplicity"] == 1
+    assert final_frame["atoms"] == [
         {"index": 1, "element": "O", "x": -0.0, "y": 0.0, "z": 0.087348},
         {
             "index": 2,
@@ -276,6 +307,7 @@ def test_open_document_parses_orca_output() -> None:
             "z": -0.509674,
         },
     ]
+    assert len(final_frame["vibrational_modes"]) == 3
 
 
 def test_open_document_reports_missing_request_path() -> None:

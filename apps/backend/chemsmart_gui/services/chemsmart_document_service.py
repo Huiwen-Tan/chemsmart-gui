@@ -5,7 +5,11 @@ from chemsmart_gui.adapters.chemsmart_adapter import (
     ChemsmartAdapter,
     document_source_from_path,
 )
-from chemsmart_gui.domain.document import MoleculeDocument, OpenDocumentRequest
+from chemsmart_gui.domain.document import (
+    MoleculeDocument,
+    OpenedDocument,
+    OpenDocumentRequest,
+)
 from chemsmart_gui.domain.displacement import (
     MoleculeModeDisplacementRequest,
     MoleculeModeDisplacementResponse,
@@ -51,17 +55,17 @@ class ChemsmartDocumentService(DocumentService):
     def __init__(self, adapter: ChemsmartAdapter | None = None) -> None:
         self._adapter = adapter if adapter is not None else ChemsmartAdapter()
         self._displacement_service = MoleculeDisplacementService(self._adapter)
-        self._documents: dict[str, MoleculeDocument] = {}
+        self._documents: dict[str, OpenedDocument] = {}
 
-    def open_document(self, request: OpenDocumentRequest) -> MoleculeDocument:
+    def open_document(self, request: OpenDocumentRequest) -> OpenedDocument:
         if request.path is None:
             raise ValueError("A document path is required.")
 
-        document = self._adapter.open_molecule_from_path(request.path)
+        document = self._adapter.open_document_from_path(request.path)
         self._documents[document.id] = document
         return document
 
-    def get_document(self, document_id: str) -> MoleculeDocument | None:
+    def get_document(self, document_id: str) -> OpenedDocument | None:
         return self._documents.get(document_id)
 
     def preview_molecule_export(

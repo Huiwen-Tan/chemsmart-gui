@@ -3,6 +3,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from ase.io.formats import UnknownFileTypeError
+from chemsmart.database.utils import compute_trajectory_id
 from chemsmart.io.gaussian.input import Gaussian16Input
 from chemsmart.io.gaussian.output import Gaussian16Output
 from chemsmart.io.molecules.structure import Molecule
@@ -19,7 +20,10 @@ from chemsmart.utils.io import get_program_type_from_file
 from chemsmart_gui.domain.document import (
     CalculationMetadata,
     DocumentSource,
+    JsonScalar,
     MoleculeDocument,
+    OpenedDocument,
+    TrajectoryDocument,
 )
 from chemsmart_gui.domain.molecule import (
     Atom,
@@ -177,6 +181,26 @@ def _vibrational_modes_from_molecule(
     return vibrational_modes
 
 
+def _frame_properties_from_molecule(
+    molecule: Molecule,
+) -> dict[str, JsonScalar]:
+    properties: dict[str, JsonScalar] = {
+        "structure_id": molecule.structure_id,
+    }
+    energy = getattr(molecule, "energy", None)
+    if energy is not None:
+        properties["energy_hartree"] = float(energy)
+    is_optimized_structure = getattr(
+        molecule,
+        "is_optimized_structure",
+        None,
+    )
+    if is_optimized_structure is not None:
+        properties["is_optimized_structure"] = bool(is_optimized_structure)
+
+    return properties
+
+
 @dataclass(frozen=True)
 class _PreviewJobRunner:
     num_cores: int = 1
@@ -223,6 +247,41 @@ class ChemsmartAdapter:
             ],
             frozen_atom_indices=_frozen_atom_indices_from_molecule(molecule),
             vibrational_modes=_vibrational_modes_from_molecule(molecule),
+        )
+
+    def to_trajectory_document(
+        self,
+        molecules: list[Molecule],
+        *,
+        source: DocumentSource,
+        calculation: CalculationMetadata,
+    ) -> TrajectoryDocument:
+        """Normalize CHEMSMART output structures as a GUI trajectory."""
+        frames = [
+            self.to_document(
+                molecule,
+                source=source,
+                calculation=calculation,
+            )
+            for molecule in molecules
+        ]
+        trajectory_id = compute_trajectory_id(
+            [frame.id for frame in frames],
+        )
+        source_stem = _safe_filename_stem(Path(source.filename).stem)
+
+        return TrajectoryDocument(
+            id=trajectory_id,
+            name=f"traj-{source_stem}-{trajectory_id[:12]}",
+            document_kind="trajectory",
+            source=source,
+            calculation=calculation,
+            coordinate_unit="angstrom",
+            frames=frames,
+            frame_properties=[
+                _frame_properties_from_molecule(molecule)
+                for molecule in molecules
+            ],
         )
 
     def to_molecule(
@@ -446,7 +505,7 @@ class ChemsmartAdapter:
         self,
         path: str,
         source: DocumentSource,
-    ) -> MoleculeDocument | None:
+    ) -> OpenedDocument | None:
         source_path = Path(path)
         suffix = source_path.suffix.lower()
 
@@ -464,18 +523,31 @@ class ChemsmartAdapter:
         else:
             return None
 
-        molecule = parser.get_molecule(index="-1")
+        calculation = CalculationMetadata(
+            program=program,
+            normal_termination=parser.normal_termination,
+        )
+        molecules = list(parser.all_structures or [])
+        if not molecules:
+            raise ValueError(
+                "No molecular structure found in calculation output."
+            )
+        if len(molecules) > 1:
+            return self.to_trajectory_document(
+                molecules,
+                source=source,
+                calculation=calculation,
+            )
+
+        molecule = molecules[0]
         return self.to_document(
             molecule,
             source=source,
-            calculation=CalculationMetadata(
-                program=program,
-                normal_termination=parser.normal_termination,
-            ),
+            calculation=calculation,
         )
 
-    def open_molecule_from_path(self, path: str) -> MoleculeDocument:
-        """Open one structure through CHEMSMART and normalize it."""
+    def open_document_from_path(self, path: str) -> OpenedDocument:
+        """Open a CHEMSMART-supported document and normalize it."""
         source = document_source_from_path(path)
         try:
             output_document = self._open_output_document(path, source=source)
@@ -499,3 +571,12 @@ class ChemsmartAdapter:
             molecule,
             source=source,
         )
+
+    def open_molecule_from_path(self, path: str) -> MoleculeDocument:
+        """Open one structure through CHEMSMART and normalize it."""
+        document = self.open_document_from_path(path)
+        if document.document_kind == "trajectory":
+            return document.frames[-1]
+        if document.document_kind == "calculation_result":
+            return document.molecules[-1]
+        return document

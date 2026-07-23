@@ -143,6 +143,34 @@ def test_open_gaussian_output_from_path_returns_final_structure() -> None:
     assert first_mode.displacements[0].z == pytest.approx(-0.07)
 
 
+def test_open_gaussian_output_document_returns_trajectory() -> None:
+    document = ChemsmartAdapter().open_document_from_path(str(WATER_LOG_PATH))
+
+    assert document.document_kind == "trajectory"
+    assert document.name.startswith("traj-water-")
+    assert document.source is not None
+    assert document.source.path == str(WATER_LOG_PATH)
+    assert document.calculation is not None
+    assert document.calculation.program == "gaussian"
+    assert document.calculation.normal_termination is True
+    assert len(document.frames) == 4
+    assert len(document.frame_properties) == len(document.frames)
+    assert document.id
+    assert all(
+        frame_property["structure_id"] == frame.id
+        for frame_property, frame in zip(
+            document.frame_properties,
+            document.frames,
+        )
+    )
+    assert all(
+        isinstance(frame_property["energy_hartree"], float)
+        for frame_property in document.frame_properties
+    )
+    assert document.frame_properties[-1]["is_optimized_structure"] is True
+    assert len(document.frames[-1].vibrational_modes) == 3
+
+
 def test_open_orca_output_from_path_returns_final_structure() -> None:
     document = ChemsmartAdapter().open_molecule_from_path(str(WATER_OUT_PATH))
 
@@ -179,6 +207,34 @@ def test_open_orca_output_from_path_returns_final_structure() -> None:
         3,
     ]
     assert first_mode.displacements[0].z == pytest.approx(-0.069893)
+
+
+def test_open_orca_output_document_returns_trajectory() -> None:
+    document = ChemsmartAdapter().open_document_from_path(str(WATER_OUT_PATH))
+
+    assert document.document_kind == "trajectory"
+    assert document.name.startswith("traj-water-")
+    assert document.source is not None
+    assert document.source.path == str(WATER_OUT_PATH)
+    assert document.calculation is not None
+    assert document.calculation.program == "orca"
+    assert document.calculation.normal_termination is True
+    assert len(document.frames) == 5
+    assert len(document.frame_properties) == len(document.frames)
+    assert document.id
+    assert all(
+        frame_property["structure_id"] == frame.id
+        for frame_property, frame in zip(
+            document.frame_properties,
+            document.frames,
+        )
+    )
+    assert all(
+        isinstance(frame_property["energy_hartree"], float)
+        for frame_property in document.frame_properties
+    )
+    assert document.frame_properties[-1]["is_optimized_structure"] is True
+    assert len(document.frames[-1].vibrational_modes) == 3
 
 
 def test_preview_molecule_export_returns_xyz_text() -> None:
