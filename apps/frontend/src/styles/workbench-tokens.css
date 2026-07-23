@@ -180,6 +180,9 @@ textarea:focus-visible {
 }
 
 .workbench-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--csw-space-4);
   grid-area: sidebar;
   padding: var(--csw-space-4);
 }
@@ -215,6 +218,40 @@ textarea:focus-visible {
   margin: 0;
   color: var(--csw-color-text-subtle);
   font-size: var(--csw-font-size-sm);
+}
+
+.workbench-sidebar-switcher {
+  display: grid;
+  gap: var(--csw-space-2);
+}
+
+.workbench-sidebar-view-button {
+  width: 100%;
+  border: 1px solid var(--csw-color-border-subtle);
+  border-radius: var(--csw-radius-md);
+  background: var(--csw-color-surface);
+  color: var(--csw-color-text-muted);
+  cursor: pointer;
+  font-weight: var(--csw-font-weight-medium);
+  padding: var(--csw-space-2) var(--csw-space-3);
+  text-align: left;
+}
+
+.workbench-sidebar-view-button:hover {
+  background: var(--csw-color-surface-hover);
+  color: var(--csw-color-text);
+}
+
+.workbench-sidebar-view-button[aria-pressed="true"] {
+  border-color: var(--csw-color-accent-primary);
+  background: var(--csw-color-surface-raised);
+  color: var(--csw-color-text);
+  box-shadow: inset 3px 0 0 var(--csw-color-accent-primary);
+}
+
+.workbench-sidebar-panel {
+  padding-top: var(--csw-space-2);
+  border-top: 1px solid var(--csw-color-divider);
 }
 
 .workbench-viewer-slot {

@@ -1,4 +1,4 @@
-import { render, within } from '@testing-library/react';
+import { fireEvent, render, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { AppShell } from './AppShell';
@@ -54,9 +54,71 @@ describe('AppShell', () => {
     );
     const shell = within(container);
 
-    expect(shell.getByText('Explorer')).toBeInTheDocument();
+    expect(
+      shell.getByRole('button', { name: 'Explorer' }),
+    ).toBeInTheDocument();
+    expect(
+      shell.getByRole('region', { name: 'Explorer sidebar panel' }),
+    ).toBeInTheDocument();
     expect(shell.getByText('Context')).toBeInTheDocument();
     expect(shell.getByText('Dock')).toBeInTheDocument();
+  });
+
+  it('defaults the primary sidebar to Explorer', () => {
+    const { container } = render(
+      <AppShell>
+        <p>Workspace content</p>
+      </AppShell>,
+    );
+    const shell = within(container);
+    const sidebar = shell.getByRole('complementary', {
+      name: 'Primary workspace navigation',
+    });
+
+    expect(
+      within(sidebar).getByRole('button', { name: 'Explorer' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    expect(
+      within(sidebar).getByRole('region', { name: 'Explorer sidebar panel' }),
+    ).toHaveTextContent('Project and document navigation will appear here.');
+  });
+
+  it('switches primary sidebar views', () => {
+    const { container } = render(
+      <AppShell>
+        <p>Workspace content</p>
+      </AppShell>,
+    );
+    const shell = within(container);
+    const sidebar = shell.getByRole('complementary', {
+      name: 'Primary workspace navigation',
+    });
+
+    fireEvent.click(within(sidebar).getByRole('button', { name: 'Tasks' }));
+
+    expect(
+      within(sidebar).getByRole('button', { name: 'Explorer' }),
+    ).toHaveAttribute('aria-pressed', 'false');
+    expect(
+      within(sidebar).getByRole('button', { name: 'Tasks' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    expect(
+      within(sidebar).getByRole('region', { name: 'Tasks sidebar panel' }),
+    ).toHaveTextContent('CHEMSMART task catalog shortcuts will appear here.');
+
+    fireEvent.click(within(sidebar).getByRole('button', { name: 'Display' }));
+
+    expect(
+      within(sidebar).getByRole('button', { name: 'Tasks' }),
+    ).toHaveAttribute('aria-pressed', 'false');
+    expect(
+      within(sidebar).getByRole('button', { name: 'Display' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    expect(
+      within(sidebar).getByRole('region', { name: 'Display sidebar panel' }),
+    ).toHaveTextContent(
+      'Viewer display and representation controls will appear here.',
+    );
   });
 
   it('renders a dedicated workspace slot before legacy content', () => {

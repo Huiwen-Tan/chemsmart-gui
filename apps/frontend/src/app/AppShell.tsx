@@ -1,4 +1,33 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
+
+type SidebarView = 'explorer' | 'tasks' | 'display';
+
+const SIDEBAR_VIEWS: ReadonlyArray<{
+  id: SidebarView;
+  label: string;
+}> = [
+  { id: 'explorer', label: 'Explorer' },
+  { id: 'tasks', label: 'Tasks' },
+  { id: 'display', label: 'Display' },
+];
+
+const SIDEBAR_VIEW_CONTENT: Record<
+  SidebarView,
+  { description: string; heading: string }
+> = {
+  explorer: {
+    heading: 'Explorer',
+    description: 'Project and document navigation will appear here.',
+  },
+  tasks: {
+    heading: 'Tasks',
+    description: 'CHEMSMART task catalog shortcuts will appear here.',
+  },
+  display: {
+    heading: 'Display',
+    description: 'Viewer display and representation controls will appear here.',
+  },
+};
 
 interface AppShellProps {
   children: ReactNode;
@@ -9,6 +38,10 @@ export function AppShell({
   children,
   workspace,
 }: AppShellProps): JSX.Element {
+  const [activeSidebarView, setActiveSidebarView] =
+    useState<SidebarView>('explorer');
+  const activeSidebarContent = SIDEBAR_VIEW_CONTENT[activeSidebarView];
+
   return (
     <div className="workbench-root">
       <header className="workbench-header">
@@ -22,10 +55,33 @@ export function AppShell({
           aria-label="Primary workspace navigation"
           className="workbench-sidebar"
         >
-          <p className="workbench-region-label">Explorer</p>
-          <p className="workbench-placeholder">
-            Project, document, and task navigation will appear here.
-          </p>
+          <nav
+            aria-label="Primary sidebar views"
+            className="workbench-sidebar-switcher"
+          >
+            {SIDEBAR_VIEWS.map((view) => (
+              <button
+                aria-pressed={activeSidebarView === view.id}
+                className="workbench-sidebar-view-button"
+                key={view.id}
+                onClick={() => setActiveSidebarView(view.id)}
+                type="button"
+              >
+                {view.label}
+              </button>
+            ))}
+          </nav>
+          <section
+            aria-label={`${activeSidebarContent.heading} sidebar panel`}
+            className="workbench-sidebar-panel"
+          >
+            <p className="workbench-region-label">
+              {activeSidebarContent.heading}
+            </p>
+            <p className="workbench-placeholder">
+              {activeSidebarContent.description}
+            </p>
+          </section>
         </aside>
         <main aria-label="Active workspace" className="workbench-main">
           {workspace ? (
