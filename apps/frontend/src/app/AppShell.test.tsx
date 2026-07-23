@@ -1,30 +1,61 @@
-import { render, screen } from '@testing-library/react';
+import { render, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { AppShell } from './AppShell';
 
 describe('AppShell', () => {
   it('renders its title and child content', () => {
-    render(
-      <AppShell>
-        <p>Workspace content</p>
-      </AppShell>,
-    );
-
-    expect(
-      screen.getByRole('heading', { name: 'CHEMSMART GUI' }),
-    ).toBeInTheDocument();
-    expect(screen.getByText('Workspace content')).toBeInTheDocument();
-  });
-
-  it('uses the workbench token classes', () => {
     const { container } = render(
       <AppShell>
         <p>Workspace content</p>
       </AppShell>,
     );
+    const shell = within(container);
+    const workspace = shell.getByRole('main', { name: 'Active workspace' });
 
-    expect(container.querySelector('main')).toHaveClass('workbench-root');
+    expect(
+      shell.getByRole('heading', { name: 'CHEMSMART GUI' }),
+    ).toBeInTheDocument();
+    expect(within(workspace).getByText('Workspace content')).toBeInTheDocument();
+  });
+
+  it('uses the workbench shell classes', () => {
+    const { container } = render(
+      <AppShell>
+        <p>Workspace content</p>
+      </AppShell>,
+    );
+    const shell = within(container);
+
+    expect(container.querySelector('.workbench-root')).toBeInTheDocument();
+    expect(shell.getByRole('banner')).toHaveClass('workbench-header');
+    expect(
+      shell.getByRole('complementary', {
+        name: 'Primary workspace navigation',
+      }),
+    ).toHaveClass('workbench-sidebar');
+    expect(
+      shell.getByRole('main', { name: 'Active workspace' }),
+    ).toHaveClass('workbench-main');
+    expect(
+      shell.getByRole('complementary', { name: 'Context panel' }),
+    ).toHaveClass('workbench-right-rail');
+    expect(
+      shell.getByRole('region', { name: 'Workbench dock' }),
+    ).toHaveClass('workbench-bottom-dock');
     expect(container.querySelector('h1')).toHaveClass('workbench-title');
+  });
+
+  it('renders placeholder labels for future workbench regions', () => {
+    const { container } = render(
+      <AppShell>
+        <p>Workspace content</p>
+      </AppShell>,
+    );
+    const shell = within(container);
+
+    expect(shell.getByText('Explorer')).toBeInTheDocument();
+    expect(shell.getByText('Context')).toBeInTheDocument();
+    expect(shell.getByText('Dock')).toBeInTheDocument();
   });
 });
