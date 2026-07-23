@@ -76,7 +76,7 @@ const RIGHT_PANEL_TABS: ReadonlyArray<PlaceholderTab<RightPanelTab>> = [
 interface AppShellProps {
   bottomDock?: ReactNode;
   bottomDockPanels?: Partial<Record<BottomDockTab, ReactNode>>;
-  children: ReactNode;
+  children?: ReactNode;
   rightPanel?: ReactNode;
   rightPanelPanels?: Partial<Record<RightPanelTab, ReactNode>>;
   sidebarPanels?: Partial<Record<SidebarView, ReactNode>>;
@@ -100,6 +100,7 @@ export function AppShell({
     useState<RightPanelTab>('details');
   const activeSidebarContent = SIDEBAR_VIEW_CONTENT[activeSidebarView];
   const activeSidebarPanel = sidebarPanels?.[activeSidebarView];
+  const hasLegacyContent = children !== undefined && children !== null;
 
   return (
     <div className="workbench-root">
@@ -157,12 +158,14 @@ export function AppShell({
               >
                 {workspace}
               </section>
-              <section
-                aria-label="Legacy workspace content"
-                className="workbench-legacy-content"
-              >
-                {children}
-              </section>
+              {hasLegacyContent ? (
+                <section
+                  aria-label="Legacy workspace content"
+                  className="workbench-legacy-content"
+                >
+                  {children}
+                </section>
+              ) : null}
             </>
           ) : (
             children

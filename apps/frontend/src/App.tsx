@@ -518,6 +518,49 @@ export function App(): JSX.Element {
   return (
     <AppShell
       bottomDockPanels={{
+        analysis: (
+          <div className="workbench-panel-stack">
+            {trajectoryDocument ? (
+              <TrajectoryFramesPanel
+                document={trajectoryDocument}
+                isPlaybackPlaying={isTrajectoryPlaybackPlaying}
+                onSelectedFrameIndexChange={selectTrajectoryFrame}
+                onPlaybackFramesPerSecondChange={
+                  setTrajectoryPlaybackFramesPerSecond
+                }
+                onPlaybackPlayingChange={setIsTrajectoryPlaybackPlaying}
+                playbackFramesPerSecond={trajectoryPlaybackFramesPerSecond}
+                selectedFrameIndex={selectedTrajectoryFrameIndex}
+              />
+            ) : null}
+            <VibrationalModesPanel
+              broadenedSpectrum={broadenedIrSpectrum}
+              broadenedSpectrumError={broadenedIrSpectrumError}
+              document={activeMoleculeDocument}
+              isBroadenedSpectrumLoading={isPreviewingBroadenedIrSpectrum}
+              isDownloadingDisplacedStructure={isDownloadingDisplacedStructure}
+              isGeneratingDisplacedStructure={isGeneratingDisplacedStructure}
+              isAnimationPlaying={isVibrationalModeAnimationPlaying}
+              onAnimationPlayingChange={setVibrationalModeAnimationPlaying}
+              onBroadenedSpectrumPreview={previewActiveBroadenedIrSpectrum}
+              onDownloadDisplacedStructure={
+                downloadSelectedModeDisplacedStructure
+              }
+              onGenerateDisplacedStructure={
+                generateSelectedModeDisplacedStructure
+              }
+              onSelectedModeIndexChange={selectVibrationalMode}
+              selectedModeIndex={selectedVibrationalMode?.index ?? null}
+            />
+          </div>
+        ),
+        export: (
+          <MoleculeExportPreviewPanel
+            document={activeEditableMoleculeDocument}
+            onReopenSource={openDocumentPath}
+            onSourceWrite={markMoleculeDocumentSaved}
+          />
+        ),
         properties: (
           <DocumentSummaryPanel
             document={activeMoleculeDocument}
@@ -543,44 +586,6 @@ export function App(): JSX.Element {
           selectedVibrationalMode={selectedVibrationalMode}
         />
       )}
-    >
-      {trajectoryDocument ? (
-        <TrajectoryFramesPanel
-          document={trajectoryDocument}
-          isPlaybackPlaying={isTrajectoryPlaybackPlaying}
-          onSelectedFrameIndexChange={selectTrajectoryFrame}
-          onPlaybackFramesPerSecondChange={
-            setTrajectoryPlaybackFramesPerSecond
-          }
-          onPlaybackPlayingChange={setIsTrajectoryPlaybackPlaying}
-          playbackFramesPerSecond={trajectoryPlaybackFramesPerSecond}
-          selectedFrameIndex={selectedTrajectoryFrameIndex}
-        />
-      ) : null}
-      <VibrationalModesPanel
-        broadenedSpectrum={broadenedIrSpectrum}
-        broadenedSpectrumError={broadenedIrSpectrumError}
-        document={activeMoleculeDocument}
-        isBroadenedSpectrumLoading={isPreviewingBroadenedIrSpectrum}
-        isDownloadingDisplacedStructure={isDownloadingDisplacedStructure}
-        isGeneratingDisplacedStructure={isGeneratingDisplacedStructure}
-        isAnimationPlaying={isVibrationalModeAnimationPlaying}
-        onAnimationPlayingChange={setVibrationalModeAnimationPlaying}
-        onBroadenedSpectrumPreview={previewActiveBroadenedIrSpectrum}
-        onDownloadDisplacedStructure={
-          downloadSelectedModeDisplacedStructure
-        }
-        onGenerateDisplacedStructure={
-          generateSelectedModeDisplacedStructure
-        }
-        onSelectedModeIndexChange={selectVibrationalMode}
-        selectedModeIndex={selectedVibrationalMode?.index ?? null}
-      />
-      <MoleculeExportPreviewPanel
-        document={activeEditableMoleculeDocument}
-        onReopenSource={openDocumentPath}
-        onSourceWrite={markMoleculeDocumentSaved}
-      />
-    </AppShell>
+    />
   );
 }

@@ -575,6 +575,12 @@ function activateDisplaySidebar(): HTMLElement {
   return sidebar;
 }
 
+function activateBottomDockTab(tabName: string): HTMLElement {
+  const dock = screen.getByRole('region', { name: 'Workbench dock' });
+  fireEvent.click(within(dock).getByRole('tab', { name: tabName }));
+  return dock;
+}
+
 describe('App', () => {
   beforeEach(() => {
     useDocumentStore.setState({
@@ -660,9 +666,6 @@ describe('App', () => {
     const viewerWorkspace = screen.getByRole('region', {
       name: 'Molecular viewer workspace',
     });
-    const legacyContent = screen.getByRole('region', {
-      name: 'Legacy workspace content',
-    });
     const sidebar = screen.getByRole('complementary', {
       name: 'Primary workspace navigation',
     });
@@ -678,7 +681,7 @@ describe('App', () => {
       within(sidebar).getByRole('button', { name: 'Open Document' }),
     ).toBeInTheDocument();
     expect(
-      within(legacyContent).queryByRole('button', { name: 'Open Document' }),
+      screen.queryByRole('region', { name: 'Legacy workspace content' }),
     ).not.toBeInTheDocument();
     expect(
       within(dock).getByRole('tabpanel', { name: 'Properties' }),
@@ -690,9 +693,19 @@ describe('App', () => {
     ).toContainElement(
       within(rightPanel).getByRole('region', { name: 'Selected Atoms' }),
     );
+
+    fireEvent.click(within(dock).getByRole('tab', { name: 'Export' }));
     expect(
-      within(legacyContent).queryByRole('region', { name: 'Selected Atoms' }),
-    ).not.toBeInTheDocument();
+      within(dock).getByRole('tabpanel', { name: 'Export' }),
+    ).toContainElement(
+      within(dock).getByRole('region', { name: 'Export Preview' }),
+    );
+    fireEvent.click(within(dock).getByRole('tab', { name: 'Analysis' }));
+    expect(
+      within(dock).getByRole('tabpanel', { name: 'Analysis' }),
+    ).toContainElement(
+      within(dock).getByRole('region', { name: 'Vibrational Modes' }),
+    );
 
     activateDisplaySidebar();
     expect(
@@ -719,7 +732,8 @@ describe('App', () => {
       );
     });
 
-    const trajectoryPanel = screen.getByRole('region', {
+    const dock = activateBottomDockTab('Analysis');
+    const trajectoryPanel = within(dock).getByRole('region', {
       name: 'Trajectory Frames',
     });
     expect(
@@ -794,7 +808,8 @@ describe('App', () => {
       );
     });
 
-    const trajectoryPanel = screen.getByRole('region', {
+    const dock = activateBottomDockTab('Analysis');
+    const trajectoryPanel = within(dock).getByRole('region', {
       name: 'Trajectory Frames',
     });
     vi.useFakeTimers();
@@ -857,7 +872,8 @@ describe('App', () => {
       );
     });
 
-    const trajectoryPanel = screen.getByRole('region', {
+    const dock = activateBottomDockTab('Analysis');
+    const trajectoryPanel = within(dock).getByRole('region', {
       name: 'Trajectory Frames',
     });
     fireEvent.change(
@@ -908,7 +924,8 @@ describe('App', () => {
       );
     });
 
-    const trajectoryPanel = screen.getByRole('region', {
+    const dock = activateBottomDockTab('Analysis');
+    const trajectoryPanel = within(dock).getByRole('region', {
       name: 'Trajectory Frames',
     });
     fireEvent.click(
@@ -1535,7 +1552,8 @@ describe('App', () => {
       JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT.vibrational_modes[0]),
     );
     expect(screen.getByTestId('viewer-animation')).toHaveTextContent('false');
-    const modesPanel = screen.getByRole('region', {
+    const dock = activateBottomDockTab('Analysis');
+    const modesPanel = within(dock).getByRole('region', {
       name: 'Vibrational Modes',
     });
     const table = within(modesPanel).getByRole('table', {
@@ -1625,7 +1643,8 @@ describe('App', () => {
         JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT),
       );
     });
-    const modesPanel = screen.getByRole('region', {
+    const dock = activateBottomDockTab('Analysis');
+    const modesPanel = within(dock).getByRole('region', {
       name: 'Vibrational Modes',
     });
     fireEvent.click(
@@ -1686,7 +1705,8 @@ describe('App', () => {
       );
     });
 
-    const trajectoryPanel = screen.getByRole('region', {
+    const dock = activateBottomDockTab('Analysis');
+    const trajectoryPanel = within(dock).getByRole('region', {
       name: 'Trajectory Frames',
     });
     fireEvent.change(
@@ -1701,7 +1721,7 @@ describe('App', () => {
         JSON.stringify(ORCA_OUTPUT_FINAL_FRAME),
       );
     });
-    const modesPanel = screen.getByRole('region', {
+    const modesPanel = within(dock).getByRole('region', {
       name: 'Vibrational Modes',
     });
     const spectrumPanel = within(modesPanel).getByRole('region', {
@@ -1769,7 +1789,8 @@ describe('App', () => {
         JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT),
       );
     });
-    const modesPanel = screen.getByRole('region', {
+    const dock = activateBottomDockTab('Analysis');
+    const modesPanel = within(dock).getByRole('region', {
       name: 'Vibrational Modes',
     });
     fireEvent.click(
@@ -1858,7 +1879,8 @@ describe('App', () => {
         JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT),
       );
     });
-    const modesPanel = screen.getByRole('region', {
+    const dock = activateBottomDockTab('Analysis');
+    const modesPanel = within(dock).getByRole('region', {
       name: 'Vibrational Modes',
     });
     fireEvent.click(
@@ -1952,7 +1974,11 @@ describe('App', () => {
       );
     });
     fireEvent.click(
-      within(screen.getByRole('region', { name: 'Vibrational Modes' }))
+      within(
+        within(activateBottomDockTab('Analysis')).getByRole('region', {
+          name: 'Vibrational Modes',
+        }),
+      )
         .getByRole('button', { name: 'Download + XYZ' }),
     );
 
@@ -1993,8 +2019,9 @@ describe('App', () => {
         JSON.stringify(WATER_DOCUMENT),
       );
     });
+    const dock = activateBottomDockTab('Export');
     fireEvent.click(
-      screen.getByRole('button', { name: 'Preview XYZ Export' }),
+      within(dock).getByRole('button', { name: 'Preview XYZ Export' }),
     );
 
     await waitFor(() => {
@@ -2004,7 +2031,7 @@ describe('App', () => {
     });
     expect(
       within(
-        screen.getByRole('region', { name: 'Export Preview' }),
+        within(dock).getByRole('region', { name: 'Export Preview' }),
       ).getByText('water.xyz'),
     ).toBeInTheDocument();
     expect(fetchMock).toHaveBeenNthCalledWith(
@@ -2047,11 +2074,12 @@ describe('App', () => {
         JSON.stringify(GAUSSIAN_DOCUMENT),
       );
     });
-    fireEvent.change(screen.getByRole('combobox', { name: 'Format' }), {
+    const dock = activateBottomDockTab('Export');
+    fireEvent.change(within(dock).getByRole('combobox', { name: 'Format' }), {
       target: { value: 'gjf' },
     });
     fireEvent.click(
-      screen.getByRole('button', { name: 'Preview Gaussian Input' }),
+      within(dock).getByRole('button', { name: 'Preview Gaussian Input' }),
     );
 
     await waitFor(() => {
@@ -2061,7 +2089,7 @@ describe('App', () => {
     });
     expect(
       within(
-        screen.getByRole('region', { name: 'Export Preview' }),
+        within(dock).getByRole('region', { name: 'Export Preview' }),
       ).getByText('water.gjf'),
     ).toBeInTheDocument();
     expect(fetchMock).toHaveBeenNthCalledWith(
@@ -2100,10 +2128,11 @@ describe('App', () => {
         JSON.stringify(WATER_DOCUMENT),
       );
     });
-    fireEvent.change(screen.getByLabelText('Backend target path'), {
+    const dock = activateBottomDockTab('Export');
+    fireEvent.change(within(dock).getByLabelText('Backend target path'), {
       target: { value: '/tmp/water-copy.xyz' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Save Export' }));
+    fireEvent.click(within(dock).getByRole('button', { name: 'Save Export' }));
 
     await waitFor(() => {
       expect(screen.getByText('/tmp/water-copy.xyz')).toBeInTheDocument();
@@ -2142,8 +2171,9 @@ describe('App', () => {
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
     expect(screen.getByText('Unsaved edits')).toBeInTheDocument();
+    const dock = activateBottomDockTab('Export');
     fireEvent.click(
-      screen.getByRole('button', { name: 'Update Source File' }),
+      within(dock).getByRole('button', { name: 'Update Source File' }),
     );
 
     await waitFor(() => {
@@ -2192,17 +2222,18 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    const dock = activateBottomDockTab('Export');
     fireEvent.click(
-      screen.getByRole('button', { name: 'Update Source File' }),
+      within(dock).getByRole('button', { name: 'Update Source File' }),
     );
 
     await waitFor(() => {
       expect(
-        screen.getByRole('button', { name: 'Reopen Source File' }),
+        within(dock).getByRole('button', { name: 'Reopen Source File' }),
       ).toBeEnabled();
     });
     fireEvent.click(
-      screen.getByRole('button', { name: 'Reopen Source File' }),
+      within(dock).getByRole('button', { name: 'Reopen Source File' }),
     );
 
     await waitFor(() => {
@@ -2244,17 +2275,18 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    const dock = activateBottomDockTab('Export');
     fireEvent.click(
-      screen.getByRole('button', { name: 'Update Source File' }),
+      within(dock).getByRole('button', { name: 'Update Source File' }),
     );
 
     await waitFor(() => {
       expect(
-        screen.getByRole('button', { name: 'Reopen Source File' }),
+        within(dock).getByRole('button', { name: 'Reopen Source File' }),
       ).toBeEnabled();
     });
     fireEvent.click(
-      screen.getByRole('button', { name: 'Reopen Source File' }),
+      within(dock).getByRole('button', { name: 'Reopen Source File' }),
     );
 
     expect(confirm).toHaveBeenCalledWith(

@@ -151,6 +151,25 @@ describe('AppShell', () => {
     ).toBeInTheDocument();
   });
 
+  it('omits legacy workspace content when no legacy children are provided', () => {
+    const { container } = render(
+      <AppShell workspace={<p>Molecular viewer</p>} />,
+    );
+    const shell = within(container);
+    const workspace = shell.getByRole('main', { name: 'Active workspace' });
+
+    expect(
+      within(workspace).getByRole('region', {
+        name: 'Molecular viewer workspace',
+      }),
+    ).toHaveTextContent('Molecular viewer');
+    expect(
+      within(workspace).queryByRole('region', {
+        name: 'Legacy workspace content',
+      }),
+    ).not.toBeInTheDocument();
+  });
+
   it('defaults the bottom dock and right panel to their first tabs', () => {
     const { container } = render(
       <AppShell>
