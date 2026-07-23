@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 
 type SidebarView = 'explorer' | 'tasks' | 'display';
 type BottomDockTab = 'properties' | 'export' | 'logs' | 'analysis';
@@ -73,6 +73,21 @@ const RIGHT_PANEL_TABS: ReadonlyArray<PlaceholderTab<RightPanelTab>> = [
   },
 ];
 
+const WORKBENCH_LAYOUT_PREFERENCES_STORAGE_KEY =
+  'chemsmart-gui.workbench.layout.v1';
+
+interface WorkbenchLayoutPreferences {
+  bottomDockTab: BottomDockTab;
+  rightPanelTab: RightPanelTab;
+  sidebarView: SidebarView;
+}
+
+const DEFAULT_WORKBENCH_LAYOUT_PREFERENCES: WorkbenchLayoutPreferences = {
+  bottomDockTab: 'properties',
+  rightPanelTab: 'details',
+  sidebarView: 'explorer',
+};
+
 interface AppShellProps {
   bottomDock?: ReactNode;
   bottomDockPanels?: Partial<Record<BottomDockTab, ReactNode>>;
@@ -92,15 +107,37 @@ export function AppShell({
   sidebarPanels,
   workspace,
 }: AppShellProps): JSX.Element {
-  const [activeSidebarView, setActiveSidebarView] =
-    useState<SidebarView>('explorer');
-  const [activeBottomDockTab, setActiveBottomDockTab] =
-    useState<BottomDockTab>('properties');
-  const [activeRightPanelTab, setActiveRightPanelTab] =
-    useState<RightPanelTab>('details');
-  const activeSidebarContent = SIDEBAR_VIEW_CONTENT[activeSidebarView];
-  const activeSidebarPanel = sidebarPanels?.[activeSidebarView];
+  const [layoutPreferences, setLayoutPreferences] =
+    useState<WorkbenchLayoutPreferences>(readWorkbenchLayoutPreferences);
+  const { bottomDockTab, rightPanelTab, sidebarView } = layoutPreferences;
+  const activeSidebarContent = SIDEBAR_VIEW_CONTENT[sidebarView];
+  const activeSidebarPanel = sidebarPanels?.[sidebarView];
   const hasLegacyContent = children !== undefined && children !== null;
+
+  useEffect(() => {
+    writeWorkbenchLayoutPreferences(layoutPreferences);
+  }, [layoutPreferences]);
+
+  function setActiveSidebarView(nextSidebarView: SidebarView): void {
+    setLayoutPreferences((currentPreferences) => ({
+      ...currentPreferences,
+      sidebarView: nextSidebarView,
+    }));
+  }
+
+  function setActiveBottomDockTab(nextBottomDockTab: BottomDockTab): void {
+    setLayoutPreferences((currentPreferences) => ({
+      ...currentPreferences,
+      bottomDockTab: nextBottomDockTab,
+    }));
+  }
+
+  function setActiveRightPanelTab(nextRightPanelTab: RightPanelTab): void {
+    setLayoutPreferences((currentPreferences) => ({
+      ...currentPreferences,
+      rightPanelTab: nextRightPanelTab,
+    }));
+  }
 
   return (
     <div className="workbench-root">
@@ -121,7 +158,7 @@ export function AppShell({
           >
             {SIDEBAR_VIEWS.map((view) => (
               <button
-                aria-pressed={activeSidebarView === view.id}
+                aria-pressed={sidebarView === view.id}
                 className="workbench-sidebar-view-button"
                 key={view.id}
                 onClick={() => setActiveSidebarView(view.id)}
@@ -181,7 +218,7 @@ export function AppShell({
             </section>
           ) : (
             <PlaceholderTabs
-              activeTab={activeRightPanelTab}
+              activeTab={rightPanelTab}
               ariaLabel="Context panel tabs"
               idPrefix="workbench-right-panel"
               onActiveTabChange={setActiveRightPanelTab}
@@ -200,7 +237,7 @@ export function AppShell({
             </section>
           ) : (
             <PlaceholderTabs
-              activeTab={activeBottomDockTab}
+              activeTab={bottomDockTab}
               ariaLabel="Workbench dock tabs"
               idPrefix="workbench-bottom-dock"
               onActiveTabChange={setActiveBottomDockTab}
@@ -212,6 +249,75 @@ export function AppShell({
       </div>
     </div>
   );
+}
+
+function readWorkbenchLayoutPreferences(): WorkbenchLayoutPreferences {
+  if (typeof window === 'undefined') {
+    return DEFAULT_WORKBENCH_LAYOUT_PREFERENCES;
+  }
+
+  try {
+    const storedPreferences = window.localStorage.getItem(
+      WORKBENCH_LAYOUT_PREFERENCES_STORAGE_KEY,
+    );
+
+    if (!storedPreferences) {
+      return DEFAULT_WORKBENCH_LAYOUT_PREFERENCES;
+    }
+
+    const parsedPreferences = JSON.parse(storedPreferences) as unknown;
+
+    if (!isRecord(parsedPreferences)) {
+      return DEFAULT_WORKBENCH_LAYOUT_PREFERENCES;
+    }
+
+    return {
+      bottomDockTab: isBottomDockTab(parsedPreferences.bottomDockTab)
+        ? parsedPreferences.bottomDockTab
+        : DEFAULT_WORKBENCH_LAYOUT_PREFERENCES.bottomDockTab,
+      rightPanelTab: isRightPanelTab(parsedPreferences.rightPanelTab)
+        ? parsedPreferences.rightPanelTab
+        : DEFAULT_WORKBENCH_LAYOUT_PREFERENCES.rightPanelTab,
+      sidebarView: isSidebarView(parsedPreferences.sidebarView)
+        ? parsedPreferences.sidebarView
+        : DEFAULT_WORKBENCH_LAYOUT_PREFERENCES.sidebarView,
+    };
+  } catch {
+    return DEFAULT_WORKBENCH_LAYOUT_PREFERENCES;
+  }
+}
+
+function writeWorkbenchLayoutPreferences(
+  layoutPreferences: WorkbenchLayoutPreferences,
+): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(
+      WORKBENCH_LAYOUT_PREFERENCES_STORAGE_KEY,
+      JSON.stringify(layoutPreferences),
+    );
+  } catch {
+    // Browser storage can be disabled or quota-limited; the shell still works.
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isSidebarView(value: unknown): value is SidebarView {
+  return SIDEBAR_VIEWS.some((view) => view.id === value);
+}
+
+function isBottomDockTab(value: unknown): value is BottomDockTab {
+  return BOTTOM_DOCK_TABS.some((tab) => tab.id === value);
+}
+
+function isRightPanelTab(value: unknown): value is RightPanelTab {
+  return RIGHT_PANEL_TABS.some((tab) => tab.id === value);
 }
 
 interface PlaceholderTabsProps<T extends string> {

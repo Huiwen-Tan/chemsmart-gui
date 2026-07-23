@@ -19,6 +19,9 @@ import { useDocumentStore } from './state/useDocumentStore';
 import { useViewerStore } from './state/useViewerStore';
 import { App } from './App';
 
+const WORKBENCH_LAYOUT_PREFERENCES_STORAGE_KEY =
+  'chemsmart-gui.workbench.layout.v1';
+
 vi.mock('./viewer/MolecularViewer', () => ({
   MolecularViewer: ({
     document,
@@ -583,6 +586,7 @@ function activateBottomDockTab(tabName: string): HTMLElement {
 
 describe('App', () => {
   beforeEach(() => {
+    window.localStorage.removeItem(WORKBENCH_LAYOUT_PREFERENCES_STORAGE_KEY);
     useDocumentStore.setState({
       currentDocument: null,
       canUndoMoleculeEdit: false,
@@ -608,6 +612,7 @@ describe('App', () => {
     vi.useRealTimers();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    window.localStorage.removeItem(WORKBENCH_LAYOUT_PREFERENCES_STORAGE_KEY);
   });
 
   it('passes the normalized sample XYZ response to the viewer', async () => {

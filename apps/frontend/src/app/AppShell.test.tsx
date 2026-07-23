@@ -1,9 +1,21 @@
-import { fireEvent, render, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, waitFor, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AppShell } from './AppShell';
 
+const WORKBENCH_LAYOUT_PREFERENCES_STORAGE_KEY =
+  'chemsmart-gui.workbench.layout.v1';
+
 describe('AppShell', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    window.localStorage.clear();
+  });
+
   it('renders its title and child content', () => {
     const { container } = render(
       <AppShell>
@@ -349,4 +361,186 @@ describe('AppShell', () => {
       'Document and viewer inspector controls will appear here.',
     );
   });
+
+  it('persists workbench tab selections', async () => {
+    const { container } = render(
+      <AppShell>
+        <p>Workspace content</p>
+      </AppShell>,
+    );
+    const shell = within(container);
+    const sidebar = shell.getByRole('complementary', {
+      name: 'Primary workspace navigation',
+    });
+    const dock = shell.getByRole('region', { name: 'Workbench dock' });
+    const rightPanel = shell.getByRole('complementary', {
+      name: 'Context panel',
+    });
+
+    fireEvent.click(within(sidebar).getByRole('button', { name: 'Display' }));
+    fireEvent.click(within(dock).getByRole('tab', { name: 'Analysis' }));
+    fireEvent.click(within(rightPanel).getByRole('tab', { name: 'Inspector' }));
+
+    await waitFor(() => {
+      expect(readStoredLayoutPreferences()).toEqual({
+        bottomDockTab: 'analysis',
+        rightPanelTab: 'inspector',
+        sidebarView: 'display',
+      });
+    });
+  });
+
+  it('restores persisted workbench tab selections', () => {
+    window.localStorage.setItem(
+      WORKBENCH_LAYOUT_PREFERENCES_STORAGE_KEY,
+      JSON.stringify({
+        bottomDockTab: 'export',
+        rightPanelTab: 'inspector',
+        sidebarView: 'display',
+      }),
+    );
+
+    const { container } = render(
+      <AppShell>
+        <p>Workspace content</p>
+      </AppShell>,
+    );
+    const shell = within(container);
+    const sidebar = shell.getByRole('complementary', {
+      name: 'Primary workspace navigation',
+    });
+    const dock = shell.getByRole('region', { name: 'Workbench dock' });
+    const rightPanel = shell.getByRole('complementary', {
+      name: 'Context panel',
+    });
+
+    expect(
+      within(sidebar).getByRole('button', { name: 'Display' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    expect(within(dock).getByRole('tab', { name: 'Export' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    expect(
+      within(rightPanel).getByRole('tab', { name: 'Inspector' }),
+    ).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('falls back to default workbench selections for invalid persisted data', () => {
+    window.localStorage.setItem(
+      WORKBENCH_LAYOUT_PREFERENCES_STORAGE_KEY,
+      JSON.stringify({
+        bottomDockTab: 'missing',
+        rightPanelTab: 'unknown',
+        sidebarView: 'ghost',
+      }),
+    );
+
+    const { container } = render(
+      <AppShell>
+        <p>Workspace content</p>
+      </AppShell>,
+    );
+    const shell = within(container);
+    const sidebar = shell.getByRole('complementary', {
+      name: 'Primary workspace navigation',
+    });
+    const dock = shell.getByRole('region', { name: 'Workbench dock' });
+    const rightPanel = shell.getByRole('complementary', {
+      name: 'Context panel',
+    });
+
+    expect(
+      within(sidebar).getByRole('button', { name: 'Explorer' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    expect(
+      within(dock).getByRole('tab', { name: 'Properties' }),
+    ).toHaveAttribute('aria-selected', 'true');
+    expect(
+      within(rightPanel).getByRole('tab', { name: 'Details' }),
+    ).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('falls back to default workbench selections for malformed persisted data', () => {
+    window.localStorage.setItem(
+      WORKBENCH_LAYOUT_PREFERENCES_STORAGE_KEY,
+      '{not valid json',
+    );
+
+    const { container } = render(
+      <AppShell>
+        <p>Workspace content</p>
+      </AppShell>,
+    );
+    const shell = within(container);
+    const sidebar = shell.getByRole('complementary', {
+      name: 'Primary workspace navigation',
+    });
+    const dock = shell.getByRole('region', { name: 'Workbench dock' });
+    const rightPanel = shell.getByRole('complementary', {
+      name: 'Context panel',
+    });
+
+    expect(
+      within(sidebar).getByRole('button', { name: 'Explorer' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    expect(
+      within(dock).getByRole('tab', { name: 'Properties' }),
+    ).toHaveAttribute('aria-selected', 'true');
+    expect(
+      within(rightPanel).getByRole('tab', { name: 'Details' }),
+    ).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('keeps rendering when workbench preference storage is unavailable', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('Storage unavailable');
+    });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('Storage unavailable');
+    });
+
+    const { container } = render(
+      <AppShell>
+        <p>Workspace content</p>
+      </AppShell>,
+    );
+    const shell = within(container);
+    const sidebar = shell.getByRole('complementary', {
+      name: 'Primary workspace navigation',
+    });
+    const dock = shell.getByRole('region', { name: 'Workbench dock' });
+    const rightPanel = shell.getByRole('complementary', {
+      name: 'Context panel',
+    });
+
+    expect(
+      shell.getByRole('heading', { name: 'CHEMSMART GUI' }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(within(sidebar).getByRole('button', { name: 'Tasks' }));
+    fireEvent.click(within(dock).getByRole('tab', { name: 'Logs' }));
+    fireEvent.click(within(rightPanel).getByRole('tab', { name: 'Inspector' }));
+
+    expect(
+      within(sidebar).getByRole('button', { name: 'Tasks' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    expect(within(dock).getByRole('tab', { name: 'Logs' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    expect(
+      within(rightPanel).getByRole('tab', { name: 'Inspector' }),
+    ).toHaveAttribute('aria-selected', 'true');
+  });
 });
+
+function readStoredLayoutPreferences(): Record<string, string> {
+  const storedPreferences = window.localStorage.getItem(
+    WORKBENCH_LAYOUT_PREFERENCES_STORAGE_KEY,
+  );
+
+  expect(storedPreferences).not.toBeNull();
+
+  return JSON.parse(storedPreferences ?? '{}') as Record<string, string>;
+}
