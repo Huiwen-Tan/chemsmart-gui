@@ -696,6 +696,11 @@ describe('App', () => {
       }),
     ).toHaveTextContent('No molecule loaded');
     expect(
+      within(viewerWorkspace).getByRole('region', {
+        name: 'Viewer toolbox',
+      }),
+    ).toHaveTextContent('No molecule loaded');
+    expect(
       within(sidebar).getByRole('button', { name: 'Open Document' }),
     ).toBeInTheDocument();
     expect(
@@ -788,6 +793,41 @@ describe('App', () => {
       ),
     );
 
+    expect(useViewerStore.getState().viewResetRequestId).toBe(1);
+  });
+
+  it('wires current viewer actions into the viewer toolbox', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ status: 'ok' }));
+    useDocumentStore.setState({
+      currentDocument: WATER_DOCUMENT,
+    });
+    useViewerStore.setState({
+      selectedAtomIndices: [1, 2],
+      showAtomLabels: false,
+      showBonds: true,
+      viewResetRequestId: 0,
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    const toolbox = screen.getByRole('region', { name: 'Viewer toolbox' });
+
+    expect(toolbox).toHaveTextContent('Selected atoms: 1, 2');
+    fireEvent.click(
+      within(toolbox).getByRole('button', { name: 'Clear Selection' }),
+    );
+    expect(useViewerStore.getState().selectedAtomIndices).toEqual([]);
+
+    fireEvent.click(within(toolbox).getByRole('button', { name: 'Show Bonds' }));
+    expect(useViewerStore.getState().showBonds).toBe(false);
+
+    fireEvent.click(
+      within(toolbox).getByRole('button', { name: 'Show Atom Labels' }),
+    );
+    expect(useViewerStore.getState().showAtomLabels).toBe(true);
+
+    fireEvent.click(within(toolbox).getByRole('button', { name: 'Reset View' }));
     expect(useViewerStore.getState().viewResetRequestId).toBe(1);
   });
 
@@ -2434,9 +2474,11 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    activateDisplaySidebar();
+    const sidebar = activateDisplaySidebar();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Reset View' }));
+    fireEvent.click(
+      within(sidebar).getByRole('button', { name: 'Reset View' }),
+    );
 
     expect(useViewerStore.getState().viewResetRequestId).toBe(1);
     expect(useDocumentStore.getState().currentDocument).toBeNull();

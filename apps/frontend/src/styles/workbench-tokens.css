@@ -490,6 +490,82 @@ textarea:focus-visible {
   gap: var(--csw-space-2);
 }
 
+.workbench-viewer-toolbox {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: var(--csw-space-2);
+  padding: var(--csw-space-2);
+  border: 1px solid var(--csw-color-divider);
+  border-radius: var(--csw-radius-md);
+  background: var(--csw-color-panel-strong);
+}
+
+.workbench-viewer-toolbox-group {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--csw-space-2);
+  padding: var(--csw-space-2);
+  border: 1px solid var(--csw-color-divider);
+  border-radius: var(--csw-radius-sm);
+  background: var(--csw-color-surface);
+}
+
+.workbench-viewer-toolbox-label {
+  margin: 0;
+  color: var(--csw-color-text);
+  font-size: var(--csw-font-size-xs);
+  font-weight: var(--csw-font-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.workbench-viewer-toolbox-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--csw-space-2);
+  align-items: center;
+}
+
+.workbench-viewer-toolbox-status,
+.workbench-viewer-toolbox-hint {
+  margin: 0;
+  color: var(--csw-color-text-muted);
+  font-size: var(--csw-font-size-xs);
+}
+
+.workbench-viewer-toolbox-hint {
+  color: var(--csw-color-text-subtle);
+}
+
+.workbench-viewer-toolbox-button {
+  border: 1px solid var(--csw-color-border-subtle);
+  border-radius: var(--csw-radius-sm);
+  background: var(--csw-color-surface-sunken);
+  color: var(--csw-color-text-muted);
+  cursor: pointer;
+  font-size: var(--csw-font-size-xs);
+  font-weight: var(--csw-font-weight-medium);
+  padding: var(--csw-space-1) var(--csw-space-2);
+}
+
+.workbench-viewer-toolbox-button:hover:not(:disabled) {
+  background: var(--csw-color-surface-hover);
+  color: var(--csw-color-text);
+}
+
+.workbench-viewer-toolbox-button[aria-pressed="true"] {
+  border-color: var(--csw-color-accent-primary);
+  background: var(--csw-color-surface-raised);
+  color: var(--csw-color-text);
+}
+
+.workbench-viewer-toolbox-button:disabled {
+  color: var(--csw-color-text-subtle);
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
 .workbench-viewer-status-bar {
   display: flex;
   flex-wrap: wrap;

@@ -17,6 +17,7 @@ import { useViewerStore } from './state/useViewerStore';
 import { MolecularViewer } from './viewer/MolecularViewer';
 import { SelectedAtomPanel } from './viewer/SelectedAtomPanel';
 import { ViewerStatusBar } from './viewer/ViewerStatusBar';
+import { ViewerToolbox } from './viewer/ViewerToolbox';
 import { downloadTextFile } from './shared/download';
 import type {
   ModeDisplacementDirection,
@@ -636,6 +637,16 @@ export function App(): JSX.Element {
       }}
       workspace={(
         <div className="workbench-viewer-workspace">
+          <ViewerToolbox
+            document={activeMoleculeDocument}
+            onClearSelection={clearAtomSelection}
+            onResetView={requestViewReset}
+            onShowAtomLabelsChange={setShowAtomLabels}
+            onShowBondsChange={setShowBonds}
+            selectedAtomIndices={selectedAtomIndices}
+            showAtomLabels={showAtomLabels}
+            showBonds={showBonds}
+          />
           <MolecularViewer
             document={activeMoleculeDocument}
             isVibrationalModeAnimationPlaying={
