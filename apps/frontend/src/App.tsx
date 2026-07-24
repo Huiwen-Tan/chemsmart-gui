@@ -13,6 +13,10 @@ import { MoleculeExportPreviewPanel } from './documents/MoleculeExportPreviewPan
 import { TrajectoryFramesPanel } from './documents/TrajectoryFramesPanel';
 import { VibrationalModesPanel } from './documents/VibrationalModesPanel';
 import { TaskCatalogPanel } from './tasks/TaskCatalogPanel';
+import {
+  SettingsDrawer,
+  type SettingsDrawerSection,
+} from './settings/SettingsDrawer';
 import { useDocumentStore } from './state/useDocumentStore';
 import { useViewerStore } from './state/useViewerStore';
 import { MolecularViewer } from './viewer/MolecularViewer';
@@ -156,6 +160,14 @@ export function App(): JSX.Element {
   const [
     isTrajectoryPlaybackPlaying,
     setIsTrajectoryPlaybackPlaying,
+  ] = useState(false);
+  const [
+    settingsDrawerSection,
+    setSettingsDrawerSection,
+  ] = useState<SettingsDrawerSection>('project');
+  const [
+    isSettingsDrawerOpen,
+    setIsSettingsDrawerOpen,
   ] = useState(false);
   const trajectoryDocument = isTrajectoryDocument(currentDocument)
     ? currentDocument
@@ -440,6 +452,11 @@ export function App(): JSX.Element {
     await openDocumentPath();
   };
 
+  const openSettingsDrawer = (section: SettingsDrawerSection): void => {
+    setSettingsDrawerSection(section);
+    setIsSettingsDrawerOpen(true);
+  };
+
   const applicationMenuItems: WorkbenchMenuItems = {
     edit: [
       {
@@ -466,6 +483,20 @@ export function App(): JSX.Element {
         onSelect: () => {
           void openCurrentDocument();
         },
+      },
+    ],
+    settings: [
+      {
+        id: 'project-settings',
+        kind: 'action',
+        label: 'Project Settings...',
+        onSelect: () => openSettingsDrawer('project'),
+      },
+      {
+        id: 'server-settings',
+        kind: 'action',
+        label: 'Server Settings...',
+        onSelect: () => openSettingsDrawer('server'),
       },
     ],
     view: [
@@ -571,108 +602,116 @@ export function App(): JSX.Element {
   );
 
   return (
-    <AppShell
-      bottomDockPanels={{
-        analysis: (
-          <div className="workbench-panel-stack">
-            {trajectoryDocument ? (
-              <TrajectoryFramesPanel
-                document={trajectoryDocument}
-                isPlaybackPlaying={isTrajectoryPlaybackPlaying}
-                onSelectedFrameIndexChange={selectTrajectoryFrame}
-                onPlaybackPlayingChange={setIsTrajectoryPlaybackPlaying}
-                selectedFrameIndex={selectedTrajectoryFrameIndex}
+    <>
+      <AppShell
+        bottomDockPanels={{
+          analysis: (
+            <div className="workbench-panel-stack">
+              {trajectoryDocument ? (
+                <TrajectoryFramesPanel
+                  document={trajectoryDocument}
+                  isPlaybackPlaying={isTrajectoryPlaybackPlaying}
+                  onSelectedFrameIndexChange={selectTrajectoryFrame}
+                  onPlaybackPlayingChange={setIsTrajectoryPlaybackPlaying}
+                  selectedFrameIndex={selectedTrajectoryFrameIndex}
+                />
+              ) : null}
+              <VibrationalModesPanel
+                broadenedSpectrum={broadenedIrSpectrum}
+                broadenedSpectrumError={broadenedIrSpectrumError}
+                document={activeMoleculeDocument}
+                isBroadenedSpectrumLoading={isPreviewingBroadenedIrSpectrum}
+                isDownloadingDisplacedStructure={isDownloadingDisplacedStructure}
+                isGeneratingDisplacedStructure={isGeneratingDisplacedStructure}
+                isAnimationPlaying={isVibrationalModeAnimationPlaying}
+                onAnimationPlayingChange={setVibrationalModeAnimationPlaying}
+                onBroadenedSpectrumPreview={previewActiveBroadenedIrSpectrum}
+                onDownloadDisplacedStructure={
+                  downloadSelectedModeDisplacedStructure
+                }
+                onGenerateDisplacedStructure={
+                  generateSelectedModeDisplacedStructure
+                }
+                onSelectedModeIndexChange={selectVibrationalMode}
+                selectedModeIndex={selectedVibrationalMode?.index ?? null}
               />
-            ) : null}
-            <VibrationalModesPanel
-              broadenedSpectrum={broadenedIrSpectrum}
-              broadenedSpectrumError={broadenedIrSpectrumError}
+            </div>
+          ),
+          export: (
+            <MoleculeExportPreviewPanel
+              document={activeEditableMoleculeDocument}
+              onReopenSource={openDocumentPath}
+              onSourceWrite={markMoleculeDocumentSaved}
+            />
+          ),
+          properties: (
+            <DocumentSummaryPanel
               document={activeMoleculeDocument}
-              isBroadenedSpectrumLoading={isPreviewingBroadenedIrSpectrum}
-              isDownloadingDisplacedStructure={isDownloadingDisplacedStructure}
-              isGeneratingDisplacedStructure={isGeneratingDisplacedStructure}
-              isAnimationPlaying={isVibrationalModeAnimationPlaying}
-              onAnimationPlayingChange={setVibrationalModeAnimationPlaying}
-              onBroadenedSpectrumPreview={previewActiveBroadenedIrSpectrum}
-              onDownloadDisplacedStructure={
-                downloadSelectedModeDisplacedStructure
+              hasUnsavedMoleculeEdits={hasUnsavedMoleculeEdits}
+            />
+          ),
+        }}
+        menuItems={applicationMenuItems}
+        rightPanelPanels={{
+          details: (
+            <SelectedAtomPanel document={activeEditableMoleculeDocument} />
+          ),
+        }}
+        sidebarPanels={{
+          explorer: explorerSidebarPanel,
+          tasks: <TaskCatalogPanel />,
+          display: displaySidebarPanel,
+        }}
+        workspace={(
+          <div className="workbench-viewer-workspace">
+            <ViewerToolbox
+              document={activeMoleculeDocument}
+              onClearSelection={clearAtomSelection}
+              onResetView={requestViewReset}
+              onShowAtomLabelsChange={setShowAtomLabels}
+              onShowBondsChange={setShowBonds}
+              selectedAtomIndices={selectedAtomIndices}
+              showAtomLabels={showAtomLabels}
+              showBonds={showBonds}
+            />
+            <MolecularViewer
+              autoFrameKey={viewerAutoFrameKey}
+              document={activeMoleculeDocument}
+              isVibrationalModeAnimationPlaying={
+                isVibrationalModeAnimationPlaying
               }
-              onGenerateDisplacedStructure={
-                generateSelectedModeDisplacedStructure
+              selectedVibrationalMode={selectedVibrationalMode}
+            />
+            <ViewerPlaybackControls
+              isTrajectoryPlaybackPlaying={isTrajectoryPlaybackPlaying}
+              isVibrationalModeAnimationPlaying={
+                isVibrationalModeAnimationPlaying
               }
-              onSelectedModeIndexChange={selectVibrationalMode}
-              selectedModeIndex={selectedVibrationalMode?.index ?? null}
+              onSelectedTrajectoryFrameIndexChange={selectTrajectoryFrame}
+              onSelectedVibrationalModeIndexChange={selectVibrationalMode}
+              onTrajectoryPlaybackPlayingChange={setIsTrajectoryPlaybackPlaying}
+              onVibrationalModeAnimationPlayingChange={
+                setVibrationalModeAnimationPlaying
+              }
+              selectedTrajectoryFrameIndex={selectedTrajectoryFrameIndex}
+              selectedVibrationalMode={selectedVibrationalMode}
+              trajectoryDocument={trajectoryDocument}
+              vibrationalModes={vibrationalModes}
+            />
+            <ViewerStatusBar
+              document={activeMoleculeDocument}
+              selectedAtomIndices={selectedAtomIndices}
+              selectedVibrationalMode={selectedVibrationalMode}
             />
           </div>
-        ),
-        export: (
-          <MoleculeExportPreviewPanel
-            document={activeEditableMoleculeDocument}
-            onReopenSource={openDocumentPath}
-            onSourceWrite={markMoleculeDocumentSaved}
-          />
-        ),
-        properties: (
-          <DocumentSummaryPanel
-            document={activeMoleculeDocument}
-            hasUnsavedMoleculeEdits={hasUnsavedMoleculeEdits}
-          />
-        ),
-      }}
-      menuItems={applicationMenuItems}
-      rightPanelPanels={{
-        details: (
-          <SelectedAtomPanel document={activeEditableMoleculeDocument} />
-        ),
-      }}
-      sidebarPanels={{
-        explorer: explorerSidebarPanel,
-        tasks: <TaskCatalogPanel />,
-        display: displaySidebarPanel,
-      }}
-      workspace={(
-        <div className="workbench-viewer-workspace">
-          <ViewerToolbox
-            document={activeMoleculeDocument}
-            onClearSelection={clearAtomSelection}
-            onResetView={requestViewReset}
-            onShowAtomLabelsChange={setShowAtomLabels}
-            onShowBondsChange={setShowBonds}
-            selectedAtomIndices={selectedAtomIndices}
-            showAtomLabels={showAtomLabels}
-            showBonds={showBonds}
-          />
-          <MolecularViewer
-            autoFrameKey={viewerAutoFrameKey}
-            document={activeMoleculeDocument}
-            isVibrationalModeAnimationPlaying={
-              isVibrationalModeAnimationPlaying
-            }
-            selectedVibrationalMode={selectedVibrationalMode}
-          />
-          <ViewerPlaybackControls
-            isTrajectoryPlaybackPlaying={isTrajectoryPlaybackPlaying}
-            isVibrationalModeAnimationPlaying={
-              isVibrationalModeAnimationPlaying
-            }
-            onSelectedTrajectoryFrameIndexChange={selectTrajectoryFrame}
-            onSelectedVibrationalModeIndexChange={selectVibrationalMode}
-            onTrajectoryPlaybackPlayingChange={setIsTrajectoryPlaybackPlaying}
-            onVibrationalModeAnimationPlayingChange={
-              setVibrationalModeAnimationPlaying
-            }
-            selectedTrajectoryFrameIndex={selectedTrajectoryFrameIndex}
-            selectedVibrationalMode={selectedVibrationalMode}
-            trajectoryDocument={trajectoryDocument}
-            vibrationalModes={vibrationalModes}
-          />
-          <ViewerStatusBar
-            document={activeMoleculeDocument}
-            selectedAtomIndices={selectedAtomIndices}
-            selectedVibrationalMode={selectedVibrationalMode}
-          />
-        </div>
-      )}
-    />
+        )}
+      />
+      <SettingsDrawer
+        activeSection={settingsDrawerSection}
+        isOpen={isSettingsDrawerOpen}
+        onActiveSectionChange={setSettingsDrawerSection}
+        onClose={() => setIsSettingsDrawerOpen(false)}
+      />
+    </>
   );
 }

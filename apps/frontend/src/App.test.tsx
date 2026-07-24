@@ -862,6 +862,81 @@ describe('App', () => {
     expect(useViewerStore.getState().viewResetRequestId).toBe(1);
   });
 
+  it('opens the project and server settings drawer from the Settings menu', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ status: 'ok' }));
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    const applicationMenu = screen.getByRole('navigation', {
+      name: 'Application menu',
+    });
+
+    fireEvent.click(within(applicationMenu).getByRole('button', {
+      name: 'Settings',
+    }));
+    fireEvent.click(
+      within(screen.getByRole('menu', { name: 'Settings menu' })).getByRole(
+        'menuitem',
+        { name: 'Project Settings...' },
+      ),
+    );
+
+    const projectDrawer = screen.getByRole('dialog', {
+      name: 'Workbench Settings',
+    });
+    expect(
+      within(projectDrawer).getByRole('heading', {
+        name: 'Project Settings',
+      }),
+    ).toBeInTheDocument();
+    expect(within(projectDrawer).getByLabelText('program'))
+      .toHaveValue('gaussian');
+    expect(within(projectDrawer).getByLabelText('filetype'))
+      .toHaveValue('com');
+    expect(
+      within(projectDrawer).getByRole('button', {
+        name: 'Save Project Settings',
+      }),
+    ).toBeDisabled();
+
+    fireEvent.click(within(projectDrawer).getByRole('button', {
+      name: 'Close',
+    }));
+    expect(
+      screen.queryByRole('dialog', { name: 'Workbench Settings' }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(within(applicationMenu).getByRole('button', {
+      name: 'Settings',
+    }));
+    fireEvent.click(
+      within(screen.getByRole('menu', { name: 'Settings menu' })).getByRole(
+        'menuitem',
+        { name: 'Server Settings...' },
+      ),
+    );
+
+    const serverDrawer = screen.getByRole('dialog', {
+      name: 'Workbench Settings',
+    });
+    expect(
+      within(serverDrawer).getByRole('heading', { name: 'Server Settings' }),
+    ).toBeInTheDocument();
+    expect(within(serverDrawer).getByLabelText('Scheduler'))
+      .toHaveValue('slurm');
+    expect(within(serverDrawer).getByLabelText('Remote workdir'))
+      .toHaveValue('/scratch/$USER/chemsmart');
+    expect(
+      within(serverDrawer).getByRole('button', { name: 'Test Connection' }),
+    ).toBeDisabled();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(
+      screen.queryByRole('dialog', { name: 'Workbench Settings' }),
+    ).not.toBeInTheDocument();
+  });
+
   it('wires current viewer actions into the viewer toolbox', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ status: 'ok' }));
     useDocumentStore.setState({
