@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 
 import type { TrajectoryDocument, VibrationalMode } from '../shared/types';
 
@@ -35,6 +35,10 @@ export function ViewerPlaybackControls({
   trajectoryDocument,
   vibrationalModes,
 }: ViewerPlaybackControlsProps): JSX.Element {
+  const [
+    isAdvancedPlaybackSettingsOpen,
+    setIsAdvancedPlaybackSettingsOpen,
+  ] = useState(false);
   const frameCount = trajectoryDocument?.frames.length ?? 0;
   const effectiveFrameIndex = trajectoryDocument
     ? selectedFrameIndexForDocument(
@@ -58,131 +62,170 @@ export function ViewerPlaybackControls({
       ) : null}
       {trajectoryDocument ? (
         <PlaybackGroup label="Trajectory">
-          <p className="workbench-viewer-playback-status">
-            Frame {effectiveFrameIndex + 1} of {frameCount}
-          </p>
-          <button
-            className="workbench-viewer-playback-button"
-            disabled={effectiveFrameIndex === 0}
-            onClick={() => {
-              selectTrajectoryFrame(
-                effectiveFrameIndex - 1,
-                frameCount,
-                onSelectedTrajectoryFrameIndexChange,
-              );
-            }}
-            type="button"
-          >
-            Previous Frame
-          </button>
-          <label className="workbench-viewer-playback-field">
-            Frame
-            <select
-              aria-label="Viewer trajectory frame"
-              className="workbench-viewer-playback-select"
-              onChange={(event) => {
+          <div className="workbench-viewer-playback-strip">
+            <button
+              aria-label={
+                isTrajectoryPlaybackPlaying
+                  ? 'Pause Trajectory'
+                  : 'Play Trajectory'
+              }
+              aria-pressed={isTrajectoryPlaybackPlaying}
+              className="workbench-viewer-playback-main-button"
+              disabled={frameCount <= 1}
+              onClick={() => {
+                onTrajectoryPlaybackPlayingChange(
+                  !isTrajectoryPlaybackPlaying,
+                );
+              }}
+              type="button"
+            >
+              <span
+                aria-hidden="true"
+                className={
+                  isTrajectoryPlaybackPlaying
+                    ? 'workbench-viewer-playback-icon-pause'
+                    : 'workbench-viewer-playback-icon-play'
+                }
+              />
+            </button>
+            <button
+              aria-label="Previous Frame"
+              className="workbench-viewer-playback-step-button"
+              disabled={effectiveFrameIndex === 0}
+              onClick={() => {
                 selectTrajectoryFrame(
-                  Number(event.currentTarget.value),
+                  effectiveFrameIndex - 1,
                   frameCount,
                   onSelectedTrajectoryFrameIndexChange,
                 );
               }}
-              value={effectiveFrameIndex}
+              type="button"
             >
-              {trajectoryDocument.frames.map((frame, frameIndex) => (
-                <option key={frame.id} value={frameIndex}>
-                  {frameIndex + 1}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            className="workbench-viewer-playback-button"
-            disabled={effectiveFrameIndex >= frameCount - 1}
-            onClick={() => {
-              selectTrajectoryFrame(
-                effectiveFrameIndex + 1,
-                frameCount,
-                onSelectedTrajectoryFrameIndexChange,
-              );
-            }}
-            type="button"
-          >
-            Next Frame
-          </button>
-          <button
-            aria-pressed={isTrajectoryPlaybackPlaying}
-            className="workbench-viewer-playback-button"
-            disabled={frameCount <= 1}
-            onClick={() => {
-              onTrajectoryPlaybackPlayingChange(!isTrajectoryPlaybackPlaying);
-            }}
-            type="button"
-          >
-            {isTrajectoryPlaybackPlaying
-              ? 'Pause Trajectory'
-              : 'Play Trajectory'}
-          </button>
-          <label className="workbench-viewer-playback-field">
-            Speed
-            <select
-              aria-label="Viewer trajectory playback speed"
-              className="workbench-viewer-playback-select"
-              onChange={(event) => {
-                onTrajectoryPlaybackFramesPerSecondChange(
-                  Number(event.currentTarget.value),
+              <span aria-hidden="true">&lt;</span>
+            </button>
+            <label className="workbench-viewer-frame-control">
+              <input
+                aria-label="Viewer trajectory frame"
+                className="workbench-viewer-frame-input"
+                max={frameCount}
+                min={1}
+                onChange={(event) => {
+                  selectTrajectoryFrame(
+                    Number(event.currentTarget.value) - 1,
+                    frameCount,
+                    onSelectedTrajectoryFrameIndexChange,
+                  );
+                }}
+                type="number"
+                value={effectiveFrameIndex + 1}
+              />
+              <span className="workbench-viewer-frame-total">
+                of {frameCount}
+              </span>
+            </label>
+            <button
+              aria-label="Next Frame"
+              className="workbench-viewer-playback-step-button"
+              disabled={effectiveFrameIndex >= frameCount - 1}
+              onClick={() => {
+                selectTrajectoryFrame(
+                  effectiveFrameIndex + 1,
+                  frameCount,
+                  onSelectedTrajectoryFrameIndexChange,
                 );
               }}
-              value={playbackFramesPerSecond}
+              type="button"
             >
-              {PLAYBACK_SPEED_OPTIONS.map((framesPerSecond) => (
-                <option key={framesPerSecond} value={framesPerSecond}>
-                  {framesPerSecond} fps
-                </option>
-              ))}
-            </select>
-          </label>
+              <span aria-hidden="true">&gt;</span>
+            </button>
+            <button
+              aria-expanded={isAdvancedPlaybackSettingsOpen}
+              aria-label="Advanced playback settings"
+              className="workbench-viewer-playback-settings-button"
+              onClick={() => {
+                setIsAdvancedPlaybackSettingsOpen((isOpen) => !isOpen);
+              }}
+              type="button"
+            >
+              <span aria-hidden="true">...</span>
+            </button>
+          </div>
+          {isAdvancedPlaybackSettingsOpen ? (
+            <div className="workbench-viewer-playback-advanced">
+              <label className="workbench-viewer-playback-field">
+                Speed
+                <select
+                  aria-label="Viewer trajectory playback speed"
+                  className="workbench-viewer-playback-select"
+                  onChange={(event) => {
+                    onTrajectoryPlaybackFramesPerSecondChange(
+                      Number(event.currentTarget.value),
+                    );
+                  }}
+                  value={playbackFramesPerSecond}
+                >
+                  {PLAYBACK_SPEED_OPTIONS.map((framesPerSecond) => (
+                    <option key={framesPerSecond} value={framesPerSecond}>
+                      {framesPerSecond} fps
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          ) : null}
         </PlaybackGroup>
       ) : null}
       {selectedMode ? (
         <PlaybackGroup label="Vibration">
-          <p className="workbench-viewer-playback-status">
-            {formatModeSummary(selectedMode)}
-          </p>
-          <label className="workbench-viewer-playback-field">
-            Mode
-            <select
-              aria-label="Viewer vibrational mode"
-              className="workbench-viewer-playback-select"
-              onChange={(event) => {
-                onSelectedVibrationalModeIndexChange(
-                  Number(event.currentTarget.value),
+          <div className="workbench-viewer-playback-strip">
+            <button
+              aria-label={
+                isVibrationalModeAnimationPlaying
+                  ? 'Pause Mode Animation'
+                  : 'Play Mode Animation'
+              }
+              aria-pressed={isVibrationalModeAnimationPlaying}
+              className="workbench-viewer-playback-main-button"
+              disabled={selectedMode.displacements.length === 0}
+              onClick={() => {
+                onVibrationalModeAnimationPlayingChange(
+                  !isVibrationalModeAnimationPlaying,
                 );
               }}
-              value={selectedMode.index}
+              type="button"
             >
-              {vibrationalModes.map((mode) => (
-                <option key={mode.index} value={mode.index}>
-                  {mode.index}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            aria-pressed={isVibrationalModeAnimationPlaying}
-            className="workbench-viewer-playback-button"
-            disabled={selectedMode.displacements.length === 0}
-            onClick={() => {
-              onVibrationalModeAnimationPlayingChange(
-                !isVibrationalModeAnimationPlaying,
-              );
-            }}
-            type="button"
-          >
-            {isVibrationalModeAnimationPlaying
-              ? 'Pause Mode Animation'
-              : 'Play Mode Animation'}
-          </button>
+              <span
+                aria-hidden="true"
+                className={
+                  isVibrationalModeAnimationPlaying
+                    ? 'workbench-viewer-playback-icon-pause'
+                    : 'workbench-viewer-playback-icon-play'
+                }
+              />
+            </button>
+            <label className="workbench-viewer-frame-control">
+              <span className="workbench-viewer-frame-total">Mode</span>
+              <select
+                aria-label="Viewer vibrational mode"
+                className="workbench-viewer-mode-select"
+                onChange={(event) => {
+                  onSelectedVibrationalModeIndexChange(
+                    Number(event.currentTarget.value),
+                  );
+                }}
+                value={selectedMode.index}
+              >
+                {vibrationalModes.map((mode) => (
+                  <option key={mode.index} value={mode.index}>
+                    {mode.index}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <span className="workbench-viewer-mode-frequency">
+              {formatModeFrequency(selectedMode)}
+            </span>
+          </div>
           {selectedMode.displacements.length === 0 ? (
             <p className="workbench-viewer-playback-hint">
               No displacement vectors available.
@@ -233,10 +276,7 @@ function selectTrajectoryFrame(
   onSelectedTrajectoryFrameIndexChange(frameIndex);
 }
 
-function formatModeSummary(mode: VibrationalMode): string {
-  const imaginaryLabel = mode.is_imaginary ? ' (imaginary)' : '';
-  return (
-    `Mode ${mode.index}: ${mode.frequency_cm_minus_1.toFixed(1)} cm^-1` +
-    imaginaryLabel
-  );
+function formatModeFrequency(mode: VibrationalMode): string {
+  const imaginaryLabel = mode.is_imaginary ? ' imag' : '';
+  return `${mode.frequency_cm_minus_1.toFixed(1)} cm^-1${imaginaryLabel}`;
 }

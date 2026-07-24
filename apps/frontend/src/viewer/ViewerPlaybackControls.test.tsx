@@ -110,16 +110,30 @@ describe('ViewerPlaybackControls', () => {
     const playback = screen.getByRole('region', {
       name: 'Viewer playback controls',
     });
-    expect(playback).toHaveTextContent('Frame 1 of 2');
+    expect(
+      within(playback).getByLabelText('Viewer trajectory frame'),
+    ).toHaveValue(1);
+    expect(playback).toHaveTextContent('of 2');
     expect(
       within(playback).getByRole('button', { name: 'Previous Frame' }),
     ).toBeDisabled();
+    expect(
+      within(playback).queryByLabelText('Viewer trajectory playback speed'),
+    ).not.toBeInTheDocument();
 
     fireEvent.click(
       within(playback).getByRole('button', { name: 'Next Frame' }),
     );
+    fireEvent.change(within(playback).getByLabelText('Viewer trajectory frame'), {
+      target: { value: '2' },
+    });
     fireEvent.click(
       within(playback).getByRole('button', { name: 'Play Trajectory' }),
+    );
+    fireEvent.click(
+      within(playback).getByRole('button', {
+        name: 'Advanced playback settings',
+      }),
     );
     fireEvent.change(
       within(playback).getByLabelText('Viewer trajectory playback speed'),
@@ -128,6 +142,8 @@ describe('ViewerPlaybackControls', () => {
 
     expect(DEFAULT_PROPS.onSelectedTrajectoryFrameIndexChange)
       .toHaveBeenCalledWith(1);
+    expect(DEFAULT_PROPS.onSelectedTrajectoryFrameIndexChange)
+      .toHaveBeenCalledTimes(2);
     expect(DEFAULT_PROPS.onTrajectoryPlaybackPlayingChange)
       .toHaveBeenCalledWith(true);
     expect(DEFAULT_PROPS.onTrajectoryPlaybackFramesPerSecondChange)
@@ -146,7 +162,7 @@ describe('ViewerPlaybackControls', () => {
     const playback = screen.getByRole('region', {
       name: 'Viewer playback controls',
     });
-    expect(playback).toHaveTextContent('Mode 1: -530.2 cm^-1 (imaginary)');
+    expect(playback).toHaveTextContent('-530.2 cm^-1 imag');
 
     fireEvent.change(
       within(playback).getByLabelText('Viewer vibrational mode'),

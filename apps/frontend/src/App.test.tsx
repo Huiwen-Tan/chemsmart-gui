@@ -858,7 +858,10 @@ describe('App', () => {
     const playback = screen.getByRole('region', {
       name: 'Viewer playback controls',
     });
-    expect(playback).toHaveTextContent('Frame 1 of 2');
+    expect(
+      within(playback).getByLabelText('Viewer trajectory frame'),
+    ).toHaveValue(1);
+    expect(playback).toHaveTextContent('of 2');
 
     fireEvent.click(
       within(playback).getByRole('button', {
@@ -871,8 +874,19 @@ describe('App', () => {
         JSON.stringify(TRAJECTORY_FRAME_TWO),
       );
     });
-    expect(playback).toHaveTextContent('Frame 2 of 2');
+    expect(
+      within(playback).getByLabelText('Viewer trajectory frame'),
+    ).toHaveValue(2);
+    expect(playback).toHaveTextContent('of 2');
 
+    expect(
+      within(playback).queryByLabelText('Viewer trajectory playback speed'),
+    ).not.toBeInTheDocument();
+    fireEvent.click(
+      within(playback).getByRole('button', {
+        name: 'Advanced playback settings',
+      }),
+    );
     fireEvent.change(
       within(playback).getByLabelText('Viewer trajectory playback speed'),
       {
@@ -921,7 +935,7 @@ describe('App', () => {
     const playback = screen.getByRole('region', {
       name: 'Viewer playback controls',
     });
-    expect(playback).toHaveTextContent('Mode 1: -530.2 cm^-1 (imaginary)');
+    expect(playback).toHaveTextContent('-530.2 cm^-1 imag');
     fireEvent.change(
       within(playback).getByLabelText('Viewer vibrational mode'),
       {
