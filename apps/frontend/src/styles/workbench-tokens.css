@@ -566,6 +566,100 @@ textarea:focus-visible {
   opacity: 0.62;
 }
 
+.workbench-viewer-playback {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: var(--csw-space-2);
+  padding: var(--csw-space-2);
+  border: 1px solid var(--csw-color-divider);
+  border-radius: var(--csw-radius-md);
+  background: var(--csw-color-panel-strong);
+}
+
+.workbench-viewer-playback-empty {
+  margin: 0;
+  color: var(--csw-color-text-subtle);
+  font-size: var(--csw-font-size-sm);
+}
+
+.workbench-viewer-playback-group {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--csw-space-2);
+  padding: var(--csw-space-2);
+  border: 1px solid var(--csw-color-divider);
+  border-radius: var(--csw-radius-sm);
+  background: var(--csw-color-surface);
+}
+
+.workbench-viewer-playback-label {
+  margin: 0;
+  color: var(--csw-color-text);
+  font-size: var(--csw-font-size-xs);
+  font-weight: var(--csw-font-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.workbench-viewer-playback-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--csw-space-2);
+  align-items: center;
+}
+
+.workbench-viewer-playback-status,
+.workbench-viewer-playback-hint {
+  margin: 0;
+  color: var(--csw-color-text-muted);
+  font-size: var(--csw-font-size-xs);
+}
+
+.workbench-viewer-playback-hint {
+  color: var(--csw-color-text-subtle);
+}
+
+.workbench-viewer-playback-field {
+  display: inline-flex;
+  gap: var(--csw-space-1);
+  align-items: center;
+  color: var(--csw-color-text-muted);
+  font-size: var(--csw-font-size-xs);
+}
+
+.workbench-viewer-playback-select,
+.workbench-viewer-playback-button {
+  border: 1px solid var(--csw-color-border-subtle);
+  border-radius: var(--csw-radius-sm);
+  background: var(--csw-color-surface-sunken);
+  color: var(--csw-color-text-muted);
+  font-size: var(--csw-font-size-xs);
+  font-weight: var(--csw-font-weight-medium);
+  padding: var(--csw-space-1) var(--csw-space-2);
+}
+
+.workbench-viewer-playback-button {
+  cursor: pointer;
+}
+
+.workbench-viewer-playback-button:hover:not(:disabled) {
+  background: var(--csw-color-surface-hover);
+  color: var(--csw-color-text);
+}
+
+.workbench-viewer-playback-button[aria-pressed="true"] {
+  border-color: var(--csw-color-accent-primary);
+  background: var(--csw-color-surface-raised);
+  color: var(--csw-color-text);
+}
+
+.workbench-viewer-playback-button:disabled {
+  color: var(--csw-color-text-subtle);
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
 .workbench-viewer-status-bar {
   display: flex;
   flex-wrap: wrap;

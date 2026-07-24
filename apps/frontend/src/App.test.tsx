@@ -701,6 +701,11 @@ describe('App', () => {
       }),
     ).toHaveTextContent('No molecule loaded');
     expect(
+      within(viewerWorkspace).getByRole('region', {
+        name: 'Viewer playback controls',
+      }),
+    ).toHaveTextContent('No trajectory or vibrational playback available.');
+    expect(
       within(sidebar).getByRole('button', { name: 'Open Document' }),
     ).toBeInTheDocument();
     expect(
@@ -829,6 +834,124 @@ describe('App', () => {
 
     fireEvent.click(within(toolbox).getByRole('button', { name: 'Reset View' }));
     expect(useViewerStore.getState().viewResetRequestId).toBe(1);
+  });
+
+  it('wires trajectory playback controls near the viewer', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
+      .mockResolvedValueOnce(jsonResponse(TRAJECTORY_DOCUMENT));
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText('Document path'), {
+      target: { value: 'sample-data/water.log' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(TRAJECTORY_FRAME_ONE),
+      );
+    });
+
+    const playback = screen.getByRole('region', {
+      name: 'Viewer playback controls',
+    });
+    expect(playback).toHaveTextContent('Frame 1 of 2');
+
+    fireEvent.click(
+      within(playback).getByRole('button', {
+        name: 'Next Frame',
+      }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(TRAJECTORY_FRAME_TWO),
+      );
+    });
+    expect(playback).toHaveTextContent('Frame 2 of 2');
+
+    fireEvent.change(
+      within(playback).getByLabelText('Viewer trajectory playback speed'),
+      {
+        target: { value: '5' },
+      },
+    );
+    vi.useFakeTimers();
+    fireEvent.click(
+      within(playback).getByRole('button', {
+        name: 'Play Trajectory',
+      }),
+    );
+    expect(
+      within(playback).getByRole('button', {
+        name: 'Pause Trajectory',
+      }),
+    ).toHaveAttribute('aria-pressed', 'true');
+
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+    expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+      JSON.stringify(TRAJECTORY_FRAME_ONE),
+    );
+  });
+
+  it('wires vibrational mode playback controls near the viewer', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
+      .mockResolvedValueOnce(jsonResponse(GAUSSIAN_OUTPUT_DOCUMENT));
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText('Document path'), {
+      target: { value: 'sample-data/water.log' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-mode')).toHaveTextContent(
+        JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT.vibrational_modes[0]),
+      );
+    });
+
+    const playback = screen.getByRole('region', {
+      name: 'Viewer playback controls',
+    });
+    expect(playback).toHaveTextContent('Mode 1: -530.2 cm^-1 (imaginary)');
+    fireEvent.change(
+      within(playback).getByLabelText('Viewer vibrational mode'),
+      {
+        target: { value: '2' },
+      },
+    );
+    expect(screen.getByTestId('viewer-mode')).toHaveTextContent(
+      JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT.vibrational_modes[1]),
+    );
+    expect(
+      within(playback).getByRole('button', { name: 'Play Mode Animation' }),
+    ).toBeDisabled();
+
+    fireEvent.change(
+      within(playback).getByLabelText('Viewer vibrational mode'),
+      {
+        target: { value: '1' },
+      },
+    );
+    fireEvent.click(
+      within(playback).getByRole('button', {
+        name: 'Play Mode Animation',
+      }),
+    );
+    expect(screen.getByTestId('viewer-animation')).toHaveTextContent('true');
+    expect(
+      within(playback).getByRole('button', {
+        name: 'Pause Mode Animation',
+      }),
+    ).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('passes the selected trajectory frame to the viewer', async () => {

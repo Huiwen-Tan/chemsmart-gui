@@ -16,6 +16,7 @@ import { useDocumentStore } from './state/useDocumentStore';
 import { useViewerStore } from './state/useViewerStore';
 import { MolecularViewer } from './viewer/MolecularViewer';
 import { SelectedAtomPanel } from './viewer/SelectedAtomPanel';
+import { ViewerPlaybackControls } from './viewer/ViewerPlaybackControls';
 import { ViewerStatusBar } from './viewer/ViewerStatusBar';
 import { ViewerToolbox } from './viewer/ViewerToolbox';
 import { downloadTextFile } from './shared/download';
@@ -653,6 +654,26 @@ export function App(): JSX.Element {
               isVibrationalModeAnimationPlaying
             }
             selectedVibrationalMode={selectedVibrationalMode}
+          />
+          <ViewerPlaybackControls
+            isTrajectoryPlaybackPlaying={isTrajectoryPlaybackPlaying}
+            isVibrationalModeAnimationPlaying={
+              isVibrationalModeAnimationPlaying
+            }
+            onSelectedTrajectoryFrameIndexChange={selectTrajectoryFrame}
+            onSelectedVibrationalModeIndexChange={selectVibrationalMode}
+            onTrajectoryPlaybackFramesPerSecondChange={
+              setTrajectoryPlaybackFramesPerSecond
+            }
+            onTrajectoryPlaybackPlayingChange={setIsTrajectoryPlaybackPlaying}
+            onVibrationalModeAnimationPlayingChange={
+              setVibrationalModeAnimationPlaying
+            }
+            playbackFramesPerSecond={trajectoryPlaybackFramesPerSecond}
+            selectedTrajectoryFrameIndex={selectedTrajectoryFrameIndex}
+            selectedVibrationalMode={selectedVibrationalMode}
+            trajectoryDocument={trajectoryDocument}
+            vibrationalModes={vibrationalModes}
           />
           <ViewerStatusBar
             document={activeMoleculeDocument}
