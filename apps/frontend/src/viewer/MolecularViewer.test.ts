@@ -8,6 +8,7 @@ import {
   connectAtomPicking,
   connectBondVisibility,
   connectViewReset,
+  shouldAutoFrameViewer,
 } from './MolecularViewer';
 
 function createTarget(): HTMLElement {
@@ -259,5 +260,14 @@ describe('connectViewReset', () => {
     disconnect();
     useViewerStore.getState().requestViewReset();
     expect(onResetView).toHaveBeenCalledOnce();
+  });
+});
+
+describe('shouldAutoFrameViewer', () => {
+  it('frames only when the top-level auto-frame key changes', () => {
+    expect(shouldAutoFrameViewer(null, undefined)).toBe(true);
+    expect(shouldAutoFrameViewer('trajectory-1', null)).toBe(true);
+    expect(shouldAutoFrameViewer('trajectory-1', 'trajectory-1')).toBe(false);
+    expect(shouldAutoFrameViewer('trajectory-2', 'trajectory-1')).toBe(true);
   });
 });

@@ -167,6 +167,7 @@ export function App(): JSX.Element {
     currentDocument,
     selectedTrajectoryFrameIndex,
   );
+  const viewerAutoFrameKey = currentDocument?.id ?? null;
   const activeEditableMoleculeDocument = editableMoleculeDocument(
     currentDocument,
   );
@@ -649,6 +650,7 @@ export function App(): JSX.Element {
             showBonds={showBonds}
           />
           <MolecularViewer
+            autoFrameKey={viewerAutoFrameKey}
             document={activeMoleculeDocument}
             isVibrationalModeAnimationPlaying={
               isVibrationalModeAnimationPlaying

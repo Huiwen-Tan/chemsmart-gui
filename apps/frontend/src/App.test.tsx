@@ -24,15 +24,20 @@ const WORKBENCH_LAYOUT_PREFERENCES_STORAGE_KEY =
 
 vi.mock('./viewer/MolecularViewer', () => ({
   MolecularViewer: ({
+    autoFrameKey,
     document,
     isVibrationalModeAnimationPlaying,
     selectedVibrationalMode,
   }: {
+    autoFrameKey: string | null;
     document: MoleculeDocument | null;
     isVibrationalModeAnimationPlaying: boolean;
     selectedVibrationalMode: VibrationalMode | null;
   }) => (
     <>
+      <output data-testid="viewer-auto-frame-key">
+        {JSON.stringify(autoFrameKey)}
+      </output>
       <output data-testid="viewer-document">{JSON.stringify(document)}</output>
       <output data-testid="viewer-animation">
         {JSON.stringify(isVibrationalModeAnimationPlaying)}
@@ -854,6 +859,9 @@ describe('App', () => {
         JSON.stringify(TRAJECTORY_FRAME_ONE),
       );
     });
+    expect(screen.getByTestId('viewer-auto-frame-key')).toHaveTextContent(
+      JSON.stringify(TRAJECTORY_DOCUMENT.id),
+    );
 
     const playback = screen.getByRole('region', {
       name: 'Viewer playback controls',
@@ -874,6 +882,9 @@ describe('App', () => {
         JSON.stringify(TRAJECTORY_FRAME_TWO),
       );
     });
+    expect(screen.getByTestId('viewer-auto-frame-key')).toHaveTextContent(
+      JSON.stringify(TRAJECTORY_DOCUMENT.id),
+    );
     expect(
       within(playback).getByLabelText('Viewer trajectory frame'),
     ).toHaveValue(2);
@@ -910,6 +921,9 @@ describe('App', () => {
     });
     expect(screen.getByTestId('viewer-document')).toHaveTextContent(
       JSON.stringify(TRAJECTORY_FRAME_ONE),
+    );
+    expect(screen.getByTestId('viewer-auto-frame-key')).toHaveTextContent(
+      JSON.stringify(TRAJECTORY_DOCUMENT.id),
     );
   });
 
@@ -986,6 +1000,9 @@ describe('App', () => {
         JSON.stringify(TRAJECTORY_FRAME_ONE),
       );
     });
+    expect(screen.getByTestId('viewer-auto-frame-key')).toHaveTextContent(
+      JSON.stringify(TRAJECTORY_DOCUMENT.id),
+    );
 
     const dock = activateBottomDockTab('Analysis');
     const trajectoryPanel = within(dock).getByRole('region', {
@@ -1030,6 +1047,9 @@ describe('App', () => {
         JSON.stringify(TRAJECTORY_FRAME_TWO),
       );
     });
+    expect(screen.getByTestId('viewer-auto-frame-key')).toHaveTextContent(
+      JSON.stringify(TRAJECTORY_DOCUMENT.id),
+    );
     expect(useViewerStore.getState().selectedAtomIndices).toEqual([]);
     expect(within(trajectoryPanel).getByText('Frame 2 of 2')).toBeInTheDocument();
     expect(
@@ -1219,6 +1239,9 @@ describe('App', () => {
         JSON.stringify(HELIUM_DOCUMENT),
       );
     });
+    expect(screen.getByTestId('viewer-auto-frame-key')).toHaveTextContent(
+      JSON.stringify(SECOND_TRAJECTORY_DOCUMENT.id),
+    );
     expect(within(trajectoryPanel).getByText('Frame 1 of 2')).toBeInTheDocument();
     expect(
       within(trajectoryPanel).getByLabelText('Trajectory frame'),

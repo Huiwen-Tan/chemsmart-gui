@@ -8,6 +8,7 @@ import { useViewerStore } from '../state/useViewerStore';
 import { MoleculeScene } from './three/MoleculeScene';
 
 interface MolecularViewerProps {
+  autoFrameKey: string | null;
   document: MoleculeDocument | null;
   isVibrationalModeAnimationPlaying: boolean;
   selectedVibrationalMode: VibrationalMode | null;
@@ -117,6 +118,13 @@ function frameMolecule(
   controls.update();
 }
 
+export function shouldAutoFrameViewer(
+  nextAutoFrameKey: string | null,
+  previousAutoFrameKey: string | null | undefined,
+): boolean {
+  return nextAutoFrameKey !== previousAutoFrameKey;
+}
+
 export function connectViewReset(onResetView: () => void): () => void {
   let lastRequestId = useViewerStore.getState().viewResetRequestId;
 
@@ -202,6 +210,7 @@ export function connectAtomPicking(
 }
 
 export function MolecularViewer({
+  autoFrameKey,
   document,
   isVibrationalModeAnimationPlaying,
   selectedVibrationalMode,
@@ -212,6 +221,7 @@ export function MolecularViewer({
   const controlsRef = useRef<OrbitControls | null>(null);
   const labelRendererRef = useRef<CSS2DRenderer | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const previousAutoFrameKeyRef = useRef<string | null | undefined>(undefined);
   const selectedVibrationalModeRef = useRef<VibrationalMode | null>(
     selectedVibrationalMode,
   );
@@ -331,6 +341,12 @@ export function MolecularViewer({
       return;
     }
 
+    const shouldFrame = shouldAutoFrameViewer(
+      autoFrameKey,
+      previousAutoFrameKeyRef.current,
+    );
+    previousAutoFrameKeyRef.current = autoFrameKey;
+
     sceneWrapper.setMolecule(document);
     sceneWrapper.setModeDisplacementVectors(selectedVibrationalModeRef.current);
     sceneWrapper.setModeAnimationPlaying(
@@ -352,9 +368,11 @@ export function MolecularViewer({
       return;
     }
 
-    frameMolecule(sceneWrapper, camera, controls);
+    if (shouldFrame) {
+      frameMolecule(sceneWrapper, camera, controls);
+    }
     labelRendererRef.current?.render(sceneWrapper.getScene(), camera);
-  }, [document]);
+  }, [autoFrameKey, document]);
 
   useEffect(() => {
     const sceneWrapper = sceneRef.current;
