@@ -583,6 +583,14 @@ function activateDisplaySidebar(): HTMLElement {
   return sidebar;
 }
 
+function activateTasksSidebar(): HTMLElement {
+  const sidebar = screen.getByRole('complementary', {
+    name: 'Primary workspace navigation',
+  });
+  fireEvent.click(within(sidebar).getByRole('button', { name: 'Tasks' }));
+  return sidebar;
+}
+
 function activateBottomDockTab(tabName: string): HTMLElement {
   const dock = screen.getByRole('region', { name: 'Workbench dock' });
   fireEvent.click(within(dock).getByRole('tab', { name: tabName }));
@@ -743,6 +751,54 @@ describe('App', () => {
     activateDisplaySidebar();
     expect(
       within(sidebar).getByRole('checkbox', { name: 'Show Bonds' }),
+    ).toBeInTheDocument();
+  });
+
+  it('shows the CHEMSMART task catalog in the Tasks sidebar', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ status: 'ok' }));
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+
+    const sidebar = activateTasksSidebar();
+    const taskPanel = within(sidebar).getByRole('region', {
+      name: 'Tasks sidebar panel',
+    });
+
+    expect(
+      within(taskPanel).getByRole('heading', { name: 'Task Catalog' }),
+    ).toBeInTheDocument();
+    expect(
+      within(taskPanel).getByRole('heading', {
+        name: 'Calculation Setup',
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(taskPanel).getByRole('heading', {
+        name: 'Database Workflows',
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(taskPanel).getByRole('button', {
+        name: /Configure Task/,
+      }),
+    ).toBeDisabled();
+
+    fireEvent.click(
+      within(taskPanel).getByRole('button', {
+        name: /Batch Thermochemistry/,
+      }),
+    );
+    expect(
+      within(taskPanel).getByRole('heading', {
+        name: 'Batch Thermochemistry',
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(taskPanel).getByText(
+        'Job folders, database records, temperature',
+      ),
     ).toBeInTheDocument();
   });
 

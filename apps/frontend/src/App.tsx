@@ -12,6 +12,7 @@ import { DocumentSummaryPanel } from './documents/DocumentSummaryPanel';
 import { MoleculeExportPreviewPanel } from './documents/MoleculeExportPreviewPanel';
 import { TrajectoryFramesPanel } from './documents/TrajectoryFramesPanel';
 import { VibrationalModesPanel } from './documents/VibrationalModesPanel';
+import { TaskCatalogPanel } from './tasks/TaskCatalogPanel';
 import { useDocumentStore } from './state/useDocumentStore';
 import { useViewerStore } from './state/useViewerStore';
 import { MolecularViewer } from './viewer/MolecularViewer';
@@ -626,6 +627,7 @@ export function App(): JSX.Element {
       }}
       sidebarPanels={{
         explorer: explorerSidebarPanel,
+        tasks: <TaskCatalogPanel />,
         display: displaySidebarPanel,
       }}
       workspace={(
