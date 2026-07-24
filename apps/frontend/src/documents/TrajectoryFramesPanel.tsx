@@ -4,14 +4,10 @@ import { TrajectoryEnergyProfile } from './TrajectoryEnergyProfile';
 interface TrajectoryFramesPanelProps {
   document: TrajectoryDocument | null;
   isPlaybackPlaying?: boolean;
-  onPlaybackFramesPerSecondChange?: (framesPerSecond: number) => void;
   onPlaybackPlayingChange?: (isPlaying: boolean) => void;
   selectedFrameIndex: number;
-  playbackFramesPerSecond?: number;
   onSelectedFrameIndexChange: (frameIndex: number) => void;
 }
-
-const PLAYBACK_SPEED_OPTIONS = [1, 2, 5, 10];
 
 function formatScalarValue(value: JsonScalar): string {
   return value === null ? 'Unavailable' : String(value);
@@ -30,10 +26,8 @@ function selectedFrameIndexForDocument(
 export function TrajectoryFramesPanel({
   document,
   isPlaybackPlaying = false,
-  onPlaybackFramesPerSecondChange,
   onPlaybackPlayingChange,
   selectedFrameIndex,
-  playbackFramesPerSecond = 2,
   onSelectedFrameIndexChange,
 }: TrajectoryFramesPanelProps): JSX.Element {
   const effectiveFrameIndex = document
@@ -122,25 +116,6 @@ export function TrajectoryFramesPanel({
             >
               {isPlaybackPlaying ? 'Pause Trajectory' : 'Play Trajectory'}
             </button>
-            <label style={{ display: 'inline-flex', gap: 6, marginLeft: 8 }}>
-              Playback speed
-              <select
-                aria-label="Trajectory playback speed"
-                disabled={onPlaybackFramesPerSecondChange === undefined}
-                onChange={(event) => {
-                  onPlaybackFramesPerSecondChange?.(
-                    Number(event.currentTarget.value),
-                  );
-                }}
-                value={playbackFramesPerSecond}
-              >
-                {PLAYBACK_SPEED_OPTIONS.map((framesPerSecond) => (
-                  <option key={framesPerSecond} value={framesPerSecond}>
-                    {framesPerSecond} fps
-                  </option>
-                ))}
-              </select>
-            </label>
           </div>
           <TrajectoryEnergyProfile
             document={document}

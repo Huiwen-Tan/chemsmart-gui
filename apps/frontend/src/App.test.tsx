@@ -893,17 +893,11 @@ describe('App', () => {
     expect(
       within(playback).queryByLabelText('Viewer trajectory playback speed'),
     ).not.toBeInTheDocument();
-    fireEvent.click(
-      within(playback).getByRole('button', {
+    expect(
+      within(playback).queryByRole('button', {
         name: 'Advanced playback settings',
       }),
-    );
-    fireEvent.change(
-      within(playback).getByLabelText('Viewer trajectory playback speed'),
-      {
-        target: { value: '5' },
-      },
-    );
+    ).not.toBeInTheDocument();
     vi.useFakeTimers();
     fireEvent.click(
       within(playback).getByRole('button', {
@@ -917,7 +911,7 @@ describe('App', () => {
     ).toHaveAttribute('aria-pressed', 'true');
 
     act(() => {
-      vi.advanceTimersByTime(200);
+      vi.advanceTimersByTime(50);
     });
     expect(screen.getByTestId('viewer-document')).toHaveTextContent(
       JSON.stringify(TRAJECTORY_FRAME_ONE),
@@ -1014,7 +1008,7 @@ describe('App', () => {
     expect(within(trajectoryPanel).getByText('Frame 1 of 2')).toBeInTheDocument();
     expect(
       screen.getByRole('region', { name: 'Viewer status' }),
-    ).toHaveTextContent('Frame 1 of 2');
+    ).not.toHaveTextContent('Frame 1 of 2');
     expect(
       within(trajectoryPanel).getByRole('button', { name: 'Previous Frame' }),
     ).toBeDisabled();
@@ -1054,7 +1048,7 @@ describe('App', () => {
     expect(within(trajectoryPanel).getByText('Frame 2 of 2')).toBeInTheDocument();
     expect(
       screen.getByRole('region', { name: 'Viewer status' }),
-    ).toHaveTextContent('Frame 2 of 2');
+    ).not.toHaveTextContent('Frame 2 of 2');
     expect(
       within(trajectoryPanel).getByRole('button', { name: 'Previous Frame' }),
     ).toBeEnabled();
@@ -1107,7 +1101,7 @@ describe('App', () => {
     ).toHaveAttribute('aria-pressed', 'true');
 
     act(() => {
-      vi.advanceTimersByTime(500);
+      vi.advanceTimersByTime(50);
     });
     expect(screen.getByTestId('viewer-document')).toHaveTextContent(
       JSON.stringify(TRAJECTORY_FRAME_TWO),
@@ -1115,7 +1109,7 @@ describe('App', () => {
     expect(within(trajectoryPanel).getByText('Frame 2 of 2')).toBeInTheDocument();
 
     act(() => {
-      vi.advanceTimersByTime(500);
+      vi.advanceTimersByTime(50);
     });
     expect(screen.getByTestId('viewer-document')).toHaveTextContent(
       JSON.stringify(TRAJECTORY_FRAME_ONE),
@@ -1134,7 +1128,7 @@ describe('App', () => {
     ).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('uses selected trajectory playback speed', async () => {
+  it('uses fixed trajectory playback speed', async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
       .mockResolvedValueOnce(jsonResponse(TRAJECTORY_DOCUMENT));
@@ -1157,12 +1151,9 @@ describe('App', () => {
     const trajectoryPanel = within(dock).getByRole('region', {
       name: 'Trajectory Frames',
     });
-    fireEvent.change(
-      within(trajectoryPanel).getByLabelText('Trajectory playback speed'),
-      {
-        target: { value: '1' },
-      },
-    );
+    expect(
+      within(trajectoryPanel).queryByLabelText('Trajectory playback speed'),
+    ).not.toBeInTheDocument();
     vi.useFakeTimers();
     fireEvent.click(
       within(trajectoryPanel).getByRole('button', {
@@ -1171,7 +1162,7 @@ describe('App', () => {
     );
 
     act(() => {
-      vi.advanceTimersByTime(999);
+      vi.advanceTimersByTime(49);
     });
     expect(screen.getByTestId('viewer-document')).toHaveTextContent(
       JSON.stringify(TRAJECTORY_FRAME_ONE),

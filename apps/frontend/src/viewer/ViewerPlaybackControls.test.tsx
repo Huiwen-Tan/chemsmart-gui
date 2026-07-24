@@ -74,10 +74,8 @@ const DEFAULT_PROPS = {
   isVibrationalModeAnimationPlaying: false,
   onSelectedTrajectoryFrameIndexChange: vi.fn(),
   onSelectedVibrationalModeIndexChange: vi.fn(),
-  onTrajectoryPlaybackFramesPerSecondChange: vi.fn(),
   onTrajectoryPlaybackPlayingChange: vi.fn(),
   onVibrationalModeAnimationPlayingChange: vi.fn(),
-  playbackFramesPerSecond: 2,
   selectedTrajectoryFrameIndex: 0,
   selectedVibrationalMode: null,
   trajectoryDocument: null,
@@ -120,6 +118,11 @@ describe('ViewerPlaybackControls', () => {
     expect(
       within(playback).queryByLabelText('Viewer trajectory playback speed'),
     ).not.toBeInTheDocument();
+    expect(
+      within(playback).queryByRole('button', {
+        name: 'Advanced playback settings',
+      }),
+    ).not.toBeInTheDocument();
 
     fireEvent.click(
       within(playback).getByRole('button', { name: 'Next Frame' }),
@@ -130,15 +133,6 @@ describe('ViewerPlaybackControls', () => {
     fireEvent.click(
       within(playback).getByRole('button', { name: 'Play Trajectory' }),
     );
-    fireEvent.click(
-      within(playback).getByRole('button', {
-        name: 'Advanced playback settings',
-      }),
-    );
-    fireEvent.change(
-      within(playback).getByLabelText('Viewer trajectory playback speed'),
-      { target: { value: '5' } },
-    );
 
     expect(DEFAULT_PROPS.onSelectedTrajectoryFrameIndexChange)
       .toHaveBeenCalledWith(1);
@@ -146,8 +140,6 @@ describe('ViewerPlaybackControls', () => {
       .toHaveBeenCalledTimes(2);
     expect(DEFAULT_PROPS.onTrajectoryPlaybackPlayingChange)
       .toHaveBeenCalledWith(true);
-    expect(DEFAULT_PROPS.onTrajectoryPlaybackFramesPerSecondChange)
-      .toHaveBeenCalledWith(5);
   });
 
   it('runs vibrational mode selection and animation controls', () => {

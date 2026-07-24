@@ -35,7 +35,7 @@ const REPLACE_UNSAVED_EDITS_MESSAGE =
 const REPLACE_UNSAVED_EDITS_FOR_DISPLACEMENT_MESSAGE =
   'Current molecule has unsaved edits. Generate a displaced structure and discard them?';
 const XYZ_EXPORT_CONTENT_TYPE = 'chemical/x-xyz;charset=utf-8';
-const DEFAULT_TRAJECTORY_PLAYBACK_FRAMES_PER_SECOND = 2;
+const FIXED_TRAJECTORY_PLAYBACK_FRAMES_PER_SECOND = 20;
 
 function isEditableShortcutTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) {
@@ -156,10 +156,6 @@ export function App(): JSX.Element {
     isTrajectoryPlaybackPlaying,
     setIsTrajectoryPlaybackPlaying,
   ] = useState(false);
-  const [
-    trajectoryPlaybackFramesPerSecond,
-    setTrajectoryPlaybackFramesPerSecond,
-  ] = useState(DEFAULT_TRAJECTORY_PLAYBACK_FRAMES_PER_SECOND);
   const trajectoryDocument = isTrajectoryDocument(currentDocument)
     ? currentDocument
     : null;
@@ -274,7 +270,7 @@ export function App(): JSX.Element {
     }
 
     const frameCount = trajectoryDocument.frames.length;
-    const intervalMs = 1000 / trajectoryPlaybackFramesPerSecond;
+    const intervalMs = 1000 / FIXED_TRAJECTORY_PLAYBACK_FRAMES_PER_SECOND;
     const intervalId = window.setInterval(() => {
       setActiveVibrationalModeAnimationKey(null);
       clearAtomSelection();
@@ -290,7 +286,6 @@ export function App(): JSX.Element {
     clearAtomSelection,
     isTrajectoryPlaybackPlaying,
     trajectoryDocument,
-    trajectoryPlaybackFramesPerSecond,
   ]);
 
   const selectVibrationalMode = (modeIndex: number): void => {
@@ -584,11 +579,7 @@ export function App(): JSX.Element {
                 document={trajectoryDocument}
                 isPlaybackPlaying={isTrajectoryPlaybackPlaying}
                 onSelectedFrameIndexChange={selectTrajectoryFrame}
-                onPlaybackFramesPerSecondChange={
-                  setTrajectoryPlaybackFramesPerSecond
-                }
                 onPlaybackPlayingChange={setIsTrajectoryPlaybackPlaying}
-                playbackFramesPerSecond={trajectoryPlaybackFramesPerSecond}
                 selectedFrameIndex={selectedTrajectoryFrameIndex}
               />
             ) : null}
@@ -664,14 +655,10 @@ export function App(): JSX.Element {
             }
             onSelectedTrajectoryFrameIndexChange={selectTrajectoryFrame}
             onSelectedVibrationalModeIndexChange={selectVibrationalMode}
-            onTrajectoryPlaybackFramesPerSecondChange={
-              setTrajectoryPlaybackFramesPerSecond
-            }
             onTrajectoryPlaybackPlayingChange={setIsTrajectoryPlaybackPlaying}
             onVibrationalModeAnimationPlayingChange={
               setVibrationalModeAnimationPlaying
             }
-            playbackFramesPerSecond={trajectoryPlaybackFramesPerSecond}
             selectedTrajectoryFrameIndex={selectedTrajectoryFrameIndex}
             selectedVibrationalMode={selectedVibrationalMode}
             trajectoryDocument={trajectoryDocument}
@@ -680,11 +667,7 @@ export function App(): JSX.Element {
           <ViewerStatusBar
             document={activeMoleculeDocument}
             selectedAtomIndices={selectedAtomIndices}
-            selectedTrajectoryFrameIndex={
-              trajectoryDocument ? selectedTrajectoryFrameIndex : null
-            }
             selectedVibrationalMode={selectedVibrationalMode}
-            trajectoryFrameCount={trajectoryDocument?.frames.length ?? null}
           />
         </div>
       )}

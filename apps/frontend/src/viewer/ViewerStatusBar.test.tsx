@@ -84,23 +84,6 @@ describe('ViewerStatusBar', () => {
     expect(status).not.toHaveTextContent('99');
   });
 
-  it('shows trajectory frame context when provided', () => {
-    render(
-      <ViewerStatusBar
-        document={WATER}
-        selectedAtomIndices={[]}
-        selectedTrajectoryFrameIndex={1}
-        trajectoryFrameCount={2}
-      />,
-    );
-
-    expect(
-      within(screen.getByRole('region', { name: 'Viewer status' })).getByText(
-        'Frame 2 of 2',
-      ),
-    ).toBeInTheDocument();
-  });
-
   it('shows selected vibrational mode context when provided', () => {
     render(
       <ViewerStatusBar

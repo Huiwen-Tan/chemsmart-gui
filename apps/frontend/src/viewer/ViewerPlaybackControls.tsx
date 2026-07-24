@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
 import type { TrajectoryDocument, VibrationalMode } from '../shared/types';
 
@@ -7,38 +7,26 @@ interface ViewerPlaybackControlsProps {
   isVibrationalModeAnimationPlaying: boolean;
   onSelectedTrajectoryFrameIndexChange: (frameIndex: number) => void;
   onSelectedVibrationalModeIndexChange: (modeIndex: number) => void;
-  onTrajectoryPlaybackFramesPerSecondChange: (
-    framesPerSecond: number,
-  ) => void;
   onTrajectoryPlaybackPlayingChange: (isPlaying: boolean) => void;
   onVibrationalModeAnimationPlayingChange: (isPlaying: boolean) => void;
-  playbackFramesPerSecond: number;
   selectedTrajectoryFrameIndex: number;
   selectedVibrationalMode: VibrationalMode | null;
   trajectoryDocument: TrajectoryDocument | null;
   vibrationalModes: readonly VibrationalMode[];
 }
 
-const PLAYBACK_SPEED_OPTIONS = [1, 2, 5, 10];
-
 export function ViewerPlaybackControls({
   isTrajectoryPlaybackPlaying,
   isVibrationalModeAnimationPlaying,
   onSelectedTrajectoryFrameIndexChange,
   onSelectedVibrationalModeIndexChange,
-  onTrajectoryPlaybackFramesPerSecondChange,
   onTrajectoryPlaybackPlayingChange,
   onVibrationalModeAnimationPlayingChange,
-  playbackFramesPerSecond,
   selectedTrajectoryFrameIndex,
   selectedVibrationalMode,
   trajectoryDocument,
   vibrationalModes,
 }: ViewerPlaybackControlsProps): JSX.Element {
-  const [
-    isAdvancedPlaybackSettingsOpen,
-    setIsAdvancedPlaybackSettingsOpen,
-  ] = useState(false);
   const frameCount = trajectoryDocument?.frames.length ?? 0;
   const effectiveFrameIndex = trajectoryDocument
     ? selectedFrameIndexForDocument(
@@ -101,7 +89,10 @@ export function ViewerPlaybackControls({
               }}
               type="button"
             >
-              <span aria-hidden="true">&lt;</span>
+              <span
+                aria-hidden="true"
+                className="workbench-viewer-playback-icon-previous"
+              />
             </button>
             <label className="workbench-viewer-frame-control">
               <input
@@ -136,43 +127,12 @@ export function ViewerPlaybackControls({
               }}
               type="button"
             >
-              <span aria-hidden="true">&gt;</span>
-            </button>
-            <button
-              aria-expanded={isAdvancedPlaybackSettingsOpen}
-              aria-label="Advanced playback settings"
-              className="workbench-viewer-playback-settings-button"
-              onClick={() => {
-                setIsAdvancedPlaybackSettingsOpen((isOpen) => !isOpen);
-              }}
-              type="button"
-            >
-              <span aria-hidden="true">...</span>
+              <span
+                aria-hidden="true"
+                className="workbench-viewer-playback-icon-next"
+              />
             </button>
           </div>
-          {isAdvancedPlaybackSettingsOpen ? (
-            <div className="workbench-viewer-playback-advanced">
-              <label className="workbench-viewer-playback-field">
-                Speed
-                <select
-                  aria-label="Viewer trajectory playback speed"
-                  className="workbench-viewer-playback-select"
-                  onChange={(event) => {
-                    onTrajectoryPlaybackFramesPerSecondChange(
-                      Number(event.currentTarget.value),
-                    );
-                  }}
-                  value={playbackFramesPerSecond}
-                >
-                  {PLAYBACK_SPEED_OPTIONS.map((framesPerSecond) => (
-                    <option key={framesPerSecond} value={framesPerSecond}>
-                      {framesPerSecond} fps
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-          ) : null}
         </PlaybackGroup>
       ) : null}
       {selectedMode ? (

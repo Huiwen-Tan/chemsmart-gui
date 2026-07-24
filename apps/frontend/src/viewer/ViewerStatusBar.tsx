@@ -3,17 +3,13 @@ import type { MoleculeDocument, VibrationalMode } from '../shared/types';
 interface ViewerStatusBarProps {
   document: MoleculeDocument | null;
   selectedAtomIndices: readonly number[];
-  selectedTrajectoryFrameIndex?: number | null;
   selectedVibrationalMode?: VibrationalMode | null;
-  trajectoryFrameCount?: number | null;
 }
 
 export function ViewerStatusBar({
   document,
   selectedAtomIndices,
-  selectedTrajectoryFrameIndex,
   selectedVibrationalMode,
-  trajectoryFrameCount,
 }: ViewerStatusBarProps): JSX.Element {
   const statusItems = document
     ? [
@@ -22,10 +18,6 @@ export function ViewerStatusBar({
         formatNullableNumber('charge', document.charge),
         formatNullableNumber('multiplicity', document.multiplicity),
         formatSelectedAtoms(document, selectedAtomIndices),
-        formatTrajectoryFrame(
-          selectedTrajectoryFrameIndex,
-          trajectoryFrameCount,
-        ),
         formatSelectedMode(selectedVibrationalMode),
       ].filter((item): item is string => item !== null)
     : ['No molecule loaded', 'No atoms selected'];
@@ -71,22 +63,6 @@ function formatSelectedAtoms(
       ? 'Selected atom'
       : 'Selected atoms';
   return `${label} ${visibleSelectedAtomIndices.join(', ')}`;
-}
-
-function formatTrajectoryFrame(
-  selectedTrajectoryFrameIndex: number | null | undefined,
-  trajectoryFrameCount: number | null | undefined,
-): string | null {
-  if (
-    selectedTrajectoryFrameIndex === null ||
-    selectedTrajectoryFrameIndex === undefined ||
-    trajectoryFrameCount === null ||
-    trajectoryFrameCount === undefined
-  ) {
-    return null;
-  }
-
-  return `Frame ${selectedTrajectoryFrameIndex + 1} of ${trajectoryFrameCount}`;
 }
 
 function formatSelectedMode(

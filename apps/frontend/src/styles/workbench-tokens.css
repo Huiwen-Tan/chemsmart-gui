@@ -626,24 +626,6 @@ textarea:focus-visible {
   color: var(--csw-color-text-subtle);
 }
 
-.workbench-viewer-playback-field {
-  display: inline-flex;
-  gap: var(--csw-space-1);
-  align-items: center;
-  color: var(--csw-color-text-muted);
-  font-size: var(--csw-font-size-xs);
-}
-
-.workbench-viewer-playback-select {
-  border: 1px solid var(--csw-color-border-subtle);
-  border-radius: var(--csw-radius-sm);
-  background: var(--csw-color-surface-sunken);
-  color: var(--csw-color-text-muted);
-  font-size: var(--csw-font-size-xs);
-  font-weight: var(--csw-font-weight-medium);
-  padding: var(--csw-space-1) var(--csw-space-2);
-}
-
 .workbench-viewer-playback-main-button {
   display: inline-flex;
   width: 2.5rem;
@@ -701,8 +683,7 @@ textarea:focus-visible {
   content: "";
 }
 
-.workbench-viewer-playback-step-button,
-.workbench-viewer-playback-settings-button {
+.workbench-viewer-playback-step-button {
   display: inline-flex;
   min-width: 1.8rem;
   height: 1.8rem;
@@ -718,8 +699,7 @@ textarea:focus-visible {
   padding: 0 var(--csw-space-2);
 }
 
-.workbench-viewer-playback-step-button:hover:not(:disabled),
-.workbench-viewer-playback-settings-button:hover {
+.workbench-viewer-playback-step-button:hover:not(:disabled) {
   background: var(--csw-color-surface-hover);
   color: var(--csw-color-text);
 }
@@ -730,10 +710,23 @@ textarea:focus-visible {
   opacity: 0.62;
 }
 
-.workbench-viewer-playback-settings-button[aria-expanded="true"] {
-  border-color: var(--csw-color-accent-primary);
-  background: var(--csw-color-surface-raised);
-  color: var(--csw-color-text);
+.workbench-viewer-playback-icon-previous,
+.workbench-viewer-playback-icon-next {
+  display: block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-top: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+}
+
+.workbench-viewer-playback-icon-previous {
+  margin-left: 0.16rem;
+  transform: rotate(-135deg);
+}
+
+.workbench-viewer-playback-icon-next {
+  margin-right: 0.16rem;
+  transform: rotate(45deg);
 }
 
 .workbench-viewer-frame-control {
@@ -769,15 +762,6 @@ textarea:focus-visible {
 
 .workbench-viewer-mode-frequency {
   padding: var(--csw-space-1) var(--csw-space-2);
-  border: 1px solid var(--csw-color-divider);
-  border-radius: var(--csw-radius-sm);
-  background: var(--csw-color-surface-sunken);
-}
-
-.workbench-viewer-playback-advanced {
-  display: inline-flex;
-  width: fit-content;
-  padding: var(--csw-space-2);
   border: 1px solid var(--csw-color-divider);
   border-radius: var(--csw-radius-sm);
   background: var(--csw-color-surface-sunken);
