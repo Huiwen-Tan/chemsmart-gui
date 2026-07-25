@@ -8,6 +8,7 @@ import {
   previewMoleculeExport,
 } from './api/client';
 import { AppShell, type WorkbenchMenuItems } from './app/AppShell';
+import { DocumentOpenPanel } from './documents/DocumentOpenPanel';
 import { DocumentSummaryPanel } from './documents/DocumentSummaryPanel';
 import { MoleculeExportPreviewPanel } from './documents/MoleculeExportPreviewPanel';
 import { TrajectoryFramesPanel } from './documents/TrajectoryFramesPanel';
@@ -129,6 +130,10 @@ export function App(): JSX.Element {
     selectedVibrationalModeIndex,
     setSelectedVibrationalModeIndex,
   ] = useState<number | null>(null);
+  const [isOpeningDocument, setIsOpeningDocument] = useState(false);
+  const [openingDocumentPath, setOpeningDocumentPath] = useState<string | null>(
+    null,
+  );
   const [
     activeVibrationalModeAnimationKey,
     setActiveVibrationalModeAnimationKey,
@@ -438,6 +443,8 @@ export function App(): JSX.Element {
     }
 
     try {
+      setOpeningDocumentPath(path);
+      setIsOpeningDocument(true);
       const document = await openDocument({ path });
       setCurrentDocument(document);
       if (pathOverride !== undefined) {
@@ -445,6 +452,9 @@ export function App(): JSX.Element {
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setOpeningDocumentPath(null);
+      setIsOpeningDocument(false);
     }
   };
 
@@ -476,7 +486,7 @@ export function App(): JSX.Element {
     ],
     file: [
       {
-        disabled: documentPath.trim().length === 0,
+        disabled: documentPath.trim().length === 0 || isOpeningDocument,
         id: 'open-document',
         kind: 'action',
         label: 'Open Document',
@@ -524,35 +534,17 @@ export function App(): JSX.Element {
   };
 
   const explorerSidebarPanel = (
-    <>
-      <p className="workbench-status-line">
-        Backend health: <strong>{healthStatus}</strong>
-      </p>
-      <form
-        className="workbench-form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void openCurrentDocument();
-        }}
-      >
-        <label className="workbench-field">
-          <span className="workbench-field-label">Document path</span>
-          <input
-            className="workbench-input"
-            onChange={(event) => setDocumentPath(event.currentTarget.value)}
-            type="text"
-            value={documentPath}
-          />
-        </label>
-        <button
-          className="workbench-button workbench-button-primary"
-          type="submit"
-        >
-          Open Document
-        </button>
-      </form>
-      {error ? <p className="workbench-error">Error: {error}</p> : null}
-    </>
+    <DocumentOpenPanel
+      backendHealthStatus={healthStatus}
+      documentPath={documentPath}
+      error={error}
+      isOpeningDocument={isOpeningDocument}
+      onDocumentOpen={(pathOverride) => {
+        void openDocumentPath(pathOverride);
+      }}
+      onDocumentPathChange={setDocumentPath}
+      openingDocumentPath={openingDocumentPath}
+    />
   );
 
   const displaySidebarPanel = (

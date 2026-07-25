@@ -682,6 +682,50 @@ describe('App', () => {
     );
   });
 
+  it('shows opening status while the document API request is in flight', async () => {
+    let resolveOpenDocument: (response: Response) => void = () => {};
+    const openDocumentResponse = new Promise<Response>((resolve) => {
+      resolveOpenDocument = resolve;
+    });
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
+      .mockReturnValueOnce(openDocumentResponse);
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText('Document path'), {
+      target: { value: 'sample-data/water.log' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+
+    expect(screen.getByText('Opening sample-data/water.log...'))
+      .toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open Document' }))
+      .toBeDisabled();
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'http://127.0.0.1:8000/api/documents/open',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ path: 'sample-data/water.log' }),
+      }),
+    );
+
+    await act(async () => {
+      resolveOpenDocument(jsonResponse(GAUSSIAN_OUTPUT_DOCUMENT));
+      await openDocumentResponse;
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT),
+      );
+    });
+    expect(screen.getByLabelText('Document path'))
+      .toHaveValue('sample-data/water.log');
+  });
+
   it('places document and selection panels in workbench regions', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ status: 'ok' }));
 

@@ -498,6 +498,35 @@ textarea:focus-visible {
   font-size: var(--csw-font-size-sm);
 }
 
+.workbench-document-open,
+.workbench-document-open-hints {
+  display: flex;
+  flex-direction: column;
+  gap: var(--csw-space-3);
+}
+
+.workbench-document-open-status {
+  margin: 0;
+  color: var(--csw-color-status-info);
+  font-size: var(--csw-font-size-sm);
+}
+
+.workbench-document-open-hints h3,
+.workbench-document-open-hints p {
+  margin: 0;
+}
+
+.workbench-document-open-hints h3 {
+  color: var(--csw-color-text);
+  font-size: var(--csw-font-size-md);
+  font-weight: var(--csw-font-weight-semibold);
+}
+
+.workbench-document-open-hints p {
+  color: var(--csw-color-text-subtle);
+  font-size: var(--csw-font-size-sm);
+}
+
 .workbench-sidebar-switcher {
   display: grid;
   gap: var(--csw-space-2);
