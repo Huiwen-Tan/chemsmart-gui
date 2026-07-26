@@ -1,5 +1,6 @@
 interface DocumentOpenPanelProps {
   backendHealthStatus: string;
+  documentOpenStatus?: string | null;
   documentPath: string;
   error: string | null;
   isOpeningDocument: boolean;
@@ -10,6 +11,7 @@ interface DocumentOpenPanelProps {
 
 export function DocumentOpenPanel({
   backendHealthStatus,
+  documentOpenStatus = null,
   documentPath,
   error,
   isOpeningDocument,
@@ -19,6 +21,7 @@ export function DocumentOpenPanel({
 }: DocumentOpenPanelProps): JSX.Element {
   const trimmedDocumentPath = documentPath.trim();
   const activeOpeningPath = openingDocumentPath ?? trimmedDocumentPath;
+  const backendHealth = formatBackendHealth(backendHealthStatus);
 
   return (
     <section
@@ -34,7 +37,10 @@ export function DocumentOpenPanel({
       </div>
 
       <p className="workbench-status-line">
-        Backend health: <strong>{backendHealthStatus}</strong>
+        Backend: <strong data-status={backendHealth.status}>{backendHealth.label}</strong>
+        <span aria-hidden="true" className="workbench-visually-hidden">
+          {backendHealthStatus}
+        </span>
       </p>
 
       <form
@@ -66,9 +72,13 @@ export function DocumentOpenPanel({
       <p className="workbench-document-open-status" role="status">
         {isOpeningDocument
           ? `Opening ${activeOpeningPath || 'document'}...`
-          : 'Ready to open a local document path.'}
+          : (documentOpenStatus ?? 'Ready to open a local document path.')}
       </p>
-      {error ? <p className="workbench-error">Error: {error}</p> : null}
+      {error ? (
+        <p className="workbench-error" role="alert">
+          Error: {error}
+        </p>
+      ) : null}
 
       <section
         aria-labelledby="supported-documents-heading"
@@ -82,4 +92,17 @@ export function DocumentOpenPanel({
       </section>
     </section>
   );
+}
+
+function formatBackendHealth(status: string): {
+  label: string;
+  status: 'checking' | 'connected' | 'unavailable';
+} {
+  if (status === 'ok') {
+    return { label: 'Connected', status: 'connected' };
+  }
+  if (status === 'unavailable') {
+    return { label: 'Unavailable', status: 'unavailable' };
+  }
+  return { label: 'Checking...', status: 'checking' };
 }

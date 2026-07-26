@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface WorkbenchMenuBaseItem {
   description?: string;
@@ -43,6 +43,7 @@ export function WorkbenchMenuBar({
   groups,
 }: WorkbenchMenuBarProps): JSX.Element {
   const [openGroupId, setOpenGroupId] = useState<string | null>(null);
+  const menuBarRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!openGroupId) {
@@ -54,10 +55,20 @@ export function WorkbenchMenuBar({
         setOpenGroupId(null);
       }
     };
+    const closeOnOutsidePointer = (event: PointerEvent): void => {
+      if (
+        event.target instanceof Node &&
+        !menuBarRef.current?.contains(event.target)
+      ) {
+        setOpenGroupId(null);
+      }
+    };
 
     window.addEventListener('keydown', closeOnEscape);
+    window.addEventListener('pointerdown', closeOnOutsidePointer);
     return () => {
       window.removeEventListener('keydown', closeOnEscape);
+      window.removeEventListener('pointerdown', closeOnOutsidePointer);
     };
   }, [openGroupId]);
 
@@ -71,7 +82,11 @@ export function WorkbenchMenuBar({
   };
 
   return (
-    <nav aria-label="Application menu" className="workbench-menu-bar">
+    <nav
+      aria-label="Application menu"
+      className="workbench-menu-bar"
+      ref={menuBarRef}
+    >
       {groups.map((group) => {
         const isOpen = openGroupId === group.id;
         const menuId = `workbench-menu-${group.id}`;
@@ -139,11 +154,17 @@ function WorkbenchMenuItemButton({
   const isCheckbox = item.kind === 'checkbox';
   const role = isCheckbox ? 'menuitemcheckbox' : 'menuitem';
   const active = item.kind === 'action' ? item.active : item.checked;
+  const descriptionId = item.description
+    ? `workbench-menu-item-${item.id}-description`
+    : undefined;
+  const labelId = `workbench-menu-item-${item.id}-label`;
 
   return (
     <button
       aria-checked={isCheckbox ? item.checked : undefined}
       aria-current={active && !isCheckbox ? 'true' : undefined}
+      aria-describedby={descriptionId}
+      aria-labelledby={labelId}
       className="workbench-menu-item"
       data-active={active ? 'true' : 'false'}
       disabled={item.disabled}
@@ -151,9 +172,14 @@ function WorkbenchMenuItemButton({
       role={role}
       type="button"
     >
-      <span className="workbench-menu-item-label">{item.label}</span>
+      <span className="workbench-menu-item-label" id={labelId}>
+        {item.label}
+      </span>
       {item.description ? (
-        <span aria-hidden="true" className="workbench-menu-item-description">
+        <span
+          className="workbench-menu-item-description"
+          id={descriptionId}
+        >
           {item.description}
         </span>
       ) : null}

@@ -1,31 +1,21 @@
 import type { ReactNode } from 'react';
 
-import type { TrajectoryDocument, VibrationalMode } from '../shared/types';
+import type { TrajectoryDocument } from '../shared/types';
 
 interface ViewerPlaybackControlsProps {
   isTrajectoryPlaybackPlaying: boolean;
-  isVibrationalModeAnimationPlaying: boolean;
   onSelectedTrajectoryFrameIndexChange: (frameIndex: number) => void;
-  onSelectedVibrationalModeIndexChange: (modeIndex: number) => void;
   onTrajectoryPlaybackPlayingChange: (isPlaying: boolean) => void;
-  onVibrationalModeAnimationPlayingChange: (isPlaying: boolean) => void;
   selectedTrajectoryFrameIndex: number;
-  selectedVibrationalMode: VibrationalMode | null;
   trajectoryDocument: TrajectoryDocument | null;
-  vibrationalModes: readonly VibrationalMode[];
 }
 
 export function ViewerPlaybackControls({
   isTrajectoryPlaybackPlaying,
-  isVibrationalModeAnimationPlaying,
   onSelectedTrajectoryFrameIndexChange,
-  onSelectedVibrationalModeIndexChange,
   onTrajectoryPlaybackPlayingChange,
-  onVibrationalModeAnimationPlayingChange,
   selectedTrajectoryFrameIndex,
-  selectedVibrationalMode,
   trajectoryDocument,
-  vibrationalModes,
 }: ViewerPlaybackControlsProps): JSX.Element {
   const frameCount = trajectoryDocument?.frames.length ?? 0;
   const effectiveFrameIndex = trajectoryDocument
@@ -34,18 +24,15 @@ export function ViewerPlaybackControls({
         selectedTrajectoryFrameIndex,
       )
     : 0;
-  const selectedMode = selectedVibrationalMode ?? vibrationalModes[0] ?? null;
-  const hasPlaybackSurface =
-    trajectoryDocument !== null || selectedMode !== null;
 
   return (
     <section
       aria-label="Viewer playback controls"
       className="workbench-viewer-playback"
     >
-      {!hasPlaybackSurface ? (
+      {!trajectoryDocument ? (
         <p className="workbench-viewer-playback-empty">
-          No trajectory or vibrational playback available.
+          No trajectory playback available.
         </p>
       ) : null}
       {trajectoryDocument ? (
@@ -135,64 +122,6 @@ export function ViewerPlaybackControls({
           </div>
         </PlaybackGroup>
       ) : null}
-      {selectedMode ? (
-        <PlaybackGroup label="Vibration">
-          <div className="workbench-viewer-playback-strip">
-            <button
-              aria-label={
-                isVibrationalModeAnimationPlaying
-                  ? 'Pause Mode Animation'
-                  : 'Play Mode Animation'
-              }
-              aria-pressed={isVibrationalModeAnimationPlaying}
-              className="workbench-viewer-playback-main-button"
-              disabled={selectedMode.displacements.length === 0}
-              onClick={() => {
-                onVibrationalModeAnimationPlayingChange(
-                  !isVibrationalModeAnimationPlaying,
-                );
-              }}
-              type="button"
-            >
-              <span
-                aria-hidden="true"
-                className={
-                  isVibrationalModeAnimationPlaying
-                    ? 'workbench-viewer-playback-icon-pause'
-                    : 'workbench-viewer-playback-icon-play'
-                }
-              />
-            </button>
-            <label className="workbench-viewer-frame-control">
-              <span className="workbench-viewer-frame-total">Mode</span>
-              <select
-                aria-label="Viewer vibrational mode"
-                className="workbench-viewer-mode-select"
-                onChange={(event) => {
-                  onSelectedVibrationalModeIndexChange(
-                    Number(event.currentTarget.value),
-                  );
-                }}
-                value={selectedMode.index}
-              >
-                {vibrationalModes.map((mode) => (
-                  <option key={mode.index} value={mode.index}>
-                    {mode.index}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <span className="workbench-viewer-mode-frequency">
-              {formatModeFrequency(selectedMode)}
-            </span>
-          </div>
-          {selectedMode.displacements.length === 0 ? (
-            <p className="workbench-viewer-playback-hint">
-              No displacement vectors available.
-            </p>
-          ) : null}
-        </PlaybackGroup>
-      ) : null}
     </section>
   );
 }
@@ -234,9 +163,4 @@ function selectTrajectoryFrame(
   }
 
   onSelectedTrajectoryFrameIndexChange(frameIndex);
-}
-
-function formatModeFrequency(mode: VibrationalMode): string {
-  const imaginaryLabel = mode.is_imaginary ? ' imag' : '';
-  return `${mode.frequency_cm_minus_1.toFixed(1)} cm^-1${imaginaryLabel}`;
 }

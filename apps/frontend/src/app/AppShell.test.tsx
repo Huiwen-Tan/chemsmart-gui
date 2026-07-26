@@ -137,6 +137,23 @@ describe('AppShell', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('closes an open application menu after outside interaction', () => {
+    const { container } = render(
+      <AppShell>
+        <p>Workspace content</p>
+      </AppShell>,
+    );
+    const shell = within(container);
+
+    fireEvent.click(shell.getByRole('button', { name: 'View' }));
+    expect(shell.getByRole('menu', { name: 'View menu' })).toBeInTheDocument();
+
+    fireEvent.pointerDown(shell.getByRole('main', { name: 'Active workspace' }));
+    expect(
+      shell.queryByRole('menu', { name: 'View menu' }),
+    ).not.toBeInTheDocument();
+  });
+
   it('switches workbench regions from application menu commands', () => {
     const { container } = render(
       <AppShell>
@@ -334,7 +351,7 @@ describe('AppShell', () => {
     ).toHaveTextContent('Contextual analysis details will appear here.');
   });
 
-  it('switches bottom dock and right panel tabs', () => {
+  it('switches bottom dock tabs and omits unfinished tabs', () => {
     const { container } = render(
       <AppShell>
         <p>Workspace content</p>
@@ -342,9 +359,6 @@ describe('AppShell', () => {
     );
     const shell = within(container);
     const dock = shell.getByRole('region', { name: 'Workbench dock' });
-    const rightPanel = shell.getByRole('complementary', {
-      name: 'Context panel',
-    });
 
     fireEvent.click(within(dock).getByRole('tab', { name: 'Export' }));
     expect(
@@ -358,15 +372,6 @@ describe('AppShell', () => {
       within(dock).getByRole('tabpanel', { name: 'Export' }),
     ).toHaveTextContent('Export previews and save actions will appear here.');
 
-    fireEvent.click(within(dock).getByRole('tab', { name: 'Logs' }));
-    expect(within(dock).getByRole('tab', { name: 'Logs' })).toHaveAttribute(
-      'aria-selected',
-      'true',
-    );
-    expect(
-      within(dock).getByRole('tabpanel', { name: 'Logs' }),
-    ).toHaveTextContent('Application and workflow logs will appear here.');
-
     fireEvent.click(within(dock).getByRole('tab', { name: 'Analysis' }));
     expect(within(dock).getByRole('tab', { name: 'Analysis' })).toHaveAttribute(
       'aria-selected',
@@ -378,18 +383,12 @@ describe('AppShell', () => {
       'Frequency, trajectory, and spectrum panels will appear here.',
     );
 
-    fireEvent.click(within(rightPanel).getByRole('tab', { name: 'Inspector' }));
     expect(
-      within(rightPanel).getByRole('tab', { name: 'Details' }),
-    ).toHaveAttribute('aria-selected', 'false');
+      within(dock).queryByRole('tab', { name: 'Logs' }),
+    ).not.toBeInTheDocument();
     expect(
-      within(rightPanel).getByRole('tab', { name: 'Inspector' }),
-    ).toHaveAttribute('aria-selected', 'true');
-    expect(
-      within(rightPanel).getByRole('tabpanel', { name: 'Inspector' }),
-    ).toHaveTextContent(
-      'Document and viewer inspector controls will appear here.',
-    );
+      shell.queryByRole('tab', { name: 'Inspector' }),
+    ).not.toBeInTheDocument();
   });
 
   it('renders custom bottom dock and right panel slot content', () => {
@@ -480,12 +479,9 @@ describe('AppShell', () => {
     expect(
       within(dock).getByRole('tabpanel', { name: 'Export' }),
     ).toHaveTextContent('Export previews and save actions will appear here.');
-    fireEvent.click(within(rightPanel).getByRole('tab', { name: 'Inspector' }));
     expect(
-      within(rightPanel).getByRole('tabpanel', { name: 'Inspector' }),
-    ).toHaveTextContent(
-      'Document and viewer inspector controls will appear here.',
-    );
+      within(rightPanel).getByRole('tabpanel', { name: 'Details' }),
+    ).toHaveTextContent('Selection details');
   });
 
   it('persists workbench tab selections', async () => {
@@ -499,18 +495,13 @@ describe('AppShell', () => {
       name: 'Primary workspace navigation',
     });
     const dock = shell.getByRole('region', { name: 'Workbench dock' });
-    const rightPanel = shell.getByRole('complementary', {
-      name: 'Context panel',
-    });
 
     fireEvent.click(within(sidebar).getByRole('button', { name: 'Display' }));
     fireEvent.click(within(dock).getByRole('tab', { name: 'Analysis' }));
-    fireEvent.click(within(rightPanel).getByRole('tab', { name: 'Inspector' }));
-
     await waitFor(() => {
       expect(readStoredLayoutPreferences()).toEqual({
         bottomDockTab: 'analysis',
-        rightPanelTab: 'inspector',
+        rightPanelTab: 'details',
         sidebarView: 'display',
       });
     });
@@ -548,7 +539,7 @@ describe('AppShell', () => {
       'true',
     );
     expect(
-      within(rightPanel).getByRole('tab', { name: 'Inspector' }),
+      within(rightPanel).getByRole('tab', { name: 'Details' }),
     ).toHaveAttribute('aria-selected', 'true');
   });
 
@@ -645,18 +636,17 @@ describe('AppShell', () => {
     ).toBeInTheDocument();
 
     fireEvent.click(within(sidebar).getByRole('button', { name: 'Tasks' }));
-    fireEvent.click(within(dock).getByRole('tab', { name: 'Logs' }));
-    fireEvent.click(within(rightPanel).getByRole('tab', { name: 'Inspector' }));
+    fireEvent.click(within(dock).getByRole('tab', { name: 'Analysis' }));
 
     expect(
       within(sidebar).getByRole('button', { name: 'Tasks' }),
     ).toHaveAttribute('aria-pressed', 'true');
-    expect(within(dock).getByRole('tab', { name: 'Logs' })).toHaveAttribute(
+    expect(within(dock).getByRole('tab', { name: 'Analysis' })).toHaveAttribute(
       'aria-selected',
       'true',
     );
     expect(
-      within(rightPanel).getByRole('tab', { name: 'Inspector' }),
+      within(rightPanel).getByRole('tab', { name: 'Details' }),
     ).toHaveAttribute('aria-selected', 'true');
   });
 });

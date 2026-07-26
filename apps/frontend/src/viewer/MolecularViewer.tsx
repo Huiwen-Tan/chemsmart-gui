@@ -106,7 +106,7 @@ function frameMolecule(
   const size = box.getSize(new THREE.Vector3());
   const maxDim = Math.max(size.x, size.y, size.z);
   const fov = (camera.fov * Math.PI) / 180;
-  const distance = Math.max(2, (maxDim / (2 * Math.tan(fov / 2))) * 1.8);
+  const distance = Math.max(2, (maxDim / (2 * Math.tan(fov / 2))) * 1.3);
 
   camera.position.set(
     center.x + distance,
@@ -241,9 +241,9 @@ export function MolecularViewer({
     const width = container.clientWidth || 600;
     const height = container.clientHeight || 400;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
-    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(renderer.domElement);
 
     const labelRenderer = new CSS2DRenderer();
@@ -312,10 +312,11 @@ export function MolecularViewer({
       labelRenderer.setSize(nextWidth, nextHeight);
     };
 
-    window.addEventListener('resize', onResize);
+    const resizeObserver = new ResizeObserver(onResize);
+    resizeObserver.observe(container);
 
     return () => {
-      window.removeEventListener('resize', onResize);
+      resizeObserver.disconnect();
       cancelAnimationFrame(animationFrameId);
       disconnectAtomPicking();
       disconnectAtomHighlights();
@@ -401,13 +402,10 @@ export function MolecularViewer({
 
   return (
     <div
+      aria-label="Interactive molecular viewer"
+      className="workbench-molecular-viewer"
       ref={containerRef}
-      style={{
-        width: '100%',
-        height: 480,
-        border: '1px solid #324055',
-        position: 'relative',
-      }}
+      role="img"
     />
   );
 }

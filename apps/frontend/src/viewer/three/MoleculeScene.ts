@@ -5,6 +5,8 @@ import type { MoleculeDocument, VibrationalMode } from '../../shared/types';
 import { DEFAULT_ELEMENT_COLOR, ELEMENT_COLORS } from './elementColors';
 
 const ATOM_RADIUS = 0.2;
+const BOND_COLOR = 0xa8b0ba;
+const BOND_RADIUS = 0.055;
 const LABEL_OFFSET = ATOM_RADIUS * 1.8;
 const MODE_DISPLACEMENT_ARROW_COLOR = 0xf97316;
 const MODE_DISPLACEMENT_ARROW_SCALE = 2.5;
@@ -28,14 +30,7 @@ function createAtomLabel(
 ): CSS2DObject {
   const element = document.createElement('span');
   element.textContent = text;
-  element.style.background = 'rgba(20, 25, 34, 0.75)';
-  element.style.border = '1px solid rgba(255, 255, 255, 0.3)';
-  element.style.borderRadius = '4px';
-  element.style.color = '#f8fafc';
-  element.style.fontSize = '12px';
-  element.style.padding = '1px 4px';
-  element.style.pointerEvents = 'none';
-  element.style.whiteSpace = 'nowrap';
+  element.className = 'workbench-atom-label';
   element.style.display = 'none';
 
   const label = new CSS2DObject(element);
@@ -69,6 +64,23 @@ function applyAtomMaterialState(
   material.emissiveIntensity = DEFAULT_ATOM_EMISSIVE_INTENSITY;
 }
 
+function positionBondCylinder(
+  cylinder: THREE.Mesh,
+  start: THREE.Vector3,
+  end: THREE.Vector3,
+): void {
+  const direction = end.clone().sub(start);
+  const length = direction.length();
+  cylinder.position.copy(start).add(end).multiplyScalar(0.5);
+  cylinder.scale.set(1, length, 1);
+  if (length > 0) {
+    cylinder.quaternion.setFromUnitVectors(
+      new THREE.Vector3(0, 1, 0),
+      direction.normalize(),
+    );
+  }
+}
+
 function disposeObjectResources(object: THREE.Object3D): void {
   object.traverse((child) => {
     if (child instanceof THREE.Mesh || child instanceof THREE.Line) {
@@ -96,7 +108,7 @@ export class MoleculeScene {
   private modeAnimationStartTimeMs = 0;
 
   constructor() {
-    this.scene.background = new THREE.Color(0x141922);
+    this.scene.background = null;
   }
 
   public getScene(): THREE.Scene {
@@ -142,14 +154,23 @@ export class MoleculeScene {
       if (!start || !end) {
         continue;
       }
-      const geometry = new THREE.BufferGeometry().setFromPoints([start, end]);
-      const material = new THREE.LineBasicMaterial({ color: 0xbbbbbb });
-      const line = new THREE.Line(geometry, material);
-      line.userData.moleculeObject = true;
-      line.userData.bondObject = true;
-      line.userData.bondAtom1 = bond.atom1;
-      line.userData.bondAtom2 = bond.atom2;
-      this.scene.add(line);
+      const geometry = new THREE.CylinderGeometry(
+        BOND_RADIUS,
+        BOND_RADIUS,
+        1,
+        12,
+      );
+      const material = new THREE.MeshStandardMaterial({
+        color: BOND_COLOR,
+        roughness: 0.55,
+      });
+      const cylinder = new THREE.Mesh(geometry, material);
+      positionBondCylinder(cylinder, start, end);
+      cylinder.userData.moleculeObject = true;
+      cylinder.userData.bondObject = true;
+      cylinder.userData.bondAtom1 = bond.atom1;
+      cylinder.userData.bondAtom2 = bond.atom2;
+      this.scene.add(cylinder);
     }
   }
 
@@ -343,7 +364,7 @@ export class MoleculeScene {
 
   private updateBondPositions(): void {
     for (const object of this.scene.children) {
-      if (!(object instanceof THREE.Line) || !object.userData.bondObject) {
+      if (!(object instanceof THREE.Mesh) || !object.userData.bondObject) {
         continue;
       }
 
@@ -353,13 +374,7 @@ export class MoleculeScene {
         continue;
       }
 
-      const positions = object.geometry.getAttribute(
-        'position',
-      ) as THREE.BufferAttribute;
-      positions.setXYZ(0, start.x, start.y, start.z);
-      positions.setXYZ(1, end.x, end.y, end.z);
-      positions.needsUpdate = true;
-      object.geometry.computeBoundingSphere();
+      positionBondCylinder(object, start, end);
     }
   }
 

@@ -29,6 +29,7 @@ interface VibrationalModesPanelProps {
   onDownloadDisplacedStructure?: (
     direction: ModeDisplacementDirection,
   ) => void;
+  showIrSpectrum?: boolean;
 }
 
 function formatNumber(value: number): string {
@@ -68,6 +69,7 @@ export function VibrationalModesPanel({
   onGenerateDisplacedStructure,
   isDownloadingDisplacedStructure = false,
   onDownloadDisplacedStructure,
+  showIrSpectrum = true,
 }: VibrationalModesPanelProps): JSX.Element {
   const modes = document?.vibrational_modes ?? [];
   const [
@@ -101,7 +103,7 @@ export function VibrationalModesPanel({
   return (
     <section
       aria-labelledby="vibrational-modes-heading"
-      style={{ marginTop: 16 }}
+      className="workbench-result-panel"
     >
       <h2 id="vibrational-modes-heading">Vibrational Modes</h2>
       {!document ? <p>No document loaded for vibrational modes.</p> : null}
@@ -109,25 +111,25 @@ export function VibrationalModesPanel({
         <p>No vibrational modes available for this document.</p>
       ) : null}
       {modes.length > 0 ? (
-        <table aria-label="Vibrational mode table">
+        <table
+          aria-label="Vibrational mode table"
+          className="workbench-data-table"
+        >
           <thead>
             <tr>
               <th scope="col">Mode</th>
-              <th scope="col">Frequency (cm^-1)</th>
+              <th scope="col">Frequency (cm⁻¹)</th>
               <th scope="col">Type</th>
               <th scope="col">IR intensity (km/mol)</th>
               <th scope="col">Symmetry</th>
               <th scope="col">Reduced mass (amu)</th>
-              <th scope="col">Force constant (mDyne/Angstrom)</th>
+              <th scope="col">Force constant (mDyne/Å)</th>
               <th scope="col">Displacement vectors</th>
             </tr>
           </thead>
           <tbody>
             {modes.map((mode) => (
-              <tr
-                aria-selected={selectedMode?.index === mode.index}
-                key={mode.index}
-              >
+              <tr key={mode.index}>
                 <th scope="row">
                   <button
                     aria-pressed={selectedMode?.index === mode.index}
@@ -153,7 +155,7 @@ export function VibrationalModesPanel({
           </tbody>
         </table>
       ) : null}
-      {document ? (
+      {document && showIrSpectrum ? (
         <IrSpectrumPanel
           broadenedSpectrum={broadenedSpectrum}
           broadenedSpectrumError={broadenedSpectrumError}
@@ -165,54 +167,52 @@ export function VibrationalModesPanel({
         />
       ) : null}
       {selectedMode ? (
-        <div style={{ marginTop: 12 }}>
+        <section className="workbench-result-section">
           <h3>Selected Mode {selectedMode.index}</h3>
-          <button
-            aria-pressed={isAnimationPlaying}
-            disabled={selectedMode.displacements.length === 0}
-            onClick={() => {
-              onAnimationPlayingChange?.(!isAnimationPlaying);
-            }}
-            type="button"
-          >
-            {isAnimationPlaying
-              ? 'Pause Mode Animation'
-              : 'Play Mode Animation'}
-          </button>
-          <button
-            disabled={!canGenerateDisplacedStructure}
-            onClick={() => onGenerateDisplacedStructure?.('positive')}
-            style={{ marginLeft: 8 }}
-            type="button"
-          >
-            Generate + Displacement
-          </button>
-          <button
-            disabled={!canGenerateDisplacedStructure}
-            onClick={() => onGenerateDisplacedStructure?.('negative')}
-            style={{ marginLeft: 8 }}
-            type="button"
-          >
-            Generate - Displacement
-          </button>
-          <button
-            disabled={!canDownloadDisplacedStructure}
-            onClick={() => onDownloadDisplacedStructure?.('positive')}
-            style={{ marginLeft: 8 }}
-            type="button"
-          >
-            Download + XYZ
-          </button>
-          <button
-            disabled={!canDownloadDisplacedStructure}
-            onClick={() => onDownloadDisplacedStructure?.('negative')}
-            style={{ marginLeft: 8 }}
-            type="button"
-          >
-            Download - XYZ
-          </button>
-          <dl>
-            <dt>Frequency (cm^-1)</dt>
+          <div className="workbench-action-row">
+            <button
+              aria-pressed={isAnimationPlaying}
+              disabled={selectedMode.displacements.length === 0}
+              onClick={() => {
+                onAnimationPlayingChange?.(!isAnimationPlaying);
+              }}
+              type="button"
+            >
+              {isAnimationPlaying
+                ? 'Pause Mode Animation'
+                : 'Play Mode Animation'}
+            </button>
+            <button
+              disabled={!canGenerateDisplacedStructure}
+              onClick={() => onGenerateDisplacedStructure?.('positive')}
+              type="button"
+            >
+              Generate Forward (+Q)
+            </button>
+            <button
+              disabled={!canGenerateDisplacedStructure}
+              onClick={() => onGenerateDisplacedStructure?.('negative')}
+              type="button"
+            >
+              Generate Backward (−Q)
+            </button>
+            <button
+              disabled={!canDownloadDisplacedStructure}
+              onClick={() => onDownloadDisplacedStructure?.('positive')}
+              type="button"
+            >
+              Download +Q as XYZ
+            </button>
+            <button
+              disabled={!canDownloadDisplacedStructure}
+              onClick={() => onDownloadDisplacedStructure?.('negative')}
+              type="button"
+            >
+              Download −Q as XYZ
+            </button>
+          </div>
+          <dl className="workbench-metadata-list">
+            <dt>Frequency (cm⁻¹)</dt>
             <dd>{formatNumber(selectedMode.frequency_cm_minus_1)}</dd>
             <dt>Type</dt>
             <dd>{selectedMode.is_imaginary ? 'Imaginary' : 'Real'}</dd>
@@ -220,7 +220,10 @@ export function VibrationalModesPanel({
             <dd>{selectedMode.displacements.length}</dd>
           </dl>
           {selectedMode.displacements.length > 0 ? (
-            <table aria-label="Selected mode displacement vectors">
+            <table
+              aria-label="Selected mode displacement vectors"
+              className="workbench-data-table"
+            >
               <thead>
                 <tr>
                   <th scope="col">Atom index</th>
@@ -243,7 +246,7 @@ export function VibrationalModesPanel({
           ) : (
             <p>No displacement vectors available for selected mode.</p>
           )}
-        </div>
+        </section>
       ) : null}
     </section>
   );

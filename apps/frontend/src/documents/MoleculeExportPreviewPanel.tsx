@@ -614,22 +614,22 @@ export function MoleculeExportPreviewPanel({
       </div>
       {!document ? <p>No molecule document loaded.</p> : null}
       {previewError ? (
-        <p role="alert" style={{ color: '#ff8080' }}>
+        <p className="workbench-error" role="alert">
           Export preview error: {previewError}
         </p>
       ) : null}
       {saveError ? (
-        <p role="alert" style={{ color: '#ff8080' }}>
+        <p className="workbench-error" role="alert">
           Export save error: {saveError}
         </p>
       ) : null}
       {sourceStatusError ? (
-        <p role="alert" style={{ color: '#ff8080' }}>
+        <p className="workbench-error" role="alert">
           Source status error: {sourceStatusError}
         </p>
       ) : null}
       {sourceWriteError ? (
-        <p role="alert" style={{ color: '#ff8080' }}>
+        <p className="workbench-error" role="alert">
           Source write-back error: {sourceWriteError}
         </p>
       ) : null}
@@ -646,12 +646,12 @@ export function MoleculeExportPreviewPanel({
         </p>
       ) : null}
       {preview ? (
-        <div style={{ marginTop: 12 }}>
+        <div className="workbench-result-section">
           <p>
             Suggested filename: <strong>{preview.filename}</strong>
           </p>
           <p>
-            Filetype: <strong>{preview.filetype}</strong>
+            File type: <strong>{preview.filetype}</strong>
           </p>
           <button
             onClick={() => {
@@ -673,12 +673,7 @@ export function MoleculeExportPreviewPanel({
             aria-label={
               exportFormatOptionForFiletype(preview.filetype).previewAriaLabel
             }
-            style={{
-              maxHeight: 240,
-              overflow: 'auto',
-              padding: 12,
-              whiteSpace: 'pre-wrap',
-            }}
+            className="workbench-code-preview"
           >
             {preview.content}
           </pre>

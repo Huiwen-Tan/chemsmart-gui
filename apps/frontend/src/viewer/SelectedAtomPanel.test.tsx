@@ -298,7 +298,7 @@ describe('SelectedAtomPanel', () => {
 
     render(<SelectedAtomPanel document={WATER} />);
 
-    expect(screen.getByText('Coordinates (angstrom)')).toBeInTheDocument();
+    expect(screen.getByText('Coordinates (Å)')).toBeInTheDocument();
     const rows = screen.getAllByRole('row');
     expect(rows).toHaveLength(3);
     expect(within(rows[1]).getByRole('rowheader')).toHaveTextContent('3 H');
@@ -308,7 +308,7 @@ describe('SelectedAtomPanel', () => {
     expect(within(rows[2]).getAllByRole('cell').map((cell) => cell.textContent))
       .toEqual(['0.000', '0.000', '0.000']);
     expect(screen.getByText('Distance:')).toBeInTheDocument();
-    expect(screen.getByText('3 H - 1 O = 0.956 angstrom')).toBeInTheDocument();
+    expect(screen.getByText('3 H - 1 O = 0.956 Å')).toBeInTheDocument();
     expect(screen.queryByText('Angle:')).not.toBeInTheDocument();
     expect(screen.queryByText('Dihedral:')).not.toBeInTheDocument();
     expect(useViewerStore.getState().selectedAtomIndices).toEqual([3, 99, 1]);
@@ -553,7 +553,7 @@ describe('SelectedAtomPanel', () => {
 
     expect(screen.getByText('Angle:')).toBeInTheDocument();
     expect(
-      screen.getByText('3 H - 1 O - 2 H = 105.301 degrees'),
+      screen.getByText('3 H - 1 O - 2 H = 105.301°'),
     ).toBeInTheDocument();
     expect(
       screen.getByRole('form', { name: 'Edit selected atom angle' }),
@@ -624,7 +624,7 @@ describe('SelectedAtomPanel', () => {
 
     expect(screen.getByText('Dihedral:')).toBeInTheDocument();
     expect(
-      screen.getByText('1 C - 2 C - 3 C - 4 H = -90.000 degrees'),
+      screen.getByText('1 C - 2 C - 3 C - 4 H = -90.000°'),
     ).toBeInTheDocument();
     expect(
       screen.getByRole('form', { name: 'Edit selected atom dihedral' }),

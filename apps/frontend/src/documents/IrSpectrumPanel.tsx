@@ -26,12 +26,12 @@ interface IrPeak {
   modeIndex: number;
 }
 
-const CHART_HEIGHT = 180;
-const CHART_WIDTH = 520;
-const PLOT_BOTTOM = 138;
-const PLOT_LEFT = 56;
-const PLOT_RIGHT = 496;
-const PLOT_TOP = 20;
+const CHART_HEIGHT = 220;
+const CHART_WIDTH = 960;
+const PLOT_BOTTOM = 176;
+const PLOT_LEFT = 64;
+const PLOT_RIGHT = 936;
+const PLOT_TOP = 24;
 const DEFAULT_BROADENED_POINT_COUNT = 121;
 const DEFAULT_BROADENING_WIDTH_CM_MINUS_1 = '20';
 
@@ -177,7 +177,7 @@ export function IrSpectrumPanel({
   return (
     <section
       aria-labelledby="ir-stick-spectrum-heading"
-      style={{ marginTop: 16 }}
+      className="workbench-result-panel"
     >
       <h3 id="ir-stick-spectrum-heading">IR Stick Spectrum</h3>
       {!document ? <p>No document loaded for IR spectrum.</p> : null}
@@ -186,58 +186,52 @@ export function IrSpectrumPanel({
       ) : null}
       {document && peaks.length > 0 ? (
         <>
-          <dl>
-            <dt>Frequency field</dt>
-            <dd>frequency_cm_minus_1</dd>
-            <dt>IR intensity field</dt>
-            <dd>ir_intensity_km_per_mol</dd>
-            <dt>Frequency unit</dt>
-            <dd>cm^-1</dd>
-            <dt>IR intensity unit</dt>
-            <dd>km/mol</dd>
+          <dl className="workbench-metadata-list">
             <dt>IR peaks</dt>
             <dd>{peaks.length}</dd>
             <dt>Selected IR peak</dt>
             <dd>
               {selectedPeak
                 ? `Mode ${selectedPeak.modeIndex}: ` +
-                  `${formatNumber(selectedPeak.frequencyCmMinus1)} cm^-1, ` +
+                  `${formatNumber(selectedPeak.frequencyCmMinus1)} cm⁻¹, ` +
                   `${formatNumber(selectedPeak.intensityKmPerMol)} km/mol`
                 : 'Unavailable'}
             </dd>
           </dl>
           <svg
             aria-label="IR stick spectrum chart"
+            className="workbench-chart"
             role="img"
-            style={{
-              background: '#101826',
-              border: '1px solid #2d3748',
-              borderRadius: 8,
-              display: 'block',
-              height: 'auto',
-              maxWidth: 560,
-              width: '100%',
-            }}
             viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
           >
             <line
-              stroke="#64748b"
+              className="workbench-chart-axis"
               x1={PLOT_LEFT}
               x2={PLOT_LEFT}
               y1={PLOT_TOP}
               y2={PLOT_BOTTOM}
             />
             <line
-              stroke="#64748b"
+              className="workbench-chart-axis"
               x1={PLOT_LEFT}
               x2={PLOT_RIGHT}
               y1={PLOT_BOTTOM}
               y2={PLOT_BOTTOM}
             />
-            <text fill="#cbd5e1" fontSize="12" x={PLOT_LEFT} y="166">
-              Wavenumber (cm^-1)
+            <text
+              className="workbench-chart-label"
+              fontSize="12"
+              x={PLOT_LEFT}
+              y="208"
+            >
+              Wavenumber (cm⁻¹)
             </text>
-            <text fill="#cbd5e1" fontSize="12" x="8" y="16">
+            <text
+              className="workbench-chart-label"
+              fontSize="12"
+              x="8"
+              y="18"
+            >
               Intensity (km/mol)
             </text>
             {peaks.map((peak) => {
@@ -256,7 +250,11 @@ export function IrSpectrumPanel({
                   tabIndex={0}
                 >
                   <line
-                    stroke={isSelected ? '#fbbf24' : '#38bdf8'}
+                    className={
+                      isSelected
+                        ? 'workbench-chart-series-selected'
+                        : 'workbench-chart-series-primary'
+                    }
                     strokeWidth={isSelected ? 4 : 3}
                     x1={x}
                     x2={x}
@@ -266,21 +264,27 @@ export function IrSpectrumPanel({
                   <circle
                     cx={x}
                     cy={y}
-                    fill={isSelected ? '#fbbf24' : '#38bdf8'}
+                    className={
+                      isSelected
+                        ? 'workbench-chart-series-selected'
+                        : 'workbench-chart-series-primary'
+                    }
                     r={isSelected ? 5 : 4}
-                    stroke={isSelected ? '#f8fafc' : '#0f172a'}
                     strokeWidth="2"
                   />
                 </g>
               );
             })}
           </svg>
-          <table aria-label="IR stick spectrum peaks" style={{ marginTop: 8 }}>
+          <table
+            aria-label="IR stick spectrum peaks"
+            className="workbench-data-table"
+          >
             <thead>
               <tr>
                 <th scope="col">Mode</th>
-                <th scope="col">frequency_cm_minus_1 (cm^-1)</th>
-                <th scope="col">ir_intensity_km_per_mol (km/mol)</th>
+                <th scope="col">Frequency (cm⁻¹)</th>
+                <th scope="col">IR intensity (km/mol)</th>
                 <th scope="col">State</th>
               </tr>
             </thead>
@@ -288,7 +292,7 @@ export function IrSpectrumPanel({
               {peaks.map((peak) => {
                 const isSelected = peak.modeIndex === selectedModeIndex;
                 return (
-                  <tr aria-selected={isSelected} key={peak.modeIndex}>
+                  <tr key={peak.modeIndex}>
                     <th scope="row">
                       <button
                         aria-pressed={isSelected}
@@ -308,70 +312,73 @@ export function IrSpectrumPanel({
           </table>
           <section
             aria-labelledby="broadened-ir-spectrum-heading"
-            style={{ marginTop: 16 }}
+            className="workbench-result-section"
           >
             <h4 id="broadened-ir-spectrum-heading">
               Broadened IR Spectrum
             </h4>
-            <label style={{ display: 'inline-flex', gap: 6 }}>
-              Broadening
-              <select
-                aria-label="IR spectrum broadening"
-                onChange={(event) => {
-                  setSelectedBroadening(
-                    event.currentTarget.value as IrSpectrumBroadening,
-                  );
+            <div className="workbench-control-row">
+              <label>
+                Broadening
+                <select
+                  aria-label="IR spectrum broadening"
+                  onChange={(event) => {
+                    setSelectedBroadening(
+                      event.currentTarget.value as IrSpectrumBroadening,
+                    );
+                  }}
+                  value={selectedBroadening}
+                >
+                  <option value="gaussian">Gaussian</option>
+                  <option value="lorentzian">Lorentzian</option>
+                </select>
+              </label>
+              <label>
+                Width (cm⁻¹)
+                <input
+                  aria-label="IR broadening width"
+                  min="0.1"
+                  onChange={(event) => {
+                    setWidthCmMinus1Text(event.currentTarget.value);
+                  }}
+                  step="0.1"
+                  type="number"
+                  value={widthCmMinus1Text}
+                />
+              </label>
+              <button
+                disabled={!canPreviewBroadenedSpectrum}
+                onClick={() => {
+                  onBroadenedSpectrumPreview?.({
+                    broadening: selectedBroadening,
+                    point_count: DEFAULT_BROADENED_POINT_COUNT,
+                    width_cm_minus_1: widthCmMinus1,
+                  });
                 }}
-                value={selectedBroadening}
+                type="button"
               >
-                <option value="gaussian">Gaussian</option>
-                <option value="lorentzian">Lorentzian</option>
-              </select>
-            </label>
-            <label style={{ display: 'inline-flex', gap: 6, marginLeft: 8 }}>
-              Width (cm^-1)
-              <input
-                aria-label="IR broadening width"
-                min="0.1"
-                onChange={(event) => {
-                  setWidthCmMinus1Text(event.currentTarget.value);
-                }}
-                step="0.1"
-                type="number"
-                value={widthCmMinus1Text}
-              />
-            </label>
-            <button
-              disabled={!canPreviewBroadenedSpectrum}
-              onClick={() => {
-                onBroadenedSpectrumPreview?.({
-                  broadening: selectedBroadening,
-                  point_count: DEFAULT_BROADENED_POINT_COUNT,
-                  width_cm_minus_1: widthCmMinus1,
-                });
-              }}
-              style={{ marginLeft: 8 }}
-              type="button"
-            >
-              Preview Broadened IR Spectrum
-            </button>
+                Preview Broadened Spectrum
+              </button>
+            </div>
             {!Number.isFinite(widthCmMinus1) || widthCmMinus1 <= 0 ? (
-              <p>IR broadening width must be greater than zero.</p>
+              <p className="workbench-error" role="alert">
+                IR broadening width must be greater than zero.
+              </p>
             ) : null}
             {isBroadenedSpectrumLoading ? (
               <p>Generating broadened IR spectrum...</p>
             ) : null}
             {broadenedSpectrumError ? (
-              <p style={{ color: '#ff8080' }}>
+              <p className="workbench-error" role="alert">
                 Error: {broadenedSpectrumError}
               </p>
             ) : null}
             {broadenedSpectrum ? (
               <>
-                <dl>
+                <dl className="workbench-metadata-list">
                   <dt>Broadening</dt>
                   <dd>{broadenedSpectrum.broadening}</dd>
-                  <dt>Width (cm^-1)</dt>
+                  <dt>Width (cm⁻¹)</dt>
                   <dd>{formatNumber(broadenedSpectrum.width_cm_minus_1)}</dd>
                   <dt>Curve points</dt>
                   <dd>{broadenedSpectrum.points.length}</dd>
@@ -380,68 +387,49 @@ export function IrSpectrumPanel({
                 </dl>
                 <svg
                   aria-label="Broadened IR spectrum chart"
+                  className="workbench-chart"
                   role="img"
-                  style={{
-                    background: '#101826',
-                    border: '1px solid #2d3748',
-                    borderRadius: 8,
-                    display: 'block',
-                    height: 'auto',
-                    maxWidth: 560,
-                    width: '100%',
-                  }}
                   viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
                 >
                   <line
-                    stroke="#64748b"
+                    className="workbench-chart-axis"
                     x1={PLOT_LEFT}
                     x2={PLOT_LEFT}
                     y1={PLOT_TOP}
                     y2={PLOT_BOTTOM}
                   />
                   <line
-                    stroke="#64748b"
+                    className="workbench-chart-axis"
                     x1={PLOT_LEFT}
                     x2={PLOT_RIGHT}
                     y1={PLOT_BOTTOM}
                     y2={PLOT_BOTTOM}
                   />
-                  <text fill="#cbd5e1" fontSize="12" x={PLOT_LEFT} y="166">
-                    Wavenumber (cm^-1)
+                  <text
+                    className="workbench-chart-label"
+                    fontSize="12"
+                    x={PLOT_LEFT}
+                    y="208"
+                  >
+                    Wavenumber (cm⁻¹)
                   </text>
-                  <text fill="#cbd5e1" fontSize="12" x="8" y="16">
+                  <text
+                    className="workbench-chart-label"
+                    fontSize="12"
+                    x="8"
+                    y="18"
+                  >
                     Intensity (km/mol)
                   </text>
                   <polyline
+                    className="workbench-chart-series-analysis"
                     fill="none"
                     points={spectrumCurvePointString(
                       broadenedSpectrum.points,
                     )}
-                    stroke="#f472b6"
                     strokeWidth="2"
                   />
                 </svg>
-                <table
-                  aria-label="Broadened IR spectrum points"
-                  style={{ marginTop: 8 }}
-                >
-                  <thead>
-                    <tr>
-                      <th scope="col">wavenumber_cm_minus_1 (cm^-1)</th>
-                      <th scope="col">intensity_km_per_mol (km/mol)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {broadenedSpectrum.points.map((point) => (
-                      <tr key={point.wavenumber_cm_minus_1}>
-                        <th scope="row">
-                          {formatNumber(point.wavenumber_cm_minus_1)}
-                        </th>
-                        <td>{formatNumber(point.intensity_km_per_mol)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
               </>
             ) : null}
           </section>

@@ -29,8 +29,8 @@ export function ViewerToolbox({
   );
   const selectedAtomLabel =
     selectedAtoms.length > 0
-      ? `Selected atoms: ${selectedAtoms.join(', ')}`
-      : 'No atoms selected';
+      ? `Selected: ${selectedAtoms.join(', ')}`
+      : 'Selected: none';
   const moleculeStateLabel = document
     ? `${document.atoms.length} atom${document.atoms.length === 1 ? '' : 's'}`
     : 'No molecule loaded';
@@ -43,10 +43,7 @@ export function ViewerToolbox({
     >
       <ToolboxGroup label="Selection">
         <p className="workbench-viewer-toolbox-status">
-          {moleculeStateLabel}
-        </p>
-        <p className="workbench-viewer-toolbox-status">
-          {selectedAtomLabel}
+          {moleculeStateLabel} · {selectedAtomLabel}
         </p>
         <button
           className="workbench-viewer-toolbox-button"
@@ -66,7 +63,7 @@ export function ViewerToolbox({
           Reset View
         </button>
         <p className="workbench-viewer-toolbox-hint">
-          Drag rotate; right/middle drag pan; wheel zoom
+          Drag to rotate · Right-drag to pan · Scroll to zoom
         </p>
       </ToolboxGroup>
       <ToolboxGroup label="Measure">
@@ -93,29 +90,6 @@ export function ViewerToolbox({
           Show Atom Labels
         </button>
       </ToolboxGroup>
-      <ToolboxGroup label="Edit">
-        <button
-          className="workbench-viewer-toolbox-button"
-          disabled
-          type="button"
-        >
-          Add Atom Tool
-        </button>
-        <button
-          className="workbench-viewer-toolbox-button"
-          disabled
-          type="button"
-        >
-          Bond Tool
-        </button>
-        <button
-          className="workbench-viewer-toolbox-button"
-          disabled
-          type="button"
-        >
-          Geometry Tool
-        </button>
-      </ToolboxGroup>
     </section>
   );
 }
@@ -127,7 +101,11 @@ interface ToolboxGroupProps {
 
 function ToolboxGroup({ children, label }: ToolboxGroupProps): JSX.Element {
   return (
-    <div aria-label={`${label} tools`} className="workbench-viewer-toolbox-group">
+    <div
+      aria-label={`${label} tools`}
+      className="workbench-viewer-toolbox-group"
+      role="group"
+    >
       <p className="workbench-viewer-toolbox-label">{label}</p>
       <div className="workbench-viewer-toolbox-items">{children}</div>
     </div>

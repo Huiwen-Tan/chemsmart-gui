@@ -8,9 +8,12 @@ import {
   previewMoleculeExport,
 } from './api/client';
 import { AppShell, type WorkbenchMenuItems } from './app/AppShell';
+import { WorkbenchDialog } from './app/WorkbenchDialog';
 import { DocumentOpenPanel } from './documents/DocumentOpenPanel';
 import { DocumentSummaryPanel } from './documents/DocumentSummaryPanel';
+import { IrSpectrumPanel } from './documents/IrSpectrumPanel';
 import { MoleculeExportPreviewPanel } from './documents/MoleculeExportPreviewPanel';
+import { TrajectoryEnergyProfile } from './documents/TrajectoryEnergyProfile';
 import { TrajectoryFramesPanel } from './documents/TrajectoryFramesPanel';
 import { VibrationalModesPanel } from './documents/VibrationalModesPanel';
 import { TaskCatalogPanel } from './tasks/TaskCatalogPanel';
@@ -42,6 +45,71 @@ const REPLACE_UNSAVED_EDITS_FOR_DISPLACEMENT_MESSAGE =
   'Current molecule has unsaved edits. Generate a displaced structure and discard them?';
 const XYZ_EXPORT_CONTENT_TYPE = 'chemical/x-xyz;charset=utf-8';
 const FIXED_TRAJECTORY_PLAYBACK_FRAMES_PER_SECOND = 20;
+
+type ResultsDialogId =
+  | 'summary'
+  | 'vibrations'
+  | 'ir-spectrum'
+  | 'trajectory-energy-profile';
+
+const RESULTS_DIALOG_COPY: Record<
+  ResultsDialogId,
+  { description: string; title: string }
+> = {
+  summary: {
+    title: 'Summary',
+    description: 'Document metadata and calculation context.',
+  },
+  vibrations: {
+    title: 'Vibrations',
+    description: 'Parsed vibrational modes and displacement controls.',
+  },
+  'ir-spectrum': {
+    title: 'IR Spectrum',
+    description: 'Stick and broadened IR spectrum from parsed modes.',
+  },
+  'trajectory-energy-profile': {
+    title: 'Trajectory Energy Profile',
+    description: 'Energy profile for parsed trajectory frames.',
+  },
+};
+
+function pluralizedCount(count: number, singular: string): string {
+  return `${count} ${singular}${count === 1 ? '' : 's'}`;
+}
+
+function openedDocumentStatus(document: OpenedDocument): string {
+  const filename = document.source?.filename ?? document.name;
+
+  if (document.document_kind === 'trajectory') {
+    const atomCount = document.frames[0]?.atoms.length ?? 0;
+    return [
+      `Opened ${filename}`,
+      pluralizedCount(atomCount, 'atom'),
+      pluralizedCount(document.frames.length, 'frame'),
+    ].join(' · ');
+  }
+
+  if (document.document_kind === 'calculation_result') {
+    const atomCount = document.molecules[0]?.atoms.length ?? 0;
+    return [
+      `Opened ${filename}`,
+      pluralizedCount(atomCount, 'atom'),
+      pluralizedCount(document.molecules.length, 'molecule'),
+    ].join(' · ');
+  }
+
+  const details = [
+    `Opened ${filename}`,
+    pluralizedCount(document.atoms.length, 'atom'),
+  ];
+  if (document.vibrational_modes.length > 0) {
+    details.push(
+      pluralizedCount(document.vibrational_modes.length, 'vibrational mode'),
+    );
+  }
+  return details.join(' · ');
+}
 
 function isEditableShortcutTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) {
@@ -131,6 +199,9 @@ export function App(): JSX.Element {
     setSelectedVibrationalModeIndex,
   ] = useState<number | null>(null);
   const [isOpeningDocument, setIsOpeningDocument] = useState(false);
+  const [documentOpenStatus, setDocumentOpenStatus] = useState<string | null>(
+    null,
+  );
   const [openingDocumentPath, setOpeningDocumentPath] = useState<string | null>(
     null,
   );
@@ -174,6 +245,10 @@ export function App(): JSX.Element {
     isSettingsDrawerOpen,
     setIsSettingsDrawerOpen,
   ] = useState(false);
+  const [
+    activeResultsDialog,
+    setActiveResultsDialog,
+  ] = useState<ResultsDialogId | null>(null);
   const trajectoryDocument = isTrajectoryDocument(currentDocument)
     ? currentDocument
     : null;
@@ -430,6 +505,7 @@ export function App(): JSX.Element {
 
   const openDocumentPath = async (pathOverride?: string): Promise<void> => {
     setError(null);
+    setDocumentOpenStatus(null);
     const path = (pathOverride ?? documentPath).trim();
     if (!path) {
       setError('A document path is required.');
@@ -447,6 +523,7 @@ export function App(): JSX.Element {
       setIsOpeningDocument(true);
       const document = await openDocument({ path });
       setCurrentDocument(document);
+      setDocumentOpenStatus(openedDocumentStatus(document));
       if (pathOverride !== undefined) {
         setDocumentPath(path);
       }
@@ -465,6 +542,13 @@ export function App(): JSX.Element {
   const openSettingsDrawer = (section: SettingsDrawerSection): void => {
     setSettingsDrawerSection(section);
     setIsSettingsDrawerOpen(true);
+  };
+
+  const openResultsDialog = (dialogId: ResultsDialogId): void => {
+    if (dialogId !== 'trajectory-energy-profile') {
+      setIsTrajectoryPlaybackPlaying(false);
+    }
+    setActiveResultsDialog(dialogId);
   };
 
   const applicationMenuItems: WorkbenchMenuItems = {
@@ -499,14 +583,59 @@ export function App(): JSX.Element {
       {
         id: 'project-settings',
         kind: 'action',
-        label: 'Project Settings...',
+        label: 'Project Settings (Preview)...',
         onSelect: () => openSettingsDrawer('project'),
       },
       {
         id: 'server-settings',
         kind: 'action',
-        label: 'Server Settings...',
+        label: 'Server Settings (Preview)...',
         onSelect: () => openSettingsDrawer('server'),
+      },
+    ],
+    results: [
+      {
+        disabled: !activeMoleculeDocument,
+        id: 'results-summary',
+        kind: 'action',
+        label: 'Summary...',
+        onSelect: () => openResultsDialog('summary'),
+      },
+      {
+        id: 'results-primary-separator',
+        kind: 'separator',
+      },
+      {
+        disabled: vibrationalModes.length === 0,
+        id: 'results-vibrations',
+        kind: 'action',
+        label: 'Vibrations...',
+        onSelect: () => openResultsDialog('vibrations'),
+      },
+      {
+        disabled: vibrationalModes.length === 0,
+        id: 'results-ir-spectrum',
+        kind: 'action',
+        label: 'IR Spectrum...',
+        onSelect: () => openResultsDialog('ir-spectrum'),
+      },
+      {
+        description: 'Requires charge-analysis data from the backend.',
+        disabled: true,
+        id: 'results-charge-distribution',
+        kind: 'action',
+        label: 'Charge Distribution...',
+      },
+      {
+        id: 'results-trajectory-separator',
+        kind: 'separator',
+      },
+      {
+        disabled: !trajectoryDocument,
+        id: 'results-trajectory-energy-profile',
+        kind: 'action',
+        label: 'Trajectory Energy Profile...',
+        onSelect: () => openResultsDialog('trajectory-energy-profile'),
       },
     ],
     view: [
@@ -539,6 +668,7 @@ export function App(): JSX.Element {
       documentPath={documentPath}
       error={error}
       isOpeningDocument={isOpeningDocument}
+      documentOpenStatus={documentOpenStatus}
       onDocumentOpen={(pathOverride) => {
         void openDocumentPath(pathOverride);
       }}
@@ -592,6 +722,69 @@ export function App(): JSX.Element {
       </div>
     </>
   );
+  const activeResultsDialogCopy = activeResultsDialog
+    ? RESULTS_DIALOG_COPY[activeResultsDialog]
+    : null;
+  const resultsDialogContent = (() => {
+    switch (activeResultsDialog) {
+      case 'summary':
+        return (
+          <DocumentSummaryPanel
+            document={activeMoleculeDocument}
+            hasUnsavedMoleculeEdits={hasUnsavedMoleculeEdits}
+          />
+        );
+      case 'vibrations':
+        return (
+          <VibrationalModesPanel
+            broadenedSpectrum={broadenedIrSpectrum}
+            broadenedSpectrumError={broadenedIrSpectrumError}
+            document={activeMoleculeDocument}
+            isBroadenedSpectrumLoading={isPreviewingBroadenedIrSpectrum}
+            isDownloadingDisplacedStructure={isDownloadingDisplacedStructure}
+            isGeneratingDisplacedStructure={isGeneratingDisplacedStructure}
+            isAnimationPlaying={isVibrationalModeAnimationPlaying}
+            onAnimationPlayingChange={setVibrationalModeAnimationPlaying}
+            onBroadenedSpectrumPreview={previewActiveBroadenedIrSpectrum}
+            onDownloadDisplacedStructure={
+              downloadSelectedModeDisplacedStructure
+            }
+            onGenerateDisplacedStructure={
+              generateSelectedModeDisplacedStructure
+            }
+            onSelectedModeIndexChange={selectVibrationalMode}
+            selectedModeIndex={selectedVibrationalMode?.index ?? null}
+            showIrSpectrum={false}
+          />
+        );
+      case 'ir-spectrum':
+        return (
+          <IrSpectrumPanel
+            broadenedSpectrum={broadenedIrSpectrum}
+            broadenedSpectrumError={broadenedIrSpectrumError}
+            document={activeMoleculeDocument}
+            isBroadenedSpectrumLoading={isPreviewingBroadenedIrSpectrum}
+            onBroadenedSpectrumPreview={previewActiveBroadenedIrSpectrum}
+            onSelectedModeIndexChange={selectVibrationalMode}
+            selectedModeIndex={selectedVibrationalMode?.index ?? null}
+          />
+        );
+      case 'trajectory-energy-profile':
+        return (
+          <TrajectoryEnergyProfile
+            document={trajectoryDocument}
+            onSelectedFrameIndexChange={selectTrajectoryFrame}
+            selectedFrameIndex={selectedTrajectoryFrameIndex}
+          />
+        );
+      default:
+        return (
+          <p className="workbench-result-placeholder">
+            Select a result from the Results menu.
+          </p>
+        );
+    }
+  })();
 
   return (
     <>
@@ -607,26 +800,11 @@ export function App(): JSX.Element {
                   onPlaybackPlayingChange={setIsTrajectoryPlaybackPlaying}
                   selectedFrameIndex={selectedTrajectoryFrameIndex}
                 />
-              ) : null}
-              <VibrationalModesPanel
-                broadenedSpectrum={broadenedIrSpectrum}
-                broadenedSpectrumError={broadenedIrSpectrumError}
-                document={activeMoleculeDocument}
-                isBroadenedSpectrumLoading={isPreviewingBroadenedIrSpectrum}
-                isDownloadingDisplacedStructure={isDownloadingDisplacedStructure}
-                isGeneratingDisplacedStructure={isGeneratingDisplacedStructure}
-                isAnimationPlaying={isVibrationalModeAnimationPlaying}
-                onAnimationPlayingChange={setVibrationalModeAnimationPlaying}
-                onBroadenedSpectrumPreview={previewActiveBroadenedIrSpectrum}
-                onDownloadDisplacedStructure={
-                  downloadSelectedModeDisplacedStructure
-                }
-                onGenerateDisplacedStructure={
-                  generateSelectedModeDisplacedStructure
-                }
-                onSelectedModeIndexChange={selectVibrationalMode}
-                selectedModeIndex={selectedVibrationalMode?.index ?? null}
-              />
+              ) : (
+                <p className="workbench-placeholder">
+                  Open a trajectory or choose a result from the Results menu.
+                </p>
+              )}
             </div>
           ),
           export: (
@@ -676,19 +854,10 @@ export function App(): JSX.Element {
             />
             <ViewerPlaybackControls
               isTrajectoryPlaybackPlaying={isTrajectoryPlaybackPlaying}
-              isVibrationalModeAnimationPlaying={
-                isVibrationalModeAnimationPlaying
-              }
               onSelectedTrajectoryFrameIndexChange={selectTrajectoryFrame}
-              onSelectedVibrationalModeIndexChange={selectVibrationalMode}
               onTrajectoryPlaybackPlayingChange={setIsTrajectoryPlaybackPlaying}
-              onVibrationalModeAnimationPlayingChange={
-                setVibrationalModeAnimationPlaying
-              }
               selectedTrajectoryFrameIndex={selectedTrajectoryFrameIndex}
-              selectedVibrationalMode={selectedVibrationalMode}
               trajectoryDocument={trajectoryDocument}
-              vibrationalModes={vibrationalModes}
             />
             <ViewerStatusBar
               document={activeMoleculeDocument}
@@ -704,6 +873,16 @@ export function App(): JSX.Element {
         onActiveSectionChange={setSettingsDrawerSection}
         onClose={() => setIsSettingsDrawerOpen(false)}
       />
+      {activeResultsDialogCopy ? (
+        <WorkbenchDialog
+          description={activeResultsDialogCopy.description}
+          isOpen={activeResultsDialog !== null}
+          onClose={() => setActiveResultsDialog(null)}
+          title={activeResultsDialogCopy.title}
+        >
+          {resultsDialogContent}
+        </WorkbenchDialog>
+      ) : null}
     </>
   );
 }

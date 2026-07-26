@@ -597,6 +597,22 @@ function activateBottomDockTab(tabName: string): HTMLElement {
   return dock;
 }
 
+function openResultsDialog(menuItemName: string): HTMLElement {
+  const applicationMenu = screen.getByRole('navigation', {
+    name: 'Application menu',
+  });
+  fireEvent.click(
+    within(applicationMenu).getByRole('button', { name: 'Results' }),
+  );
+  fireEvent.click(
+    within(screen.getByRole('menu', { name: 'Results menu' })).getByRole(
+      'menuitem',
+      { name: menuItemName },
+    ),
+  );
+  return screen.getByRole('dialog');
+}
+
 describe('App', () => {
   beforeEach(() => {
     window.localStorage.removeItem(WORKBENCH_LAYOUT_PREFERENCES_STORAGE_KEY);
@@ -656,19 +672,25 @@ describe('App', () => {
     expect(
       within(documentSummary).getByText('str-H2O-102b86d02472'),
     ).toBeInTheDocument();
-    expect(within(documentSummary).getByText('structure')).toBeInTheDocument();
+    expect(within(documentSummary).getByText('Structure')).toBeInTheDocument();
     expect(within(documentSummary).getByText('water.xyz')).toBeInTheDocument();
-    expect(within(documentSummary).getByText('xyz')).toBeInTheDocument();
+    expect(within(documentSummary).getByText('XYZ')).toBeInTheDocument();
     expect(
       within(documentSummary).getByText('sample-data/water.xyz'),
     ).toBeInTheDocument();
+    const documentOpenPanel = screen.getByRole('region', {
+      name: 'Open Document',
+    });
+    expect(within(documentOpenPanel).getByRole('status')).toHaveTextContent(
+      'Opened water.xyz · 3 atoms',
+    );
     const viewerStatus = screen.getByRole('region', {
       name: 'Viewer status',
     });
     expect(viewerStatus).toHaveTextContent('3 atoms');
-    expect(viewerStatus).toHaveTextContent('2 bonds');
-    expect(viewerStatus).toHaveTextContent('charge unavailable');
-    expect(viewerStatus).toHaveTextContent('multiplicity unavailable');
+    expect(viewerStatus).not.toHaveTextContent('2 bonds');
+    expect(viewerStatus).not.toHaveTextContent('charge unavailable');
+    expect(viewerStatus).not.toHaveTextContent('multiplicity unavailable');
     expect(viewerStatus).toHaveTextContent('No atoms selected');
     expect(useViewerStore.getState().selectedAtomIndices).toEqual([]);
 
@@ -761,7 +783,7 @@ describe('App', () => {
       within(viewerWorkspace).getByRole('region', {
         name: 'Viewer playback controls',
       }),
-    ).toHaveTextContent('No trajectory or vibrational playback available.');
+    ).toHaveTextContent('No trajectory playback available.');
     expect(
       within(sidebar).getByRole('button', { name: 'Open Document' }),
     ).toBeInTheDocument();
@@ -788,8 +810,8 @@ describe('App', () => {
     fireEvent.click(within(dock).getByRole('tab', { name: 'Analysis' }));
     expect(
       within(dock).getByRole('tabpanel', { name: 'Analysis' }),
-    ).toContainElement(
-      within(dock).getByRole('region', { name: 'Vibrational Modes' }),
+    ).toHaveTextContent(
+      'Open a trajectory or choose a result from the Results menu.',
     );
 
     activateDisplaySidebar();
@@ -904,6 +926,32 @@ describe('App', () => {
     );
 
     expect(useViewerStore.getState().viewResetRequestId).toBe(1);
+
+    fireEvent.click(within(applicationMenu).getByRole('button', {
+      name: 'Results',
+    }));
+    const resultsMenu = screen.getByRole('menu', { name: 'Results menu' });
+    expect(
+      within(resultsMenu).getByRole('menuitem', { name: 'Vibrations...' }),
+    ).toBeDisabled();
+    expect(
+      within(resultsMenu).getByRole('menuitem', { name: 'IR Spectrum...' }),
+    ).toBeDisabled();
+    expect(
+      within(resultsMenu).getByRole('menuitem', {
+        name: 'Trajectory Energy Profile...',
+      }),
+    ).toBeDisabled();
+    expect(
+      within(resultsMenu).getByRole('menuitem', {
+        name: 'Charge Distribution...',
+      }),
+    ).toBeDisabled();
+    expect(
+      within(resultsMenu).queryByRole('menuitem', {
+        name: 'Show Analysis Dock',
+      }),
+    ).not.toBeInTheDocument();
   });
 
   it('opens the project and server settings drawer from the Settings menu', async () => {
@@ -922,7 +970,7 @@ describe('App', () => {
     fireEvent.click(
       within(screen.getByRole('menu', { name: 'Settings menu' })).getByRole(
         'menuitem',
-        { name: 'Project Settings...' },
+        { name: 'Project Settings (Preview)...' },
       ),
     );
 
@@ -934,9 +982,9 @@ describe('App', () => {
         name: 'Project Settings',
       }),
     ).toBeInTheDocument();
-    expect(within(projectDrawer).getByLabelText('program'))
+    expect(within(projectDrawer).getByLabelText('Program'))
       .toHaveValue('gaussian');
-    expect(within(projectDrawer).getByLabelText('filetype'))
+    expect(within(projectDrawer).getByLabelText('File type'))
       .toHaveValue('com');
     expect(
       within(projectDrawer).getByRole('button', {
@@ -957,7 +1005,7 @@ describe('App', () => {
     fireEvent.click(
       within(screen.getByRole('menu', { name: 'Settings menu' })).getByRole(
         'menuitem',
-        { name: 'Server Settings...' },
+        { name: 'Server Settings (Preview)...' },
       ),
     );
 
@@ -998,7 +1046,7 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
     const toolbox = screen.getByRole('region', { name: 'Viewer toolbox' });
 
-    expect(toolbox).toHaveTextContent('Selected atoms: 1, 2');
+    expect(toolbox).toHaveTextContent('Selected: 1, 2');
     fireEvent.click(
       within(toolbox).getByRole('button', { name: 'Clear Selection' }),
     );
@@ -1096,7 +1144,7 @@ describe('App', () => {
     );
   });
 
-  it('wires vibrational mode playback controls near the viewer', async () => {
+  it('opens vibrational mode playback controls from the Results menu', async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
       .mockResolvedValueOnce(jsonResponse(GAUSSIAN_OUTPUT_DOCUMENT));
@@ -1118,34 +1166,37 @@ describe('App', () => {
     const playback = screen.getByRole('region', {
       name: 'Viewer playback controls',
     });
-    expect(playback).toHaveTextContent('-530.2 cm^-1 imag');
-    fireEvent.change(
-      within(playback).getByLabelText('Viewer vibrational mode'),
-      {
-        target: { value: '2' },
-      },
+    expect(playback).toHaveTextContent('No trajectory playback available.');
+    expect(within(playback).queryByText('Vibration')).not.toBeInTheDocument();
+
+    const dialog = openResultsDialog('Vibrations...');
+    const modesPanel = within(dialog).getByRole('region', {
+      name: 'Vibrational Modes',
+    });
+    expect(
+      within(modesPanel).queryByRole('region', { name: 'IR Stick Spectrum' }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(
+      within(modesPanel).getByRole('button', { name: 'Select mode 2' }),
     );
     expect(screen.getByTestId('viewer-mode')).toHaveTextContent(
       JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT.vibrational_modes[1]),
     );
     expect(
-      within(playback).getByRole('button', { name: 'Play Mode Animation' }),
+      within(modesPanel).getByRole('button', { name: 'Play Mode Animation' }),
     ).toBeDisabled();
 
-    fireEvent.change(
-      within(playback).getByLabelText('Viewer vibrational mode'),
-      {
-        target: { value: '1' },
-      },
+    fireEvent.click(
+      within(modesPanel).getByRole('button', { name: 'Select mode 1' }),
     );
     fireEvent.click(
-      within(playback).getByRole('button', {
+      within(modesPanel).getByRole('button', {
         name: 'Play Mode Animation',
       }),
     );
     expect(screen.getByTestId('viewer-animation')).toHaveTextContent('true');
     expect(
-      within(playback).getByRole('button', {
+      within(modesPanel).getByRole('button', {
         name: 'Pause Mode Animation',
       }),
     ).toHaveAttribute('aria-pressed', 'true');
@@ -1193,7 +1244,7 @@ describe('App', () => {
     const propertiesTable = within(trajectoryPanel).getByRole('table', {
       name: 'Selected trajectory frame properties',
     });
-    expect(within(propertiesTable).getByText('energy_hartree'))
+    expect(within(propertiesTable).getByText('Energy (Hartree)'))
       .toBeInTheDocument();
     expect(within(propertiesTable).getByText('-76.1')).toBeInTheDocument();
     expect(
@@ -1237,6 +1288,48 @@ describe('App', () => {
     expect(within(selectedFramePropertiesTable).getByText('-76.2'))
       .toBeInTheDocument();
     expect(screen.queryByText('Unsaved edits')).not.toBeInTheDocument();
+  });
+
+  it('opens the trajectory energy profile from the Results menu', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
+      .mockResolvedValueOnce(jsonResponse(TRAJECTORY_DOCUMENT));
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText('Document path'), {
+      target: { value: 'sample-data/water.log' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(TRAJECTORY_FRAME_ONE),
+      );
+    });
+
+    const dialog = openResultsDialog('Trajectory Energy Profile...');
+    const profile = within(dialog).getByRole('region', {
+      name: 'Trajectory Energy Profile',
+    });
+    expect(
+      within(profile).getByRole('img', {
+        name: 'Trajectory energy profile chart',
+      }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      within(profile).getByRole('button', {
+        name: 'Select energy frame 2',
+      }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(TRAJECTORY_FRAME_TWO),
+      );
+    });
   });
 
   it('plays trajectory frames and loops to the first frame', async () => {
@@ -2002,8 +2095,8 @@ describe('App', () => {
       JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT.vibrational_modes[0]),
     );
     expect(screen.getByTestId('viewer-animation')).toHaveTextContent('false');
-    const dock = activateBottomDockTab('Analysis');
-    const modesPanel = within(dock).getByRole('region', {
+    const dialog = openResultsDialog('Vibrations...');
+    const modesPanel = within(dialog).getByRole('region', {
       name: 'Vibrational Modes',
     });
     const table = within(modesPanel).getByRole('table', {
@@ -2014,13 +2107,8 @@ describe('App', () => {
     expect(rows[1]).toHaveTextContent('Imaginary');
     expect(rows[2]).toHaveTextContent('1628.3334');
     expect(rows[2]).toHaveTextContent('Real');
-    expect(
-      within(modesPanel).getByRole('region', { name: 'IR Stick Spectrum' }),
-    ).toBeInTheDocument();
     fireEvent.click(
-      within(modesPanel).getByRole('button', {
-        name: 'Select IR peak mode 2',
-      }),
+      within(modesPanel).getByRole('button', { name: 'Select mode 2' }),
     );
     expect(screen.getByTestId('viewer-mode')).toHaveTextContent(
       JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT.vibrational_modes[1]),
@@ -2095,34 +2183,32 @@ describe('App', () => {
     });
     expect(
       screen.getByRole('region', { name: 'Viewer status' }),
-    ).toHaveTextContent('Mode 1: -530.2 cm^-1 (imaginary)');
-    const dock = activateBottomDockTab('Analysis');
-    const modesPanel = within(dock).getByRole('region', {
-      name: 'Vibrational Modes',
+    ).toHaveTextContent('Mode 1: -530.2 cm⁻¹ (imaginary)');
+    const dialog = openResultsDialog('IR Spectrum...');
+    const spectrumPanel = within(dialog).getByRole('region', {
+      name: 'IR Stick Spectrum',
     });
     fireEvent.click(
-      within(modesPanel).getByRole('button', {
-        name: 'Preview Broadened IR Spectrum',
+      within(spectrumPanel).getByRole('button', {
+        name: 'Preview Broadened Spectrum',
       }),
     );
 
     await waitFor(() => {
       expect(
-        within(modesPanel).getByRole('img', {
+        within(spectrumPanel).getByRole('img', {
           name: 'Broadened IR spectrum chart',
         }),
       ).toBeInTheDocument();
     });
-    const broadenedPanel = within(modesPanel).getByRole('region', {
+    const broadenedPanel = within(spectrumPanel).getByRole('region', {
       name: 'Broadened IR Spectrum',
     });
     expect(
-      within(broadenedPanel).getByRole('table', {
+      within(broadenedPanel).queryByRole('table', {
         name: 'Broadened IR spectrum points',
       }),
-    ).toBeInTheDocument();
-    expect(within(broadenedPanel).getByText('-530.2')).toBeInTheDocument();
-    expect(within(broadenedPanel).getByText('12.3')).toBeInTheDocument();
+    ).not.toBeInTheDocument();
     expect(fetchMock).toHaveBeenNthCalledWith(
       3,
       'http://127.0.0.1:8000/api/documents/ir-spectrum-preview',
@@ -2174,33 +2260,31 @@ describe('App', () => {
         JSON.stringify(ORCA_OUTPUT_FINAL_FRAME),
       );
     });
-    const modesPanel = within(dock).getByRole('region', {
-      name: 'Vibrational Modes',
-    });
-    const spectrumPanel = within(modesPanel).getByRole('region', {
+    const dialog = openResultsDialog('IR Spectrum...');
+    const spectrumPanel = within(dialog).getByRole('region', {
       name: 'IR Stick Spectrum',
     });
     expect(within(spectrumPanel).getByText('1625.35')).toBeInTheDocument();
     expect(within(spectrumPanel).getByText('64.27')).toBeInTheDocument();
 
     fireEvent.click(
-      within(modesPanel).getByRole('button', {
-        name: 'Preview Broadened IR Spectrum',
+      within(spectrumPanel).getByRole('button', {
+        name: 'Preview Broadened Spectrum',
       }),
     );
 
     await waitFor(() => {
       expect(
-        within(modesPanel).getByRole('img', {
+        within(spectrumPanel).getByRole('img', {
           name: 'Broadened IR spectrum chart',
         }),
       ).toBeInTheDocument();
     });
     expect(
-      within(modesPanel).getByRole('table', {
+      within(spectrumPanel).queryByRole('table', {
         name: 'Broadened IR spectrum points',
       }),
-    ).toBeInTheDocument();
+    ).not.toBeInTheDocument();
     expect(fetchMock).toHaveBeenNthCalledWith(
       3,
       'http://127.0.0.1:8000/api/documents/ir-spectrum-preview',
@@ -2242,8 +2326,8 @@ describe('App', () => {
         JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT),
       );
     });
-    const dock = activateBottomDockTab('Analysis');
-    const modesPanel = within(dock).getByRole('region', {
+    const dialog = openResultsDialog('Vibrations...');
+    const modesPanel = within(dialog).getByRole('region', {
       name: 'Vibrational Modes',
     });
     fireEvent.click(
@@ -2255,7 +2339,7 @@ describe('App', () => {
 
     fireEvent.click(
       within(modesPanel).getByRole('button', {
-        name: 'Generate + Displacement',
+        name: 'Generate Forward (+Q)',
       }),
     );
 
@@ -2332,8 +2416,8 @@ describe('App', () => {
         JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT),
       );
     });
-    const dock = activateBottomDockTab('Analysis');
-    const modesPanel = within(dock).getByRole('region', {
+    const dialog = openResultsDialog('Vibrations...');
+    const modesPanel = within(dialog).getByRole('region', {
       name: 'Vibrational Modes',
     });
     fireEvent.click(
@@ -2342,7 +2426,7 @@ describe('App', () => {
       }),
     );
     fireEvent.click(
-      within(modesPanel).getByRole('button', { name: 'Download - XYZ' }),
+      within(modesPanel).getByRole('button', { name: 'Download −Q as XYZ' }),
     );
 
     await waitFor(() => {
@@ -2426,13 +2510,13 @@ describe('App', () => {
         JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT),
       );
     });
+    const dialog = openResultsDialog('Vibrations...');
     fireEvent.click(
       within(
-        within(activateBottomDockTab('Analysis')).getByRole('region', {
+        within(dialog).getByRole('region', {
           name: 'Vibrational Modes',
         }),
-      )
-        .getByRole('button', { name: 'Download + XYZ' }),
+      ).getByRole('button', { name: 'Download +Q as XYZ' }),
     );
 
     await waitFor(() => {

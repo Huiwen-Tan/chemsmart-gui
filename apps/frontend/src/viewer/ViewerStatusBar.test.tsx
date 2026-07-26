@@ -57,15 +57,15 @@ describe('ViewerStatusBar', () => {
     expect(status).toHaveTextContent('No atoms selected');
   });
 
-  it('shows molecule counts and unavailable charge state from the document', () => {
+  it('omits unavailable charge and multiplicity from the compact status', () => {
     render(<ViewerStatusBar document={WATER} selectedAtomIndices={[]} />);
 
     const status = screen.getByRole('region', { name: 'Viewer status' });
 
     expect(status).toHaveTextContent('3 atoms');
-    expect(status).toHaveTextContent('2 bonds');
-    expect(status).toHaveTextContent('charge unavailable');
-    expect(status).toHaveTextContent('multiplicity unavailable');
+    expect(status).not.toHaveTextContent('2 bonds');
+    expect(status).not.toHaveTextContent('charge unavailable');
+    expect(status).not.toHaveTextContent('multiplicity unavailable');
   });
 
   it('shows provided charge, multiplicity, and valid selected atoms', () => {
@@ -95,7 +95,7 @@ describe('ViewerStatusBar', () => {
 
     expect(
       within(screen.getByRole('region', { name: 'Viewer status' })).getByText(
-        'Mode 1: -530.2 cm^-1 (imaginary)',
+        'Mode 1: -530.2 cm⁻¹ (imaginary)',
       ),
     ).toBeInTheDocument();
   });

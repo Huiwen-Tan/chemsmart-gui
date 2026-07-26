@@ -184,11 +184,15 @@ function spyOnDisposal(object: THREE.Object3D) {
   };
 }
 
-function linePosition(line: THREE.Line, index: number): number[] {
-  const positions = line.geometry.getAttribute(
-    'position',
-  ) as THREE.BufferAttribute;
-  return [positions.getX(index), positions.getY(index), positions.getZ(index)];
+function bondEndpointPosition(
+  bond: THREE.Mesh,
+  endpoint: 'start' | 'end',
+): number[] {
+  bond.updateMatrixWorld(true);
+  const localY = endpoint === 'start' ? -0.5 : 0.5;
+  return new THREE.Vector3(0, localY, 0)
+    .applyMatrix4(bond.matrixWorld)
+    .toArray();
 }
 
 function expectPositionCloseTo(
@@ -224,7 +228,7 @@ describe('MoleculeScene', () => {
     const waterBondObjects = bondObjects(scene);
     expect(waterBondObjects).toHaveLength(2);
     expect(
-      waterBondObjects.every((object) => object instanceof THREE.Line),
+      waterBondObjects.every((object) => object instanceof THREE.Mesh),
     ).toBe(true);
     expect(
       waterBondObjects.every((object) => object.userData.atomIndex === undefined),
@@ -432,11 +436,19 @@ describe('MoleculeScene', () => {
       -0.15,
     ]);
     const firstBond = bondObjects(scene)[0];
-    if (!(firstBond instanceof THREE.Line)) {
-      throw new Error('Expected first bond to be a Three.js line');
+    if (!(firstBond instanceof THREE.Mesh)) {
+      throw new Error('Expected first bond to be a Three.js mesh');
     }
-    expectPositionCloseTo(linePosition(firstBond, 0), [0, 0, -0.15]);
-    expectPositionCloseTo(linePosition(firstBond, 1), [1.1, 0.6, 0.15]);
+    expectPositionCloseTo(bondEndpointPosition(firstBond, 'start'), [
+      0,
+      0,
+      -0.15,
+    ]);
+    expectPositionCloseTo(bondEndpointPosition(firstBond, 'end'), [
+      1.1,
+      0.6,
+      0.15,
+    ]);
     expectPositionCloseTo(
       modeDisplacementObjects(scene)[1].position.toArray(),
       [1.1, 0.6, 0.15],
@@ -446,8 +458,12 @@ describe('MoleculeScene', () => {
 
     expectPositionCloseTo(atomPosition(scene, 1), [0, 0, 0]);
     expectPositionCloseTo(atomPosition(scene, 2), [0.8, 0.6, 0]);
-    expectPositionCloseTo(linePosition(firstBond, 0), [0, 0, 0]);
-    expectPositionCloseTo(linePosition(firstBond, 1), [0.8, 0.6, 0]);
+    expectPositionCloseTo(bondEndpointPosition(firstBond, 'start'), [0, 0, 0]);
+    expectPositionCloseTo(bondEndpointPosition(firstBond, 'end'), [
+      0.8,
+      0.6,
+      0,
+    ]);
     expectPositionCloseTo(
       modeDisplacementObjects(scene)[1].position.toArray(),
       [0.8, 0.6, 0],
@@ -508,9 +524,9 @@ describe('MoleculeScene', () => {
   it('highlights selected atoms while preserving elemental colors', () => {
     const moleculeScene = new MoleculeScene();
     moleculeScene.setMolecule(WATER);
-    const bondMaterials = moleculeObjects(moleculeScene.getScene())
-      .filter((object) => object instanceof THREE.Line)
-      .map((object) => object.material as THREE.LineBasicMaterial);
+    const bondMaterials = bondObjects(moleculeScene.getScene())
+      .filter((object): object is THREE.Mesh => object instanceof THREE.Mesh)
+      .map((object) => object.material as THREE.MeshStandardMaterial);
     const materials = atomMaterials(moleculeScene.getScene());
     const baseColors = materials.map((material) => material.color.getHex());
     const bondColors = bondMaterials.map((material) => material.color.getHex());

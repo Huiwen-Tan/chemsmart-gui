@@ -1,6 +1,6 @@
 export const ELEMENT_COLORS: Record<string, number> = {
   H: 0xffffff,
-  C: 0x3a3a3a,
+  C: 0x909090,
   N: 0x3050f8,
   O: 0xff0d0d,
   F: 0x90e050,

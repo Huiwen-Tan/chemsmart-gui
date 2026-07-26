@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 export type SettingsDrawerSection = 'project' | 'server';
 
@@ -17,26 +17,69 @@ const SETTINGS_SECTIONS: ReadonlyArray<{
   { id: 'server', label: 'Server Settings' },
 ];
 
+function focusableElements(container: HTMLElement | null): HTMLElement[] {
+  if (!container) {
+    return [];
+  }
+  return Array.from(
+    container.querySelectorAll<HTMLElement>(
+      'button:not(:disabled), input:not(:disabled), select:not(:disabled), ' +
+        'textarea:not(:disabled), [href], [tabindex]:not([tabindex="-1"])',
+    ),
+  );
+}
+
 export function SettingsDrawer({
   activeSection,
   isOpen,
   onActiveSectionChange,
   onClose,
 }: SettingsDrawerProps): JSX.Element | null {
+  const drawerRef = useRef<HTMLElement | null>(null);
+  const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
+
   useEffect(() => {
     if (!isOpen) {
       return undefined;
     }
 
-    const closeOnEscape = (event: KeyboardEvent): void => {
+    previouslyFocusedElementRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    const [firstFocusableElement] = focusableElements(drawerRef.current);
+    (firstFocusableElement ?? drawerRef.current)?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') {
         onClose();
+        return;
+      }
+      if (event.key !== 'Tab') {
+        return;
+      }
+
+      const elements = focusableElements(drawerRef.current);
+      const firstElement = elements[0];
+      const lastElement = elements[elements.length - 1];
+      if (!firstElement || !lastElement) {
+        event.preventDefault();
+        drawerRef.current?.focus();
+        return;
+      }
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+      } else if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
       }
     };
 
-    window.addEventListener('keydown', closeOnEscape);
+    window.addEventListener('keydown', handleKeyDown);
     return () => {
-      window.removeEventListener('keydown', closeOnEscape);
+      window.removeEventListener('keydown', handleKeyDown);
+      previouslyFocusedElementRef.current?.focus();
     };
   }, [isOpen, onClose]);
 
@@ -45,22 +88,33 @@ export function SettingsDrawer({
   }
 
   return (
-    <div className="workbench-settings-drawer-backdrop">
+    <div
+      className="workbench-settings-drawer-backdrop"
+      onPointerDown={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
+    >
       <aside
         aria-labelledby="workbench-settings-drawer-heading"
         aria-modal="true"
         className="workbench-settings-drawer"
+        ref={drawerRef}
         role="dialog"
+        tabIndex={-1}
       >
         <header className="workbench-settings-drawer-header">
           <div>
-            <p className="workbench-eyebrow">Settings</p>
-            <h2 id="workbench-settings-drawer-heading">
-              Workbench Settings
-            </h2>
+            <div className="workbench-heading-row">
+              <h2 id="workbench-settings-drawer-heading">
+                Workbench Settings
+              </h2>
+              <span className="workbench-preview-badge">Preview</span>
+            </div>
             <p>
-              Draft project and server settings for future CHEMSMART service
-              integration. Nothing here writes to ~/.chemsmart/ yet.
+              Review the planned project and server configuration fields.
+              Preview values are read-only and are not saved yet.
             </p>
           </div>
           <button
@@ -113,7 +167,10 @@ function ProjectSettingsSection(): JSX.Element {
         </p>
       </div>
 
-      <form className="workbench-settings-form">
+      <fieldset className="workbench-settings-form" disabled>
+        <legend className="workbench-visually-hidden">
+          Project settings preview fields
+        </legend>
         <label className="workbench-field">
           <span className="workbench-field-label">Project name</span>
           <input
@@ -123,14 +180,14 @@ function ProjectSettingsSection(): JSX.Element {
           />
         </label>
         <label className="workbench-field">
-          <span className="workbench-field-label">program</span>
+          <span className="workbench-field-label">Program</span>
           <select className="workbench-input" defaultValue="gaussian">
             <option value="gaussian">gaussian</option>
             <option value="orca">orca</option>
           </select>
         </label>
         <label className="workbench-field">
-          <span className="workbench-field-label">filetype</span>
+          <span className="workbench-field-label">File type</span>
           <select className="workbench-input" defaultValue="com">
             <option value="com">com</option>
             <option value="gjf">gjf</option>
@@ -138,7 +195,7 @@ function ProjectSettingsSection(): JSX.Element {
           </select>
         </label>
         <label className="workbench-field">
-          <span className="workbench-field-label">method</span>
+          <span className="workbench-field-label">Method</span>
           <input
             className="workbench-input"
             defaultValue="B3LYP"
@@ -146,7 +203,7 @@ function ProjectSettingsSection(): JSX.Element {
           />
         </label>
         <label className="workbench-field">
-          <span className="workbench-field-label">basis</span>
+          <span className="workbench-field-label">Basis</span>
           <input
             className="workbench-input"
             defaultValue="def2-SVP"
@@ -154,7 +211,7 @@ function ProjectSettingsSection(): JSX.Element {
           />
         </label>
         <label className="workbench-field">
-          <span className="workbench-field-label">jobtype</span>
+          <span className="workbench-field-label">Job type</span>
           <select className="workbench-input" defaultValue="opt">
             <option value="opt">opt</option>
             <option value="freq">freq</option>
@@ -163,11 +220,11 @@ function ProjectSettingsSection(): JSX.Element {
           </select>
         </label>
         <label className="workbench-field">
-          <span className="workbench-field-label">charge</span>
+          <span className="workbench-field-label">Charge</span>
           <input className="workbench-input" defaultValue="0" type="number" />
         </label>
         <label className="workbench-field">
-          <span className="workbench-field-label">multiplicity</span>
+          <span className="workbench-field-label">Multiplicity</span>
           <input className="workbench-input" defaultValue="1" type="number" />
         </label>
         <label className="workbench-field">
@@ -178,14 +235,14 @@ function ProjectSettingsSection(): JSX.Element {
           </select>
         </label>
         <label className="workbench-field workbench-field-wide">
-          <span className="workbench-field-label">route_string</span>
+          <span className="workbench-field-label">Route</span>
           <textarea
             className="workbench-input"
             defaultValue="# opt freq b3lyp/def2svp"
             rows={3}
           />
         </label>
-      </form>
+      </fieldset>
 
       <div className="workbench-settings-drawer-actions">
         <button className="workbench-button" disabled type="button">
@@ -200,7 +257,7 @@ function ProjectSettingsSection(): JSX.Element {
         </button>
       </div>
       <p className="workbench-placeholder">
-        Project settings persistence will be enabled when the CHEMSMART
+        Preview only. Project settings become editable when the CHEMSMART
         settings service is connected.
       </p>
     </section>
@@ -221,7 +278,10 @@ function ServerSettingsSection(): JSX.Element {
         </p>
       </div>
 
-      <form className="workbench-settings-form">
+      <fieldset className="workbench-settings-form" disabled>
+        <legend className="workbench-visually-hidden">
+          Server settings preview fields
+        </legend>
         <label className="workbench-field">
           <span className="workbench-field-label">Server profile</span>
           <input
@@ -279,7 +339,7 @@ function ServerSettingsSection(): JSX.Element {
             type="text"
           />
         </label>
-      </form>
+      </fieldset>
 
       <div className="workbench-settings-drawer-actions">
         <button className="workbench-button" disabled type="button">
@@ -294,8 +354,8 @@ function ServerSettingsSection(): JSX.Element {
         </button>
       </div>
       <p className="workbench-placeholder">
-        Connection tests and server profile persistence will be enabled after a
-        CHEMSMART settings service is available.
+        Preview only. Connection tests and server profiles become editable
+        after the CHEMSMART settings service is available.
       </p>
     </section>
   );

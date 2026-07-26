@@ -10,7 +10,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
   MoleculeDocument,
   TrajectoryDocument,
-  VibrationalMode,
 } from '../shared/types';
 import { ViewerPlaybackControls } from './ViewerPlaybackControls';
 
@@ -50,36 +49,12 @@ const TRAJECTORY = {
   frame_properties: [{}, {}],
 } satisfies TrajectoryDocument;
 
-const IMAGINARY_MODE = {
-  index: 1,
-  frequency_cm_minus_1: -530.2,
-  is_imaginary: true,
-  reduced_mass_amu: null,
-  force_constant_mdyne_per_angstrom: null,
-  ir_intensity_km_per_mol: 12.3,
-  symmetry: null,
-  displacements: [{ atom_index: 1, x: 0, y: 0, z: -0.1 }],
-} satisfies VibrationalMode;
-
-const REAL_MODE_WITHOUT_DISPLACEMENTS = {
-  ...IMAGINARY_MODE,
-  index: 2,
-  frequency_cm_minus_1: 1628.3334,
-  is_imaginary: false,
-  displacements: [],
-} satisfies VibrationalMode;
-
 const DEFAULT_PROPS = {
   isTrajectoryPlaybackPlaying: false,
-  isVibrationalModeAnimationPlaying: false,
   onSelectedTrajectoryFrameIndexChange: vi.fn(),
-  onSelectedVibrationalModeIndexChange: vi.fn(),
   onTrajectoryPlaybackPlayingChange: vi.fn(),
-  onVibrationalModeAnimationPlayingChange: vi.fn(),
   selectedTrajectoryFrameIndex: 0,
-  selectedVibrationalMode: null,
   trajectoryDocument: null,
-  vibrationalModes: [],
 };
 
 describe('ViewerPlaybackControls', () => {
@@ -93,7 +68,7 @@ describe('ViewerPlaybackControls', () => {
 
     expect(screen.getByRole('region', {
       name: 'Viewer playback controls',
-    })).toHaveTextContent('No trajectory or vibrational playback available.');
+    })).toHaveTextContent('No trajectory playback available.');
   });
 
   it('runs trajectory frame and playback controls', () => {
@@ -140,57 +115,5 @@ describe('ViewerPlaybackControls', () => {
       .toHaveBeenCalledTimes(2);
     expect(DEFAULT_PROPS.onTrajectoryPlaybackPlayingChange)
       .toHaveBeenCalledWith(true);
-  });
-
-  it('runs vibrational mode selection and animation controls', () => {
-    render(
-      <ViewerPlaybackControls
-        {...DEFAULT_PROPS}
-        selectedVibrationalMode={IMAGINARY_MODE}
-        vibrationalModes={[IMAGINARY_MODE, REAL_MODE_WITHOUT_DISPLACEMENTS]}
-      />,
-    );
-
-    const playback = screen.getByRole('region', {
-      name: 'Viewer playback controls',
-    });
-    expect(playback).toHaveTextContent('-530.2 cm^-1 imag');
-
-    fireEvent.change(
-      within(playback).getByLabelText('Viewer vibrational mode'),
-      {
-        target: { value: '2' },
-      },
-    );
-    fireEvent.click(
-      within(playback).getByRole('button', {
-        name: 'Play Mode Animation',
-      }),
-    );
-
-    expect(DEFAULT_PROPS.onSelectedVibrationalModeIndexChange)
-      .toHaveBeenCalledWith(2);
-    expect(DEFAULT_PROPS.onVibrationalModeAnimationPlayingChange)
-      .toHaveBeenCalledWith(true);
-  });
-
-  it('disables mode animation when displacement vectors are unavailable', () => {
-    render(
-      <ViewerPlaybackControls
-        {...DEFAULT_PROPS}
-        selectedVibrationalMode={REAL_MODE_WITHOUT_DISPLACEMENTS}
-        vibrationalModes={[REAL_MODE_WITHOUT_DISPLACEMENTS]}
-      />,
-    );
-
-    const playback = screen.getByRole('region', {
-      name: 'Viewer playback controls',
-    });
-    expect(
-      within(playback).getByRole('button', {
-        name: 'Play Mode Animation',
-      }),
-    ).toBeDisabled();
-    expect(playback).toHaveTextContent('No displacement vectors available.');
   });
 });

@@ -7,8 +7,8 @@ import {
 } from './WorkbenchMenuBar';
 
 type SidebarView = 'explorer' | 'tasks' | 'display';
-type BottomDockTab = 'properties' | 'export' | 'logs' | 'analysis';
-type RightPanelTab = 'details' | 'inspector';
+type BottomDockTab = 'properties' | 'export' | 'analysis';
+type RightPanelTab = 'details';
 type ApplicationMenuId =
   | 'file'
   | 'edit'
@@ -62,11 +62,6 @@ const BOTTOM_DOCK_TABS: ReadonlyArray<PlaceholderTab<BottomDockTab>> = [
     description: 'Export previews and save actions will appear here.',
   },
   {
-    id: 'logs',
-    label: 'Logs',
-    description: 'Application and workflow logs will appear here.',
-  },
-  {
     id: 'analysis',
     label: 'Analysis',
     description: 'Frequency, trajectory, and spectrum panels will appear here.',
@@ -78,11 +73,6 @@ const RIGHT_PANEL_TABS: ReadonlyArray<PlaceholderTab<RightPanelTab>> = [
     id: 'details',
     label: 'Details',
     description: 'Contextual analysis details will appear here.',
-  },
-  {
-    id: 'inspector',
-    label: 'Inspector',
-    description: 'Document and viewer inspector controls will appear here.',
   },
 ];
 
@@ -212,7 +202,6 @@ export function AppShell({
     <div className="workbench-root">
       <header className="workbench-header">
         <div className="workbench-header-brand">
-          <p className="workbench-eyebrow">CHEMSMART Workbench</p>
           <h1 className="workbench-title">CHEMSMART GUI</h1>
         </div>
         <WorkbenchMenuBar groups={applicationMenuGroups} />
@@ -398,13 +387,6 @@ function createApplicationMenuGroups({
           label: 'Show Details Panel',
           onSelect: () => setActiveRightPanelTab('details'),
         },
-        {
-          active: rightPanelTab === 'inspector',
-          id: 'view-inspector-panel',
-          kind: 'action',
-          label: 'Show Inspector Panel',
-          onSelect: () => setActiveRightPanelTab('inspector'),
-        },
       ]),
     },
     {
@@ -415,7 +397,7 @@ function createApplicationMenuGroups({
     {
       id: 'results',
       label: 'Results',
-      items: composeMenuItems(menuItems?.results, [
+      items: menuItems?.results ?? [
         {
           active: bottomDockTab === 'properties',
           id: 'show-properties-dock',
@@ -430,14 +412,7 @@ function createApplicationMenuGroups({
           label: 'Show Analysis Dock',
           onSelect: () => setActiveBottomDockTab('analysis'),
         },
-        {
-          active: bottomDockTab === 'logs',
-          id: 'show-logs-dock',
-          kind: 'action',
-          label: 'Show Logs Dock',
-          onSelect: () => setActiveBottomDockTab('logs'),
-        },
-      ]),
+      ],
     },
     {
       id: 'settings',

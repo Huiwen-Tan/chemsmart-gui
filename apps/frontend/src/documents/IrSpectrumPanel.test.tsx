@@ -126,14 +126,11 @@ describe('IrSpectrumPanel', () => {
     expect(
       within(panel).getByRole('img', { name: 'IR stick spectrum chart' }),
     ).toBeInTheDocument();
-    expect(
-      within(panel).getByText('frequency_cm_minus_1'),
-    ).toBeInTheDocument();
-    expect(
-      within(panel).getByText('ir_intensity_km_per_mol'),
-    ).toBeInTheDocument();
-    expect(within(panel).getByText('cm^-1')).toBeInTheDocument();
-    expect(within(panel).getByText('km/mol')).toBeInTheDocument();
+    expect(within(panel).queryByText('frequency_cm_minus_1'))
+      .not.toBeInTheDocument();
+    expect(within(panel).queryByText('ir_intensity_km_per_mol'))
+      .not.toBeInTheDocument();
+    expect(within(panel).getAllByText(/cm⁻¹/).length).toBeGreaterThan(0);
 
     const table = within(panel).getByRole('table', {
       name: 'IR stick spectrum peaks',
@@ -142,16 +139,14 @@ describe('IrSpectrumPanel', () => {
 
     expect(rows).toHaveLength(3);
     expect(rows[0]).toHaveTextContent('Mode');
-    expect(rows[0]).toHaveTextContent('frequency_cm_minus_1 (cm^-1)');
-    expect(rows[0]).toHaveTextContent('ir_intensity_km_per_mol (km/mol)');
+    expect(rows[0]).toHaveTextContent('Frequency (cm⁻¹)');
+    expect(rows[0]).toHaveTextContent('IR intensity (km/mol)');
     expect(rows[1]).toHaveTextContent('Select IR mode 1');
     expect(rows[1]).toHaveTextContent('-530.2');
     expect(rows[1]).toHaveTextContent('12.3457');
-    expect(rows[1]).toHaveAttribute('aria-selected', 'true');
     expect(rows[2]).toHaveTextContent('Select IR mode 3');
     expect(rows[2]).toHaveTextContent('3745.5');
     expect(rows[2]).toHaveTextContent('4.5');
-    expect(rows[2]).toHaveAttribute('aria-selected', 'false');
     expect(
       within(table).queryByRole('button', { name: 'Select IR mode 2' }),
     ).not.toBeInTheDocument();
@@ -221,7 +216,7 @@ describe('IrSpectrumPanel', () => {
     );
     fireEvent.click(
       screen.getByRole('button', {
-        name: 'Preview Broadened IR Spectrum',
+        name: 'Preview Broadened Spectrum',
       }),
     );
 
@@ -232,7 +227,7 @@ describe('IrSpectrumPanel', () => {
     });
   });
 
-  it('shows broadened IR spectrum points returned by the backend', () => {
+  it('shows the broadened IR spectrum without dumping raw curve points', () => {
     render(
       <IrSpectrumPanel
         broadenedSpectrum={BROADENED_IR_SPECTRUM}
@@ -253,17 +248,11 @@ describe('IrSpectrumPanel', () => {
     expect(within(panel).getByText('20')).toBeInTheDocument();
     expect(within(panel).getByText('3')).toBeInTheDocument();
 
-    const table = within(panel).getByRole('table', {
-      name: 'Broadened IR spectrum points',
-    });
-    const rows = within(table).getAllByRole('row');
-
-    expect(rows).toHaveLength(4);
-    expect(rows[0]).toHaveTextContent('wavenumber_cm_minus_1 (cm^-1)');
-    expect(rows[0]).toHaveTextContent('intensity_km_per_mol (km/mol)');
-    expect(rows[1]).toHaveTextContent('-630.2');
-    expect(rows[2]).toHaveTextContent('-530.2');
-    expect(rows[2]).toHaveTextContent('12.3457');
+    expect(
+      within(panel).queryByRole('table', {
+        name: 'Broadened IR spectrum points',
+      }),
+    ).not.toBeInTheDocument();
   });
 
   it('shows broadened spectrum loading, error, and invalid-width states', () => {

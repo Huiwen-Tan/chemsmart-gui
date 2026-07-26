@@ -117,10 +117,10 @@ describe('VibrationalModesPanel', () => {
 
     expect(rows).toHaveLength(3);
     expect(rows[0]).toHaveTextContent('Mode');
-    expect(rows[0]).toHaveTextContent('Frequency (cm^-1)');
+    expect(rows[0]).toHaveTextContent('Frequency (cm⁻¹)');
     expect(rows[0]).toHaveTextContent('IR intensity (km/mol)');
     expect(rows[0]).toHaveTextContent('Reduced mass (amu)');
-    expect(rows[0]).toHaveTextContent('Force constant (mDyne/Angstrom)');
+    expect(rows[0]).toHaveTextContent('Force constant (mDyne/Å)');
 
     expect(rows[1]).toHaveTextContent('Select mode 1');
     expect(rows[1]).toHaveTextContent('-530.2');
@@ -304,10 +304,10 @@ describe('VibrationalModesPanel', () => {
     );
 
     fireEvent.click(
-      screen.getByRole('button', { name: 'Generate + Displacement' }),
+      screen.getByRole('button', { name: 'Generate Forward (+Q)' }),
     );
     fireEvent.click(
-      screen.getByRole('button', { name: 'Generate - Displacement' }),
+      screen.getByRole('button', { name: 'Generate Backward (−Q)' }),
     );
 
     expect(onGenerateDisplacedStructure).toHaveBeenNthCalledWith(
@@ -330,8 +330,8 @@ describe('VibrationalModesPanel', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Download + XYZ' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Download - XYZ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Download +Q as XYZ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Download −Q as XYZ' }));
 
     expect(onDownloadDisplacedStructure).toHaveBeenNthCalledWith(
       1,
@@ -354,16 +354,16 @@ describe('VibrationalModesPanel', () => {
     );
 
     expect(
-      screen.getByRole('button', { name: 'Generate + Displacement' }),
+      screen.getByRole('button', { name: 'Generate Forward (+Q)' }),
     ).toBeDisabled();
     expect(
-      screen.getByRole('button', { name: 'Generate - Displacement' }),
+      screen.getByRole('button', { name: 'Generate Backward (−Q)' }),
     ).toBeDisabled();
     expect(
-      screen.getByRole('button', { name: 'Download + XYZ' }),
+      screen.getByRole('button', { name: 'Download +Q as XYZ' }),
     ).toBeDisabled();
     expect(
-      screen.getByRole('button', { name: 'Download - XYZ' }),
+      screen.getByRole('button', { name: 'Download −Q as XYZ' }),
     ).toBeDisabled();
   });
 
@@ -378,10 +378,10 @@ describe('VibrationalModesPanel', () => {
     );
 
     expect(
-      screen.getByRole('button', { name: 'Download + XYZ' }),
+      screen.getByRole('button', { name: 'Download +Q as XYZ' }),
     ).toBeDisabled();
     expect(
-      screen.getByRole('button', { name: 'Download - XYZ' }),
+      screen.getByRole('button', { name: 'Download −Q as XYZ' }),
     ).toBeDisabled();
   });
 

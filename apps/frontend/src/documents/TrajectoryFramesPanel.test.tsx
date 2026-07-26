@@ -95,7 +95,7 @@ describe('TrajectoryFramesPanel', () => {
 
     const panel = screen.getByRole('region', { name: 'Trajectory Frames' });
     expect(within(panel).getByText('water-optimization')).toBeInTheDocument();
-    expect(within(panel).getByText('trajectory')).toBeInTheDocument();
+    expect(within(panel).getByText('Trajectory')).toBeInTheDocument();
     expect(within(panel).getByText('Frame 1 of 2')).toBeInTheDocument();
     expect(within(panel).getByText('frame-one')).toBeInTheDocument();
     expect(
@@ -123,12 +123,14 @@ describe('TrajectoryFramesPanel', () => {
     const propertiesTable = within(panel).getByRole('table', {
       name: 'Selected trajectory frame properties',
     });
-    expect(within(propertiesTable).getByText('energy_hartree')).toBeInTheDocument();
+    expect(within(propertiesTable).getByText('Energy (Hartree)'))
+      .toBeInTheDocument();
     expect(within(propertiesTable).getByText('-76.1')).toBeInTheDocument();
     expect(
-      within(propertiesTable).getByText('normal_termination'),
+      within(propertiesTable).getByText('Calculation state'),
     ).toBeInTheDocument();
-    expect(within(propertiesTable).getByText('true')).toBeInTheDocument();
+    expect(within(propertiesTable).getByText('Normal termination'))
+      .toBeInTheDocument();
 
     fireEvent.click(within(panel).getByRole('button', { name: 'Next Frame' }));
     expect(onSelectedFrameIndexChange).toHaveBeenCalledWith(1);
@@ -169,7 +171,7 @@ describe('TrajectoryFramesPanel', () => {
     expect(
       within(panel).getByRole('button', { name: 'Pause Trajectory' }),
     ).toHaveAttribute('aria-pressed', 'true');
-    expect(within(panel).getByText('gradient_norm')).toBeInTheDocument();
+    expect(within(panel).getByText('Gradient norm')).toBeInTheDocument();
     expect(within(panel).getByText('Unavailable')).toBeInTheDocument();
 
     fireEvent.change(within(panel).getByLabelText('Trajectory frame'), {

@@ -87,32 +87,37 @@ describe('DocumentSummaryPanel', () => {
 
     const panel = screen.getByRole('region', { name: 'Current Document' });
     expect(within(panel).getByText('str-H2O-102b86d02472')).toBeInTheDocument();
-    expect(within(panel).getByText('structure')).toBeInTheDocument();
+    expect(within(panel).getByText('Structure')).toBeInTheDocument();
     expect(within(panel).getByText('water.xyz')).toBeInTheDocument();
-    expect(within(panel).getByText('xyz')).toBeInTheDocument();
+    expect(within(panel).getByText('XYZ')).toBeInTheDocument();
     expect(
       within(panel).getByText('sample-data/water.xyz'),
     ).toBeInTheDocument();
     expect(within(panel).getByText('Source size')).toBeInTheDocument();
-    expect(within(panel).getByText('86 bytes')).toBeInTheDocument();
+    expect(within(panel).getByText('86 B')).toBeInTheDocument();
     expect(
-      within(panel).getByText('Source modified timestamp'),
+      within(panel).getByText('Source modified'),
     ).toBeInTheDocument();
-    expect(within(panel).getByText('123456789 ns')).toBeInTheDocument();
-    expect(within(panel).getByText('Calculation program')).toBeInTheDocument();
-    expect(within(panel).getByText('normal_termination')).toBeInTheDocument();
-    expect(within(panel).getByText('Calculation state')).toBeInTheDocument();
+    expect(
+      within(panel).getByText(new Date(123.456789).toLocaleString()),
+    ).toBeInTheDocument();
+    expect(within(panel).queryByText('Calculation program'))
+      .not.toBeInTheDocument();
+    expect(within(panel).queryByText('normal_termination'))
+      .not.toBeInTheDocument();
+    expect(within(panel).queryByText('Calculation state'))
+      .not.toBeInTheDocument();
     expect(within(panel).getByText('Molecule edit state')).toBeInTheDocument();
     expect(within(panel).getByText('No unsaved edits')).toBeInTheDocument();
-    expect(within(panel).getByText('Vibrational modes')).toBeInTheDocument();
+    expect(within(panel).queryByText('Vibrational modes'))
+      .not.toBeInTheDocument();
     expect(
-      within(panel).getByText('Imaginary vibrational modes'),
-    ).toBeInTheDocument();
+      within(panel).queryByText('Imaginary vibrational modes'),
+    ).not.toBeInTheDocument();
     expect(
-      within(panel).getByText('Vibrational frequency unit'),
-    ).toBeInTheDocument();
-    expect(within(panel).getAllByText('0')).toHaveLength(2);
-    expect(within(panel).getAllByText('Unavailable')).toHaveLength(4);
+      within(panel).queryByText('Vibrational frequency unit'),
+    ).not.toBeInTheDocument();
+    expect(within(panel).getByText('File type')).toBeInTheDocument();
   });
 
   it('shows unsaved molecule edit state for edited documents', () => {
@@ -138,7 +143,7 @@ describe('DocumentSummaryPanel', () => {
     );
 
     const panel = screen.getByRole('region', { name: 'Current Document' });
-    expect(within(panel).getAllByText('Unavailable')).toHaveLength(9);
+    expect(within(panel).getAllByText('Unavailable')).toHaveLength(5);
   });
 
   it('shows unavailable source revision when source lacks file metadata', () => {
@@ -158,7 +163,7 @@ describe('DocumentSummaryPanel', () => {
     );
 
     const panel = screen.getByRole('region', { name: 'Current Document' });
-    expect(within(panel).getAllByText('Unavailable')).toHaveLength(6);
+    expect(within(panel).getAllByText('Unavailable')).toHaveLength(2);
   });
 
   it('shows calculation metadata for output documents', () => {
@@ -166,19 +171,17 @@ describe('DocumentSummaryPanel', () => {
 
     const panel = screen.getByRole('region', { name: 'Current Document' });
     expect(within(panel).getByText('water.log')).toBeInTheDocument();
-    expect(within(panel).getByText('gaussian')).toBeInTheDocument();
-    expect(within(panel).getByText('true')).toBeInTheDocument();
+    expect(within(panel).getByText('Gaussian')).toBeInTheDocument();
     expect(within(panel).getByText('Normal termination')).toBeInTheDocument();
     expect(within(panel).getByText('2')).toBeInTheDocument();
     expect(within(panel).getByText('1')).toBeInTheDocument();
-    expect(within(panel).getByText('cm^-1')).toBeInTheDocument();
+    expect(within(panel).getByText('cm⁻¹')).toBeInTheDocument();
   });
 
   it('shows incomplete or failed state for non-normal termination', () => {
     render(<DocumentSummaryPanel document={INCOMPLETE_OUTPUT_DOCUMENT} />);
 
     const panel = screen.getByRole('region', { name: 'Current Document' });
-    expect(within(panel).getByText('false')).toBeInTheDocument();
     expect(within(panel).getByText('Incomplete or failed')).toBeInTheDocument();
   });
 });

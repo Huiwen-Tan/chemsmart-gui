@@ -28,7 +28,7 @@ describe('TaskCatalogPanel', () => {
       within(catalog).getByRole('button', { name: /Gaussian Calculation/ }),
     ).toHaveAttribute('aria-pressed', 'true');
     expect(within(catalog).getByText(
-      'Molecule, method, basis, jobtype, route_string',
+      'Molecule, method, basis, Job type, Route options',
     )).toBeInTheDocument();
     expect(
       within(catalog).getByRole('button', { name: 'Configure Task' }),
@@ -53,11 +53,11 @@ describe('TaskCatalogPanel', () => {
     expect(within(catalog).getByRole('heading', {
       name: 'Assemble Calculation Database',
     })).toBeInTheDocument();
-    expect(within(catalog).getByText('Calculation folders, program, filetype'))
+    expect(within(catalog).getByText('Calculation folders, program, File type'))
       .toBeInTheDocument();
     expect(
       within(catalog).getByText(
-        'Records with record_id, molecules, results, and provenance',
+        'Records with IDs, molecules, results, and provenance',
       ),
     ).toBeInTheDocument();
   });

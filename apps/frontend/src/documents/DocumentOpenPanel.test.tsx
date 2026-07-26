@@ -29,7 +29,8 @@ describe('DocumentOpenPanel', () => {
     const panel = screen.getByRole('region', { name: 'Open Document' });
     expect(within(panel).getByLabelText('Document path'))
       .toHaveValue('sample-data/water.xyz');
-    expect(within(panel).getByText('Backend health:')).toBeInTheDocument();
+    expect(within(panel).getByText('Backend:')).toBeInTheDocument();
+    expect(within(panel).getByText('Connected')).toBeInTheDocument();
     expect(
       within(panel).getByText('Ready to open a local document path.'),
     ).toBeInTheDocument();
@@ -63,6 +64,24 @@ describe('DocumentOpenPanel', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
     expect(onDocumentOpen).toHaveBeenCalledWith();
+  });
+
+  it('shows a successful document-open summary', () => {
+    render(
+      <DocumentOpenPanel
+        backendHealthStatus="ok"
+        documentOpenStatus="Opened water.xyz · 3 atoms"
+        documentPath="sample-data/water.xyz"
+        error={null}
+        isOpeningDocument={false}
+        onDocumentOpen={vi.fn()}
+        onDocumentPathChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Opened water.xyz · 3 atoms',
+    );
   });
 
   it('shows opening state and disables open controls', () => {

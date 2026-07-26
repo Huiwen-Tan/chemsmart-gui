@@ -113,7 +113,7 @@ const TASK_CATALOG_GROUPS: readonly TaskCatalogGroup[] = [
         disabledReason:
           'Database selection and assembler service integration are not connected yet.',
         inputs: ['Calculation folders', 'program', 'filetype'],
-        output: 'Records with record_id, molecules, results, and provenance',
+        output: 'Records with IDs, molecules, results, and provenance',
         status: 'planned',
       },
       {
@@ -194,10 +194,13 @@ export function TaskCatalogPanel(): JSX.Element {
   return (
     <section aria-labelledby="task-catalog-heading" className="workbench-task-catalog">
       <div className="workbench-panel-heading">
-        <h2 id="task-catalog-heading">Task Catalog</h2>
+        <div className="workbench-heading-row">
+          <h2 id="task-catalog-heading">Task Catalog</h2>
+          <span className="workbench-preview-badge">Preview</span>
+        </div>
         <p>
-          Browse CHEMSMART workflows. These entries are placeholders until
-          project settings, server settings, and service adapters are connected.
+          Explore the planned CHEMSMART workflow map. Tasks become actionable
+          as their project, server, and service adapters are connected.
         </p>
       </div>
       <div className="workbench-task-catalog-groups">
@@ -237,7 +240,7 @@ export function TaskCatalogPanel(): JSX.Element {
         <p>{selectedTask.description}</p>
         <dl>
           <dt>Required inputs</dt>
-          <dd>{selectedTask.inputs.join(', ')}</dd>
+          <dd>{selectedTask.inputs.map(formatTaskInput).join(', ')}</dd>
           <dt>Planned output</dt>
           <dd>{selectedTask.output}</dd>
           <dt>Status</dt>
@@ -258,4 +261,22 @@ function taskCatalogItems(): readonly TaskCatalogItem[] {
 
 function formatTaskStatus(status: TaskCatalogStatus): string {
   return status === 'planned' ? 'Planned' : 'Blocked';
+}
+
+function formatTaskInput(input: string): string {
+  const labels: Record<string, string> = {
+    energy_hartree: 'Energy',
+    filetype: 'File type',
+    frame_properties: 'Frame properties',
+    frequency_cm_minus_1: 'Frequencies',
+    jobtype: 'Job type',
+    molecule_id: 'Molecule ID',
+    normal_termination: 'Calculation state',
+    record_id: 'Record ID',
+    'record_id filters': 'Record filters',
+    route_string: 'Route options',
+    structure_id: 'Structure ID',
+    trajectory_id: 'Trajectory ID',
+  };
+  return labels[input] ?? input;
 }

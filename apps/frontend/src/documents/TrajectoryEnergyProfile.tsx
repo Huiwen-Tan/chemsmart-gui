@@ -100,25 +100,23 @@ export function TrajectoryEnergyProfile({
   return (
     <section
       aria-labelledby="trajectory-energy-profile-heading"
-      style={{ marginTop: 16 }}
+      className="workbench-result-section"
     >
       <h3 id="trajectory-energy-profile-heading">
         Trajectory Energy Profile
       </h3>
       {!document ? <p>No trajectory document loaded for energy profile.</p> : null}
       {document && energyPoints.length === 0 ? (
-        <p>No numeric energy_hartree values available for this trajectory.</p>
+        <p>No numeric energy values are available for this trajectory.</p>
       ) : null}
       {document && energyPoints.length > 0 ? (
         <>
-          <dl>
-            <dt>Energy field</dt>
-            <dd>energy_hartree</dd>
+          <dl className="workbench-metadata-list">
             <dt>Energy unit</dt>
             <dd>Hartree</dd>
             <dt>Plotted frames</dt>
             <dd>{energyPoints.length}</dd>
-            <dt>Selected frame energy_hartree</dt>
+            <dt>Selected frame energy</dt>
             <dd>
               {selectedEnergyPoint
                 ? formatEnergyHartree(selectedEnergyPoint.energyHartree)
@@ -127,40 +125,43 @@ export function TrajectoryEnergyProfile({
           </dl>
           <svg
             aria-label="Trajectory energy profile chart"
+            className="workbench-chart"
             role="img"
-            style={{
-              background: '#101826',
-              border: '1px solid #2d3748',
-              borderRadius: 8,
-              display: 'block',
-              height: 'auto',
-              maxWidth: 560,
-              width: '100%',
-            }}
             viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
           >
             <line
-              stroke="#64748b"
+              className="workbench-chart-axis"
               x1={PLOT_LEFT}
               x2={PLOT_LEFT}
               y1={PLOT_TOP}
               y2={PLOT_BOTTOM}
             />
             <line
-              stroke="#64748b"
+              className="workbench-chart-axis"
               x1={PLOT_LEFT}
               x2={PLOT_RIGHT}
               y1={PLOT_BOTTOM}
               y2={PLOT_BOTTOM}
             />
-            <text fill="#cbd5e1" fontSize="12" x={PLOT_LEFT} y="166">
+            <text
+              className="workbench-chart-label"
+              fontSize="12"
+              x={PLOT_LEFT}
+              y="166"
+            >
               Frame
             </text>
-            <text fill="#cbd5e1" fontSize="12" x="8" y="16">
+            <text
+              className="workbench-chart-label"
+              fontSize="12"
+              x="8"
+              y="16"
+            >
               Energy (Hartree)
             </text>
             {energyPoints.length > 1 ? (
               <polyline
+                className="workbench-chart-series-primary"
                 fill="none"
                 points={pointCoordinateString(
                   energyPoints,
@@ -168,7 +169,6 @@ export function TrajectoryEnergyProfile({
                   minEnergyHartree,
                   maxEnergyHartree,
                 )}
-                stroke="#60a5fa"
                 strokeWidth="2"
               />
             ) : null}
@@ -177,16 +177,19 @@ export function TrajectoryEnergyProfile({
               return (
                 <circle
                   aria-label={`Energy point frame ${point.frameIndex + 1}`}
+                  className={
+                    isSelected
+                      ? 'workbench-chart-series-selected'
+                      : 'workbench-chart-series-primary'
+                  }
                   cx={chartXForPoint(point, frameCount)}
                   cy={chartYForPoint(
                     point,
                     minEnergyHartree,
                     maxEnergyHartree,
                   )}
-                  fill={isSelected ? '#fbbf24' : '#60a5fa'}
                   key={point.frameIndex}
                   r={isSelected ? 6 : 4}
-                  stroke={isSelected ? '#f8fafc' : '#1e3a8a'}
                   strokeWidth="2"
                 />
               );
@@ -194,12 +197,12 @@ export function TrajectoryEnergyProfile({
           </svg>
           <table
             aria-label="Trajectory energy values"
-            style={{ marginTop: 8 }}
+            className="workbench-data-table"
           >
             <thead>
               <tr>
                 <th scope="col">Frame</th>
-                <th scope="col">energy_hartree (Hartree)</th>
+                <th scope="col">Energy (Hartree)</th>
                 <th scope="col">State</th>
               </tr>
             </thead>
@@ -207,7 +210,7 @@ export function TrajectoryEnergyProfile({
               {energyPoints.map((point) => {
                 const isSelected = point.frameIndex === selectedFrameIndex;
                 return (
-                  <tr aria-selected={isSelected} key={point.frameIndex}>
+                  <tr key={point.frameIndex}>
                     <th scope="row">
                       <button
                         aria-pressed={isSelected}

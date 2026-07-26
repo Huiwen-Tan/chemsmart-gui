@@ -21,7 +21,13 @@ function formatSourceSize(source: MoleculeDocument['source']): string {
   if (source?.size_bytes === undefined || source.size_bytes === null) {
     return 'Unavailable';
   }
-  return `${source.size_bytes} bytes`;
+  if (source.size_bytes < 1024) {
+    return `${source.size_bytes} B`;
+  }
+  if (source.size_bytes < 1024 * 1024) {
+    return `${(source.size_bytes / 1024).toFixed(1)} KB`;
+  }
+  return `${(source.size_bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function formatSourceModifiedTime(
@@ -33,12 +39,26 @@ function formatSourceModifiedTime(
   ) {
     return 'Unavailable';
   }
-  return `${source.modified_time_ns} ns`;
+  const modifiedTime = new Date(source.modified_time_ns / 1_000_000);
+  if (Number.isNaN(modifiedTime.getTime())) {
+    return 'Unavailable';
+  }
+  return modifiedTime.toLocaleString();
 }
 
 function countImaginaryModes(document: MoleculeDocument): number {
   return document.vibrational_modes.filter((mode) => mode.is_imaginary)
     .length;
+}
+
+function formatDocumentKind(kind: MoleculeDocument['document_kind']): string {
+  return kind === 'structure' ? 'Structure' : kind;
+}
+
+function formatProgram(
+  program: NonNullable<MoleculeDocument['calculation']>['program'],
+): string {
+  return program === 'orca' ? 'ORCA' : 'Gaussian';
 }
 
 export function DocumentSummaryPanel({
@@ -48,24 +68,24 @@ export function DocumentSummaryPanel({
   return (
     <section
       aria-labelledby="document-summary-heading"
-      style={{ marginTop: 16 }}
+      className="workbench-result-panel"
     >
       <h2 id="document-summary-heading">Current Document</h2>
       {document ? (
-        <dl>
+        <dl className="workbench-metadata-list">
           <dt>Name</dt>
           <dd>{document.name}</dd>
           <dt>Document kind</dt>
-          <dd>{document.document_kind}</dd>
+          <dd>{formatDocumentKind(document.document_kind)}</dd>
           <dt>Source file</dt>
           <dd>{document.source?.filename ?? 'Unavailable'}</dd>
-          <dt>Filetype</dt>
-          <dd>{document.source?.filetype ?? 'Unavailable'}</dd>
+          <dt>File type</dt>
+          <dd>{document.source?.filetype.toUpperCase() ?? 'Unavailable'}</dd>
           <dt>Source path</dt>
           <dd>{document.source?.path ?? 'Unavailable'}</dd>
           <dt>Source size</dt>
           <dd>{formatSourceSize(document.source)}</dd>
-          <dt>Source modified timestamp</dt>
+          <dt>Source modified</dt>
           <dd>{formatSourceModifiedTime(document.source)}</dd>
           <dt>Molecule edit state</dt>
           <dd>
@@ -73,26 +93,24 @@ export function DocumentSummaryPanel({
               ? 'Unsaved edits'
               : 'No unsaved edits'}
           </dd>
-          <dt>Calculation program</dt>
-          <dd>{document.calculation?.program ?? 'Unavailable'}</dd>
-          <dt>normal_termination</dt>
-          <dd>
-            {document.calculation
-              ? String(document.calculation.normal_termination)
-              : 'Unavailable'}
-          </dd>
-          <dt>Calculation state</dt>
-          <dd>{formatCalculationState(document.calculation)}</dd>
-          <dt>Vibrational modes</dt>
-          <dd>{document.vibrational_modes.length}</dd>
-          <dt>Imaginary vibrational modes</dt>
-          <dd>{countImaginaryModes(document)}</dd>
-          <dt>Vibrational frequency unit</dt>
-          <dd>
-            {document.vibrational_modes.length > 0
-              ? 'cm^-1'
-              : 'Unavailable'}
-          </dd>
+          {document.calculation ? (
+            <>
+              <dt>Calculation program</dt>
+              <dd>{formatProgram(document.calculation.program)}</dd>
+              <dt>Calculation state</dt>
+              <dd>{formatCalculationState(document.calculation)}</dd>
+            </>
+          ) : null}
+          {document.vibrational_modes.length > 0 ? (
+            <>
+              <dt>Vibrational modes</dt>
+              <dd>{document.vibrational_modes.length}</dd>
+              <dt>Imaginary vibrational modes</dt>
+              <dd>{countImaginaryModes(document)}</dd>
+              <dt>Vibrational frequency unit</dt>
+              <dd>cm⁻¹</dd>
+            </>
+          ) : null}
         </dl>
       ) : (
         <p>No document loaded.</p>

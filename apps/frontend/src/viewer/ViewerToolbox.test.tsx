@@ -55,7 +55,7 @@ describe('ViewerToolbox', () => {
     const toolbox = screen.getByRole('region', { name: 'Viewer toolbox' });
 
     expect(toolbox).toHaveTextContent('No molecule loaded');
-    expect(toolbox).toHaveTextContent('No atoms selected');
+    expect(toolbox).toHaveTextContent('Selected: none');
     expect(
       within(toolbox).getByRole('button', { name: 'Clear Selection' }),
     ).toBeDisabled();
@@ -79,7 +79,7 @@ describe('ViewerToolbox', () => {
     const toolbox = screen.getByRole('region', { name: 'Viewer toolbox' });
 
     expect(toolbox).toHaveTextContent('4 atoms');
-    expect(toolbox).toHaveTextContent('Selected atoms: 1, 2');
+    expect(toolbox).toHaveTextContent('Selected: 1, 2');
     expect(toolbox).not.toHaveTextContent('99');
 
     fireEvent.click(
@@ -168,7 +168,7 @@ describe('ViewerToolbox', () => {
       .toHaveTextContent('Dihedral measurement ready');
   });
 
-  it('keeps future edit tools disabled', () => {
+  it('does not expose unavailable edit tool placeholders', () => {
     render(
       <ViewerToolbox
         document={WATER}
@@ -185,13 +185,7 @@ describe('ViewerToolbox', () => {
     const toolbox = screen.getByRole('region', { name: 'Viewer toolbox' });
 
     expect(
-      within(toolbox).getByRole('button', { name: 'Add Atom Tool' }),
-    ).toBeDisabled();
-    expect(
-      within(toolbox).getByRole('button', { name: 'Bond Tool' }),
-    ).toBeDisabled();
-    expect(
-      within(toolbox).getByRole('button', { name: 'Geometry Tool' }),
-    ).toBeDisabled();
+      within(toolbox).queryByRole('group', { name: 'Edit tools' }),
+    ).not.toBeInTheDocument();
   });
 });

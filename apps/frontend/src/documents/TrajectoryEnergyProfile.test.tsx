@@ -114,7 +114,7 @@ describe('TrajectoryEnergyProfile', () => {
         name: 'Trajectory energy profile chart',
       }),
     ).toBeInTheDocument();
-    expect(within(profile).getByText('energy_hartree')).toBeInTheDocument();
+    expect(within(profile).getByText('Energy unit')).toBeInTheDocument();
     expect(within(profile).getByText('Hartree')).toBeInTheDocument();
     expect(within(profile).getByText('2')).toBeInTheDocument();
 
@@ -125,13 +125,17 @@ describe('TrajectoryEnergyProfile', () => {
 
     expect(rows).toHaveLength(3);
     expect(rows[0]).toHaveTextContent('Frame');
-    expect(rows[0]).toHaveTextContent('energy_hartree (Hartree)');
+    expect(rows[0]).toHaveTextContent('Energy (Hartree)');
     expect(rows[1]).toHaveTextContent('Select energy frame 1');
     expect(rows[1]).toHaveTextContent('-76.1');
-    expect(rows[1]).toHaveAttribute('aria-selected', 'true');
+    expect(
+      within(rows[1]).getByRole('button', { name: 'Select energy frame 1' }),
+    ).toHaveAttribute('aria-pressed', 'true');
     expect(rows[2]).toHaveTextContent('Select energy frame 2');
     expect(rows[2]).toHaveTextContent('-76.2');
-    expect(rows[2]).toHaveAttribute('aria-selected', 'false');
+    expect(
+      within(rows[2]).getByRole('button', { name: 'Select energy frame 2' }),
+    ).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('selects a frame from the energy table', () => {
@@ -187,7 +191,7 @@ describe('TrajectoryEnergyProfile', () => {
     expect(rows[1]).toHaveTextContent('Select energy frame 1');
     expect(rows[1]).toHaveTextContent('-76.1');
     expect(
-      within(profile).getByText('Selected frame energy_hartree'),
+      within(profile).getByText('Selected frame energy'),
     ).toBeInTheDocument();
     expect(within(profile).getByText('Unavailable')).toBeInTheDocument();
   });
@@ -208,7 +212,7 @@ describe('TrajectoryEnergyProfile', () => {
     });
     expect(
       within(profile).getByText(
-        'No numeric energy_hartree values available for this trajectory.',
+        'No numeric energy values are available for this trajectory.',
       ),
     ).toBeInTheDocument();
     expect(

@@ -14,7 +14,6 @@ export function ViewerStatusBar({
   const statusItems = document
     ? [
         formatCount(document.atoms.length, 'atom'),
-        formatCount(document.bonds.length, 'bond'),
         formatNullableNumber('charge', document.charge),
         formatNullableNumber('multiplicity', document.multiplicity),
         formatSelectedAtoms(document, selectedAtomIndices),
@@ -41,8 +40,8 @@ function formatCount(count: number, singularLabel: string): string {
   return `${count} ${singularLabel}${count === 1 ? '' : 's'}`;
 }
 
-function formatNullableNumber(label: string, value: number | null): string {
-  return value === null ? `${label} unavailable` : `${label} ${value}`;
+function formatNullableNumber(label: string, value: number | null): string | null {
+  return value === null ? null : `${label} ${value}`;
 }
 
 function formatSelectedAtoms(
@@ -77,7 +76,7 @@ function formatSelectedMode(
     : '';
   return (
     `Mode ${selectedVibrationalMode.index}: ` +
-    `${selectedVibrationalMode.frequency_cm_minus_1.toFixed(1)} cm^-1` +
+    `${selectedVibrationalMode.frequency_cm_minus_1.toFixed(1)} cm⁻¹` +
     imaginaryStatus
   );
 }

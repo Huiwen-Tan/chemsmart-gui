@@ -13,6 +13,30 @@ function formatScalarValue(value: JsonScalar): string {
   return value === null ? 'Unavailable' : String(value);
 }
 
+function formatFramePropertyName(propertyName: string): string {
+  const knownLabels: Record<string, string> = {
+    energy_hartree: 'Energy (Hartree)',
+    gradient_norm: 'Gradient norm',
+    normal_termination: 'Calculation state',
+  };
+  const knownLabel = knownLabels[propertyName];
+  if (knownLabel) {
+    return knownLabel;
+  }
+  const words = propertyName.replace(/_/g, ' ');
+  return `${words.charAt(0).toUpperCase()}${words.slice(1)}`;
+}
+
+function formatFramePropertyValue(
+  propertyName: string,
+  value: JsonScalar,
+): string {
+  if (propertyName === 'normal_termination' && typeof value === 'boolean') {
+    return value ? 'Normal termination' : 'Incomplete or failed';
+  }
+  return formatScalarValue(value);
+}
+
 function selectedFrameIndexForDocument(
   document: TrajectoryDocument,
   selectedFrameIndex: number,
@@ -52,27 +76,27 @@ export function TrajectoryFramesPanel({
   return (
     <section
       aria-labelledby="trajectory-frames-heading"
-      style={{ marginTop: 16 }}
+      className="workbench-result-panel"
     >
       <h2 id="trajectory-frames-heading">Trajectory Frames</h2>
       {!document ? <p>No trajectory document loaded.</p> : null}
       {document && selectedFrame ? (
         <>
-          <dl>
+          <dl className="workbench-metadata-list">
             <dt>Name</dt>
             <dd>{document.name}</dd>
             <dt>Document kind</dt>
-            <dd>{document.document_kind}</dd>
+            <dd>Trajectory</dd>
             <dt>Frames</dt>
             <dd>{frameCount}</dd>
             <dt>Selected frame</dt>
             <dd>
               Frame {effectiveFrameIndex + 1} of {frameCount}
             </dd>
-            <dt>Selected frame document</dt>
+            <dt>Frame name</dt>
             <dd>{selectedFrame.name}</dd>
           </dl>
-          <div>
+          <div className="workbench-control-row">
             <button
               disabled={effectiveFrameIndex === 0}
               onClick={() => selectFrame(effectiveFrameIndex - 1)}
@@ -80,7 +104,7 @@ export function TrajectoryFramesPanel({
             >
               Previous Frame
             </button>
-            <label style={{ display: 'inline-flex', gap: 6, marginLeft: 8 }}>
+            <label>
               Frame
               <select
                 aria-label="Trajectory frame"
@@ -99,13 +123,12 @@ export function TrajectoryFramesPanel({
             <button
               disabled={effectiveFrameIndex === frameCount - 1}
               onClick={() => selectFrame(effectiveFrameIndex + 1)}
-              style={{ marginLeft: 8 }}
               type="button"
             >
               Next Frame
             </button>
           </div>
-          <div style={{ marginTop: 8 }}>
+          <div className="workbench-action-row">
             <button
               aria-pressed={isPlaybackPlaying}
               disabled={!canPlay}
@@ -124,7 +147,10 @@ export function TrajectoryFramesPanel({
           />
           <h3>Frame Properties</h3>
           {selectedFramePropertyEntries.length > 0 ? (
-            <table aria-label="Selected trajectory frame properties">
+            <table
+              aria-label="Selected trajectory frame properties"
+              className="workbench-data-table"
+            >
               <thead>
                 <tr>
                   <th scope="col">Property</th>
@@ -134,8 +160,8 @@ export function TrajectoryFramesPanel({
               <tbody>
                 {selectedFramePropertyEntries.map(([propertyName, value]) => (
                   <tr key={propertyName}>
-                    <th scope="row">{propertyName}</th>
-                    <td>{formatScalarValue(value)}</td>
+                    <th scope="row">{formatFramePropertyName(propertyName)}</th>
+                    <td>{formatFramePropertyValue(propertyName, value)}</td>
                   </tr>
                 ))}
               </tbody>

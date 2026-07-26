@@ -564,7 +564,7 @@ export function SelectedAtomPanel({
   return (
     <section
       aria-labelledby="selected-atoms-heading"
-      style={{ marginTop: 16 }}
+      className="workbench-result-panel"
     >
       <h2 id="selected-atoms-heading">Selected Atoms</h2>
       {selectedAtoms.length === 0 ? (
@@ -578,9 +578,9 @@ export function SelectedAtomPanel({
           >
             Clear Selection
           </button>
-          <table style={{ borderCollapse: 'collapse', minWidth: 420 }}>
+          <table className="workbench-data-table">
             <caption style={{ textAlign: 'left', marginBottom: 8 }}>
-              Coordinates ({document?.coordinate_unit})
+              Coordinates ({formatCoordinateUnit(document?.coordinate_unit)})
             </caption>
             <thead>
               <tr>
@@ -658,7 +658,9 @@ export function SelectedAtomPanel({
                 </button>
               </fieldset>
               {coordinateEditError ? (
-                <p style={{ color: '#ff8080' }}>{coordinateEditError}</p>
+                <p className="workbench-error" role="alert">
+                  {coordinateEditError}
+                </p>
               ) : null}
             </form>
           ) : null}
@@ -690,7 +692,7 @@ export function SelectedAtomPanel({
                     {selectedAtomPair.secondAtom.element}
                   </legend>
                   <label style={{ display: 'inline-flex', gap: 6 }}>
-                    Distance ({document?.coordinate_unit})
+                    Distance ({formatCoordinateUnit(document?.coordinate_unit)})
                     <input
                       aria-label="Selected atom distance"
                       inputMode="decimal"
@@ -708,7 +710,9 @@ export function SelectedAtomPanel({
                   </button>
                 </fieldset>
                 {distanceEditError ? (
-                  <p style={{ color: '#ff8080' }}>{distanceEditError}</p>
+                  <p className="workbench-error" role="alert">
+                    {distanceEditError}
+                  </p>
                 ) : null}
               </form>
               <button
@@ -744,7 +748,7 @@ export function SelectedAtomPanel({
                   {angleMeasurement.thirdAtom.element}
                 </legend>
                 <label style={{ display: 'inline-flex', gap: 6 }}>
-                  Angle (degrees)
+                  Angle (°)
                   <input
                     aria-label="Selected atom angle"
                     inputMode="decimal"
@@ -762,7 +766,9 @@ export function SelectedAtomPanel({
                 </button>
               </fieldset>
               {angleEditError ? (
-                <p style={{ color: '#ff8080' }}>{angleEditError}</p>
+                <p className="workbench-error" role="alert">
+                  {angleEditError}
+                </p>
               ) : null}
             </form>
           ) : null}
@@ -784,7 +790,7 @@ export function SelectedAtomPanel({
                   {dihedralMeasurement.fourthAtom.element}
                 </legend>
                 <label style={{ display: 'inline-flex', gap: 6 }}>
-                  Dihedral (degrees)
+                  Dihedral (°)
                   <input
                     aria-label="Selected atom dihedral"
                     inputMode="decimal"
@@ -802,7 +808,9 @@ export function SelectedAtomPanel({
                 </button>
               </fieldset>
               {dihedralEditError ? (
-                <p style={{ color: '#ff8080' }}>{dihedralEditError}</p>
+                <p className="workbench-error" role="alert">
+                  {dihedralEditError}
+                </p>
               ) : null}
             </form>
           ) : null}
@@ -975,12 +983,16 @@ export function SelectedAtomPanel({
             </button>
           </fieldset>
           {atomEditError ? (
-            <p style={{ color: '#ff8080' }}>{atomEditError}</p>
+            <p className="workbench-error" role="alert">
+              {atomEditError}
+            </p>
           ) : null}
         </form>
       ) : null}
       {moleculeEditError ? (
-        <p style={{ color: '#ff8080' }}>{moleculeEditError}</p>
+        <p className="workbench-error" role="alert">
+          {moleculeEditError}
+        </p>
       ) : null}
       {distanceMeasurement ? (
         <p>
@@ -989,7 +1001,8 @@ export function SelectedAtomPanel({
           {distanceMeasurement.firstAtom.element} -{' '}
           {distanceMeasurement.secondAtom.index}{' '}
           {distanceMeasurement.secondAtom.element} ={' '}
-          {distanceMeasurement.value.toFixed(3)} {distanceMeasurement.unit}
+          {distanceMeasurement.value.toFixed(3)}{' '}
+          {formatCoordinateUnit(distanceMeasurement.unit)}
         </p>
       ) : null}
       {angleMeasurement ? (
@@ -1000,7 +1013,7 @@ export function SelectedAtomPanel({
           {angleMeasurement.vertexAtom.element} -{' '}
           {angleMeasurement.thirdAtom.index}{' '}
           {angleMeasurement.thirdAtom.element} ={' '}
-          {angleMeasurement.value.toFixed(3)} degrees
+          {angleMeasurement.value.toFixed(3)}°
         </p>
       ) : null}
       {dihedralMeasurement ? (
@@ -1013,9 +1026,13 @@ export function SelectedAtomPanel({
           {dihedralMeasurement.thirdAtom.element} -{' '}
           {dihedralMeasurement.fourthAtom.index}{' '}
           {dihedralMeasurement.fourthAtom.element} ={' '}
-          {dihedralMeasurement.value.toFixed(3)} degrees
+          {dihedralMeasurement.value.toFixed(3)}°
         </p>
       ) : null}
     </section>
   );
+}
+
+function formatCoordinateUnit(unit: string | undefined): string {
+  return unit === 'angstrom' ? 'Å' : (unit ?? 'Unavailable');
 }
