@@ -66,6 +66,37 @@ def test_open_document_returns_molecule_document() -> None:
     assert len(body["bonds"]) == 2
 
 
+def test_import_document_parses_upload_without_tracking_temporary_path() -> None:
+    response = client.post(
+        "/api/documents/import",
+        params={"filename": "chosen-water.xyz"},
+        content=b"3\nWater\nO 0.0 0.0 0.0\nH 0.8 0.6 0.0\nH -0.8 0.6 0.0\n",
+        headers={"Content-Type": "application/octet-stream"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["document_kind"] == "structure"
+    assert body["source"] is None
+    assert [atom["element"] for atom in body["atoms"]] == ["O", "H", "H"]
+
+    cached_response = client.get(f"/api/documents/{body['id']}")
+    assert cached_response.status_code == 200
+    assert cached_response.json()["source"] is None
+
+
+def test_import_document_reports_invalid_upload() -> None:
+    response = client.post(
+        "/api/documents/import",
+        params={"filename": "invalid.foo"},
+        content=b"not a molecular document",
+        headers={"Content-Type": "application/octet-stream"},
+    )
+
+    assert response.status_code == 400
+    assert "Unsupported molecular file format" in response.json()["detail"]
+
+
 def test_open_document_response_model_accepts_trajectory_document() -> None:
     frame = MoleculeDocument(
         id="trajectory-frame-one",

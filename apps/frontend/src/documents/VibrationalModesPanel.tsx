@@ -29,6 +29,8 @@ interface VibrationalModesPanelProps {
   onDownloadDisplacedStructure?: (
     direction: ModeDisplacementDirection,
   ) => void;
+  onShowDisplacementVectorsChange?: (showVectors: boolean) => void;
+  showDisplacementVectors?: boolean;
   showIrSpectrum?: boolean;
 }
 
@@ -49,9 +51,7 @@ function selectedModeFromIndex(
   selectedModeIndex: number | null,
 ): VibrationalMode | null {
   return (
-    modes.find((mode) => mode.index === selectedModeIndex) ??
-    modes[0] ??
-    null
+    modes.find((mode) => mode.index === selectedModeIndex) ?? null
   );
 }
 
@@ -69,6 +69,8 @@ export function VibrationalModesPanel({
   onGenerateDisplacedStructure,
   isDownloadingDisplacedStructure = false,
   onDownloadDisplacedStructure,
+  onShowDisplacementVectorsChange,
+  showDisplacementVectors = false,
   showIrSpectrum = true,
 }: VibrationalModesPanelProps): JSX.Element {
   const modes = document?.vibrational_modes ?? [];
@@ -82,7 +84,7 @@ export function VibrationalModesPanel({
   const selectedMode = selectedModeFromIndex(modes, activeSelectedModeIndex);
 
   useEffect(() => {
-    setInternalSelectedModeIndex(modes[0]?.index ?? null);
+    setInternalSelectedModeIndex(null);
   }, [document?.id, modeIndexSignature]);
 
   const selectMode = (modeIndex: number): void => {
@@ -103,7 +105,7 @@ export function VibrationalModesPanel({
   return (
     <section
       aria-labelledby="vibrational-modes-heading"
-      className="workbench-result-panel"
+      className="workbench-result-panel workbench-vibration-panel"
     >
       <h2 id="vibrational-modes-heading">Vibrational Modes</h2>
       {!document ? <p>No document loaded for vibrational modes.</p> : null}
@@ -111,49 +113,162 @@ export function VibrationalModesPanel({
         <p>No vibrational modes available for this document.</p>
       ) : null}
       {modes.length > 0 ? (
-        <table
-          aria-label="Vibrational mode table"
-          className="workbench-data-table"
-        >
-          <thead>
-            <tr>
-              <th scope="col">Mode</th>
-              <th scope="col">Frequency (cm⁻¹)</th>
-              <th scope="col">Type</th>
-              <th scope="col">IR intensity (km/mol)</th>
-              <th scope="col">Symmetry</th>
-              <th scope="col">Reduced mass (amu)</th>
-              <th scope="col">Force constant (mDyne/Å)</th>
-              <th scope="col">Displacement vectors</th>
-            </tr>
-          </thead>
-          <tbody>
-            {modes.map((mode) => (
-              <tr key={mode.index}>
-                <th scope="row">
-                  <button
-                    aria-pressed={selectedMode?.index === mode.index}
-                    onClick={() => selectMode(mode.index)}
-                    type="button"
-                  >
-                    Select mode {mode.index}
-                  </button>
-                </th>
-                <td>{formatNumber(mode.frequency_cm_minus_1)}</td>
-                <td>{mode.is_imaginary ? 'Imaginary' : 'Real'}</td>
-                <td>{formatOptionalNumber(mode.ir_intensity_km_per_mol)}</td>
-                <td>{formatOptionalString(mode.symmetry)}</td>
-                <td>{formatOptionalNumber(mode.reduced_mass_amu)}</td>
-                <td>
-                  {formatOptionalNumber(
-                    mode.force_constant_mdyne_per_angstrom,
-                  )}
-                </td>
-                <td>{mode.displacements.length}</td>
+        <div className="workbench-vibration-mode-table">
+          <table
+            aria-label="Vibrational mode table"
+            className="workbench-data-table"
+          >
+            <thead>
+              <tr>
+                <th scope="col">Mode</th>
+                <th scope="col">Frequency (cm⁻¹)</th>
+                <th scope="col">IR intensity (km/mol)</th>
+                <th scope="col">Type</th>
+                <th scope="col">Symmetry</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {modes.map((mode) => (
+                <tr
+                  data-selected={selectedMode?.index === mode.index}
+                  key={mode.index}
+                >
+                  <th scope="row">
+                    <button
+                      aria-label={`Select mode ${mode.index}`}
+                      aria-pressed={selectedMode?.index === mode.index}
+                      onClick={() => selectMode(mode.index)}
+                      type="button"
+                    >
+                      {mode.index}
+                    </button>
+                  </th>
+                  <td>{formatNumber(mode.frequency_cm_minus_1)}</td>
+                  <td>{formatOptionalNumber(mode.ir_intensity_km_per_mol)}</td>
+                  <td>{mode.is_imaginary ? 'Imaginary' : 'Real'}</td>
+                  <td>{formatOptionalString(mode.symmetry)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+      {selectedMode ? (
+        <section className="workbench-result-section workbench-vibration-controls">
+          <div className="workbench-vibration-controls-header">
+            <div>
+              <h3>Mode {selectedMode.index}</h3>
+              <p className="workbench-vibration-frequency">
+                {formatNumber(selectedMode.frequency_cm_minus_1)} cm⁻¹
+                {selectedMode.is_imaginary ? ' · Imaginary' : ''}
+              </p>
+            </div>
+            <button
+              aria-pressed={isAnimationPlaying}
+              className="workbench-button workbench-button-primary workbench-vibration-play-button"
+              disabled={selectedMode.displacements.length === 0}
+              onClick={() => {
+                onAnimationPlayingChange?.(!isAnimationPlaying);
+              }}
+              type="button"
+            >
+              {isAnimationPlaying
+                ? 'Pause Mode Animation'
+                : 'Play Mode Animation'}
+            </button>
+          </div>
+          <label className="workbench-inline-control">
+            <input
+              checked={showDisplacementVectors}
+              disabled={selectedMode.displacements.length === 0}
+              onChange={(event) => {
+                onShowDisplacementVectorsChange?.(event.currentTarget.checked);
+              }}
+              type="checkbox"
+            />
+            Show displacement vectors
+          </label>
+          <dl className="workbench-metadata-list">
+            <dt>IR intensity (km/mol)</dt>
+            <dd>{formatOptionalNumber(selectedMode.ir_intensity_km_per_mol)}</dd>
+            <dt>Reduced mass (amu)</dt>
+            <dd>{formatOptionalNumber(selectedMode.reduced_mass_amu)}</dd>
+            <dt>Force constant (mDyne/Å)</dt>
+            <dd>
+              {formatOptionalNumber(
+                selectedMode.force_constant_mdyne_per_angstrom,
+              )}
+            </dd>
+            <dt>Displacement vectors</dt>
+            <dd>{selectedMode.displacements.length}</dd>
+          </dl>
+          <details className="workbench-vibration-details">
+            <summary>Structure and displacement data</summary>
+            <div className="workbench-action-row">
+              <button
+                disabled={!canGenerateDisplacedStructure}
+                onClick={() => onGenerateDisplacedStructure?.('positive')}
+                type="button"
+              >
+                Generate Forward (+Q)
+              </button>
+              <button
+                disabled={!canGenerateDisplacedStructure}
+                onClick={() => onGenerateDisplacedStructure?.('negative')}
+                type="button"
+              >
+                Generate Backward (−Q)
+              </button>
+              <button
+                disabled={!canDownloadDisplacedStructure}
+                onClick={() => onDownloadDisplacedStructure?.('positive')}
+                type="button"
+              >
+                Download +Q as XYZ
+              </button>
+              <button
+                disabled={!canDownloadDisplacedStructure}
+                onClick={() => onDownloadDisplacedStructure?.('negative')}
+                type="button"
+              >
+                Download −Q as XYZ
+              </button>
+            </div>
+            {selectedMode.displacements.length > 0 ? (
+              <div className="workbench-vibration-displacement-table">
+                <table
+                  aria-label="Selected mode displacement vectors"
+                  className="workbench-data-table"
+                >
+                  <thead>
+                    <tr>
+                      <th scope="col">Atom index</th>
+                      <th scope="col">x</th>
+                      <th scope="col">y</th>
+                      <th scope="col">z</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedMode.displacements.map((displacement) => (
+                      <tr key={displacement.atom_index}>
+                        <th scope="row">{displacement.atom_index}</th>
+                        <td>{formatNumber(displacement.x)}</td>
+                        <td>{formatNumber(displacement.y)}</td>
+                        <td>{formatNumber(displacement.z)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p>No displacement vectors available for selected mode.</p>
+            )}
+          </details>
+        </section>
+      ) : modes.length > 0 ? (
+        <p className="workbench-vibration-selection-hint">
+          Select a mode to inspect or animate it in the molecular viewer.
+        </p>
       ) : null}
       {document && showIrSpectrum ? (
         <IrSpectrumPanel
@@ -165,88 +280,6 @@ export function VibrationalModesPanel({
           onSelectedModeIndexChange={selectMode}
           selectedModeIndex={selectedMode?.index ?? null}
         />
-      ) : null}
-      {selectedMode ? (
-        <section className="workbench-result-section">
-          <h3>Selected Mode {selectedMode.index}</h3>
-          <div className="workbench-action-row">
-            <button
-              aria-pressed={isAnimationPlaying}
-              disabled={selectedMode.displacements.length === 0}
-              onClick={() => {
-                onAnimationPlayingChange?.(!isAnimationPlaying);
-              }}
-              type="button"
-            >
-              {isAnimationPlaying
-                ? 'Pause Mode Animation'
-                : 'Play Mode Animation'}
-            </button>
-            <button
-              disabled={!canGenerateDisplacedStructure}
-              onClick={() => onGenerateDisplacedStructure?.('positive')}
-              type="button"
-            >
-              Generate Forward (+Q)
-            </button>
-            <button
-              disabled={!canGenerateDisplacedStructure}
-              onClick={() => onGenerateDisplacedStructure?.('negative')}
-              type="button"
-            >
-              Generate Backward (−Q)
-            </button>
-            <button
-              disabled={!canDownloadDisplacedStructure}
-              onClick={() => onDownloadDisplacedStructure?.('positive')}
-              type="button"
-            >
-              Download +Q as XYZ
-            </button>
-            <button
-              disabled={!canDownloadDisplacedStructure}
-              onClick={() => onDownloadDisplacedStructure?.('negative')}
-              type="button"
-            >
-              Download −Q as XYZ
-            </button>
-          </div>
-          <dl className="workbench-metadata-list">
-            <dt>Frequency (cm⁻¹)</dt>
-            <dd>{formatNumber(selectedMode.frequency_cm_minus_1)}</dd>
-            <dt>Type</dt>
-            <dd>{selectedMode.is_imaginary ? 'Imaginary' : 'Real'}</dd>
-            <dt>Displacement vectors</dt>
-            <dd>{selectedMode.displacements.length}</dd>
-          </dl>
-          {selectedMode.displacements.length > 0 ? (
-            <table
-              aria-label="Selected mode displacement vectors"
-              className="workbench-data-table"
-            >
-              <thead>
-                <tr>
-                  <th scope="col">Atom index</th>
-                  <th scope="col">x</th>
-                  <th scope="col">y</th>
-                  <th scope="col">z</th>
-                </tr>
-              </thead>
-              <tbody>
-                {selectedMode.displacements.map((displacement) => (
-                  <tr key={displacement.atom_index}>
-                    <th scope="row">{displacement.atom_index}</th>
-                    <td>{formatNumber(displacement.x)}</td>
-                    <td>{formatNumber(displacement.y)}</td>
-                    <td>{formatNumber(displacement.z)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <p>No displacement vectors available for selected mode.</p>
-          )}
-        </section>
       ) : null}
     </section>
   );

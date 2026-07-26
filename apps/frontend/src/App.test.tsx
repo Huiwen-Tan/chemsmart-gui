@@ -28,11 +28,13 @@ vi.mock('./viewer/MolecularViewer', () => ({
     document,
     isVibrationalModeAnimationPlaying,
     selectedVibrationalMode,
+    showVibrationalModeDisplacementVectors,
   }: {
     autoFrameKey: string | null;
     document: MoleculeDocument | null;
     isVibrationalModeAnimationPlaying: boolean;
     selectedVibrationalMode: VibrationalMode | null;
+    showVibrationalModeDisplacementVectors: boolean;
   }) => (
     <>
       <output data-testid="viewer-auto-frame-key">
@@ -44,6 +46,9 @@ vi.mock('./viewer/MolecularViewer', () => ({
       </output>
       <output data-testid="viewer-mode">
         {JSON.stringify(selectedVibrationalMode)}
+      </output>
+      <output data-testid="viewer-mode-vectors">
+        {JSON.stringify(showVibrationalModeDisplacementVectors)}
       </output>
     </>
   ),
@@ -543,6 +548,16 @@ function readBlobAsText(blob: Blob): Promise<string> {
   });
 }
 
+function chooseDocumentFile(filename = 'water.xyz'): File {
+  const file = new File(['test molecule content'], filename, {
+    type: 'text/plain',
+  });
+  fireEvent.change(screen.getByLabelText('Choose document file'), {
+    target: { files: [file] },
+  });
+  return file;
+}
+
 function setUndoHistory(): void {
   useDocumentStore.setState({
     currentDocument: EDITED_WATER_DOCUMENT,
@@ -628,7 +643,6 @@ describe('App', () => {
     });
     useViewerStore.setState({
       selectedAtomIndices: [],
-      showBonds: true,
       showAtomLabels: false,
       viewResetRequestId: 0,
     });
@@ -644,6 +658,19 @@ describe('App', () => {
     window.localStorage.removeItem(WORKBENCH_LAYOUT_PREFERENCES_STORAGE_KEY);
   });
 
+  it('opens the system file chooser from the Explorer panel', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ status: 'ok' }));
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    const fileInput = screen.getByLabelText('Choose document file');
+    const clickFileInput = vi.spyOn(fileInput, 'click');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Choose File...' }));
+
+    expect(clickFileInput).toHaveBeenCalledOnce();
+  });
+
   it('passes the normalized sample XYZ response to the viewer', async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
@@ -652,14 +679,11 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    expect(screen.getByLabelText('Document path')).toHaveValue(
-      'sample-data/water.xyz',
-    );
     expect(screen.getByTestId('viewer-document')).toHaveTextContent('null');
     expect(screen.getByText('No document loaded.')).toBeInTheDocument();
     useViewerStore.setState({ selectedAtomIndices: [1, 2] });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+    chooseDocumentFile();
 
     await waitFor(() => {
       expect(screen.getByTestId('viewer-document')).toHaveTextContent(
@@ -696,10 +720,10 @@ describe('App', () => {
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      'http://127.0.0.1:8000/api/documents/open',
+      'http://127.0.0.1:8000/api/documents/import?filename=water.xyz',
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ path: 'sample-data/water.xyz' }),
+        body: expect.any(File),
       }),
     );
   });
@@ -716,21 +740,18 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText('Document path'), {
-      target: { value: 'sample-data/water.log' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+    chooseDocumentFile('water.log');
 
-    expect(screen.getByText('Opening sample-data/water.log...'))
+    expect(screen.getByText('Opening water.log...'))
       .toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Open Document' }))
+    expect(screen.getByRole('button', { name: 'Choose File...' }))
       .toBeDisabled();
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      'http://127.0.0.1:8000/api/documents/open',
+      'http://127.0.0.1:8000/api/documents/import?filename=water.log',
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ path: 'sample-data/water.log' }),
+        body: expect.any(File),
       }),
     );
 
@@ -744,8 +765,10 @@ describe('App', () => {
         JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT),
       );
     });
-    expect(screen.getByLabelText('Document path'))
-      .toHaveValue('sample-data/water.log');
+    expect(
+      within(screen.getByRole('region', { name: 'Open Document' }))
+        .getByRole('status'),
+    ).toHaveTextContent('Opened water.log · 3 atoms · 2 vibrational modes');
   });
 
   it('places document and selection panels in workbench regions', async () => {
@@ -776,16 +799,16 @@ describe('App', () => {
     ).toHaveTextContent('No molecule loaded');
     expect(
       within(viewerWorkspace).getByRole('region', {
-        name: 'Viewer toolbox',
+        name: 'Viewer tools',
       }),
-    ).toHaveTextContent('No molecule loaded');
+    ).toBeInTheDocument();
     expect(
-      within(viewerWorkspace).getByRole('region', {
+      within(viewerWorkspace).queryByRole('region', {
         name: 'Viewer playback controls',
       }),
-    ).toHaveTextContent('No trajectory playback available.');
+    ).not.toBeInTheDocument();
     expect(
-      within(sidebar).getByRole('button', { name: 'Open Document' }),
+      within(sidebar).getByRole('button', { name: 'Choose File...' }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole('region', { name: 'Legacy workspace content' }),
@@ -816,8 +839,8 @@ describe('App', () => {
 
     activateDisplaySidebar();
     expect(
-      within(sidebar).getByRole('checkbox', { name: 'Show Bonds' }),
-    ).toBeInTheDocument();
+      within(sidebar).queryByRole('checkbox', { name: 'Show Bonds' }),
+    ).not.toBeInTheDocument();
   });
 
   it('shows the CHEMSMART task catalog in the Tasks sidebar', async () => {
@@ -903,8 +926,8 @@ describe('App', () => {
     }));
     const viewMenu = screen.getByRole('menu', { name: 'View menu' });
     expect(
-      within(viewMenu).getByRole('menuitemcheckbox', { name: 'Show Bonds' }),
-    ).toHaveAttribute('aria-checked', 'true');
+      within(viewMenu).queryByRole('menuitemcheckbox', { name: 'Show Bonds' }),
+    ).not.toBeInTheDocument();
     const showAtomLabelsItem = within(viewMenu).getByRole(
       'menuitemcheckbox',
       { name: 'Show Atom Labels' },
@@ -1037,23 +1060,21 @@ describe('App', () => {
     useViewerStore.setState({
       selectedAtomIndices: [1, 2],
       showAtomLabels: false,
-      showBonds: true,
       viewResetRequestId: 0,
     });
 
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    const toolbox = screen.getByRole('region', { name: 'Viewer toolbox' });
+    const toolbox = screen.getByRole('region', { name: 'Viewer tools' });
 
-    expect(toolbox).toHaveTextContent('Selected: 1, 2');
+    expect(
+      within(toolbox).getByLabelText('2 selected atoms'),
+    ).toBeInTheDocument();
     fireEvent.click(
       within(toolbox).getByRole('button', { name: 'Clear Selection' }),
     );
     expect(useViewerStore.getState().selectedAtomIndices).toEqual([]);
-
-    fireEvent.click(within(toolbox).getByRole('button', { name: 'Show Bonds' }));
-    expect(useViewerStore.getState().showBonds).toBe(false);
 
     fireEvent.click(
       within(toolbox).getByRole('button', { name: 'Show Atom Labels' }),
@@ -1072,10 +1093,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText('Document path'), {
-      target: { value: 'sample-data/water.log' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+    chooseDocumentFile('water.log');
 
     await waitFor(() => {
       expect(screen.getByTestId('viewer-document')).toHaveTextContent(
@@ -1152,22 +1170,20 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText('Document path'), {
-      target: { value: 'sample-data/water.log' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+    chooseDocumentFile('water.log');
 
     await waitFor(() => {
-      expect(screen.getByTestId('viewer-mode')).toHaveTextContent(
-        JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT.vibrational_modes[0]),
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT),
       );
     });
-
-    const playback = screen.getByRole('region', {
+    expect(screen.getByTestId('viewer-mode')).toHaveTextContent('null');
+    expect(screen.getByTestId('viewer-mode-vectors')).toHaveTextContent(
+      'false',
+    );
+    expect(screen.queryByRole('region', {
       name: 'Viewer playback controls',
-    });
-    expect(playback).toHaveTextContent('No trajectory playback available.');
-    expect(within(playback).queryByText('Vibration')).not.toBeInTheDocument();
+    })).not.toBeInTheDocument();
 
     const dialog = openResultsDialog('Vibrations...');
     const modesPanel = within(dialog).getByRole('region', {
@@ -1185,6 +1201,9 @@ describe('App', () => {
     expect(
       within(modesPanel).getByRole('button', { name: 'Play Mode Animation' }),
     ).toBeDisabled();
+    expect(screen.getByTestId('viewer-mode-vectors')).toHaveTextContent(
+      'true',
+    );
 
     fireEvent.click(
       within(modesPanel).getByRole('button', { name: 'Select mode 1' }),
@@ -1210,10 +1229,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText('Document path'), {
-      target: { value: 'sample-data/water.log' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+    chooseDocumentFile('water.log');
 
     await waitFor(() => {
       expect(screen.getByTestId('viewer-document')).toHaveTextContent(
@@ -1298,10 +1314,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText('Document path'), {
-      target: { value: 'sample-data/water.log' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+    chooseDocumentFile('water.log');
 
     await waitFor(() => {
       expect(screen.getByTestId('viewer-document')).toHaveTextContent(
@@ -1340,10 +1353,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText('Document path'), {
-      target: { value: 'sample-data/water.log' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+    chooseDocumentFile('water.log');
 
     await waitFor(() => {
       expect(screen.getByTestId('viewer-document')).toHaveTextContent(
@@ -1404,10 +1414,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText('Document path'), {
-      target: { value: 'sample-data/water.log' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+    chooseDocumentFile('water.log');
 
     await waitFor(() => {
       expect(screen.getByTestId('viewer-document')).toHaveTextContent(
@@ -1453,10 +1460,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText('Document path'), {
-      target: { value: 'sample-data/water.log' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+    chooseDocumentFile('water.log');
 
     await waitFor(() => {
       expect(screen.getByTestId('viewer-document')).toHaveTextContent(
@@ -1488,10 +1492,7 @@ describe('App', () => {
       }),
     ).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText('Document path'), {
-      target: { value: 'sample-data/second-water.log' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+    chooseDocumentFile('second-water.log');
 
     await waitFor(() => {
       expect(screen.getByTestId('viewer-document')).toHaveTextContent(
@@ -1512,7 +1513,7 @@ describe('App', () => {
     ).toBeInTheDocument();
   });
 
-  it('submits the edited document path to the open-document API', async () => {
+  it('uploads the selected document to the import API', async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
       .mockResolvedValueOnce(jsonResponse(HELIUM_DOCUMENT));
@@ -1520,63 +1521,19 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText('Document path'), {
-      target: { value: ' /tmp/helium.xyz ' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+    chooseDocumentFile('helium.xyz');
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenNthCalledWith(
         2,
-        'http://127.0.0.1:8000/api/documents/open',
+        'http://127.0.0.1:8000/api/documents/import?filename=helium.xyz',
         expect.objectContaining({
           method: 'POST',
-          body: JSON.stringify({ path: '/tmp/helium.xyz' }),
+          body: expect.any(File),
         }),
       );
     });
     expect(screen.getByText('/tmp/helium.xyz')).toBeInTheDocument();
-  });
-
-  it('reports a local error for blank document paths', async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({ status: 'ok' }));
-
-    render(<App />);
-
-    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText('Document path'), {
-      target: { value: '   ' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
-
-    expect(
-      screen.getByText('Error: A document path is required.'),
-    ).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(screen.getByTestId('viewer-document')).toHaveTextContent('null');
-  });
-
-  it('does not prompt before blank document path validation', async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({ status: 'ok' }));
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
-    setUndoHistory();
-
-    render(<App />);
-
-    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText('Document path'), {
-      target: { value: '   ' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
-
-    expect(
-      screen.getByText('Error: A document path is required.'),
-    ).toBeInTheDocument();
-    expect(confirm).not.toHaveBeenCalled();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(screen.getByTestId('viewer-document')).toHaveTextContent(
-      JSON.stringify(EDITED_WATER_DOCUMENT),
-    );
   });
 
   it('keeps unsaved molecule edits when replacing the document is declined', async () => {
@@ -1587,10 +1544,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText('Document path'), {
-      target: { value: '/tmp/helium.xyz' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+    chooseDocumentFile('helium.xyz');
 
     expect(confirm).toHaveBeenCalledWith(
       'Current molecule has unsaved edits. Open a different document and discard them?',
@@ -1612,10 +1566,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText('Document path'), {
-      target: { value: '/tmp/helium.xyz' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+    chooseDocumentFile('helium.xyz');
 
     await waitFor(() => {
       expect(screen.getByTestId('viewer-document')).toHaveTextContent(
@@ -1627,10 +1578,10 @@ describe('App', () => {
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      'http://127.0.0.1:8000/api/documents/open',
+      'http://127.0.0.1:8000/api/documents/import?filename=helium.xyz',
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ path: '/tmp/helium.xyz' }),
+        body: expect.any(File),
       }),
     );
     expect(screen.getByText('No unsaved edits')).toBeInTheDocument();
@@ -1651,7 +1602,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+    chooseDocumentFile();
 
     await waitFor(() => {
       expect(screen.getByTestId('viewer-document')).toHaveTextContent(
@@ -1706,7 +1657,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+    chooseDocumentFile();
 
     await waitFor(() => {
       expect(screen.getByTestId('viewer-document')).toHaveTextContent(
@@ -1767,7 +1718,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+    chooseDocumentFile();
 
     await waitFor(() => {
       expect(screen.getByTestId('viewer-document')).toHaveTextContent(
@@ -1823,7 +1774,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+    chooseDocumentFile();
 
     await waitFor(() => {
       expect(screen.getByTestId('viewer-document')).toHaveTextContent(
@@ -1876,7 +1827,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+    chooseDocumentFile();
 
     await waitFor(() => {
       expect(screen.getByTestId('viewer-document')).toHaveTextContent(
@@ -1932,7 +1883,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+    chooseDocumentFile();
 
     await waitFor(() => {
       expect(screen.getByTestId('viewer-document')).toHaveTextContent(
@@ -1989,7 +1940,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+    chooseDocumentFile();
 
     await waitFor(() => {
       expect(screen.getByTestId('viewer-document')).toHaveTextContent(
@@ -2037,7 +1988,7 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
     useViewerStore.setState({ selectedAtomIndices: [1, 2] });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+    chooseDocumentFile();
 
     await waitFor(() => {
       expect(screen.getByText('Error: Open failed')).toBeInTheDocument();
@@ -2058,10 +2009,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText('Document path'), {
-      target: { value: 'empty.xyz' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+    chooseDocumentFile('empty.xyz');
 
     await waitFor(() => {
       expect(
@@ -2081,19 +2029,14 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText('Document path'), {
-      target: { value: 'sample-data/water.log' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+    chooseDocumentFile('water.log');
 
     await waitFor(() => {
       expect(screen.getByTestId('viewer-document')).toHaveTextContent(
         JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT),
       );
     });
-    expect(screen.getByTestId('viewer-mode')).toHaveTextContent(
-      JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT.vibrational_modes[0]),
-    );
+    expect(screen.getByTestId('viewer-mode')).toHaveTextContent('null');
     expect(screen.getByTestId('viewer-animation')).toHaveTextContent('false');
     const dialog = openResultsDialog('Vibrations...');
     const modesPanel = within(dialog).getByRole('region', {
@@ -2114,18 +2057,21 @@ describe('App', () => {
       JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT.vibrational_modes[1]),
     );
     expect(
-      within(modesPanel).getByRole('heading', { name: 'Selected Mode 2' }),
+      within(modesPanel).getByRole('heading', { name: 'Mode 2' }),
     ).toBeInTheDocument();
 
     expect(
-      within(modesPanel).queryByRole('heading', { name: 'Selected Mode 1' }),
+      within(modesPanel).queryByRole('heading', { name: 'Mode 1' }),
     ).not.toBeInTheDocument();
     fireEvent.click(
       within(modesPanel).getByRole('button', { name: 'Select mode 1' }),
     );
     expect(
-      within(modesPanel).getByRole('heading', { name: 'Selected Mode 1' }),
+      within(modesPanel).getByRole('heading', { name: 'Mode 1' }),
     ).toBeInTheDocument();
+    fireEvent.click(
+      within(modesPanel).getByText('Structure and displacement data'),
+    );
     const displacementTable = within(modesPanel).getByRole('table', {
       name: 'Selected mode displacement vectors',
     });
@@ -2152,7 +2098,7 @@ describe('App', () => {
       JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT.vibrational_modes[1]),
     );
     expect(
-      within(modesPanel).getByRole('heading', { name: 'Selected Mode 2' }),
+      within(modesPanel).getByRole('heading', { name: 'Mode 2' }),
     ).toBeInTheDocument();
     expect(screen.getByTestId('viewer-animation')).toHaveTextContent('false');
     expect(
@@ -2171,10 +2117,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText('Document path'), {
-      target: { value: 'sample-data/water.log' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+    chooseDocumentFile('water.log');
 
     await waitFor(() => {
       expect(screen.getByTestId('viewer-document')).toHaveTextContent(
@@ -2183,7 +2126,7 @@ describe('App', () => {
     });
     expect(
       screen.getByRole('region', { name: 'Viewer status' }),
-    ).toHaveTextContent('Mode 1: -530.2 cm⁻¹ (imaginary)');
+    ).not.toHaveTextContent('Mode');
     const dialog = openResultsDialog('IR Spectrum...');
     const spectrumPanel = within(dialog).getByRole('region', {
       name: 'IR Stick Spectrum',
@@ -2233,10 +2176,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText('Document path'), {
-      target: { value: 'sample-data/water.out' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+    chooseDocumentFile('water.out');
 
     await waitFor(() => {
       expect(screen.getByTestId('viewer-document')).toHaveTextContent(
@@ -2316,10 +2256,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText('Document path'), {
-      target: { value: 'sample-data/water.log' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+    chooseDocumentFile('water.log');
 
     await waitFor(() => {
       expect(screen.getByTestId('viewer-document')).toHaveTextContent(
@@ -2331,11 +2268,17 @@ describe('App', () => {
       name: 'Vibrational Modes',
     });
     fireEvent.click(
+      within(modesPanel).getByRole('button', { name: 'Select mode 1' }),
+    );
+    fireEvent.click(
       within(modesPanel).getByRole('button', {
         name: 'Play Mode Animation',
       }),
     );
     expect(screen.getByTestId('viewer-animation')).toHaveTextContent('true');
+    fireEvent.click(
+      within(modesPanel).getByText('Structure and displacement data'),
+    );
 
     fireEvent.click(
       within(modesPanel).getByRole('button', {
@@ -2406,10 +2349,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText('Document path'), {
-      target: { value: 'sample-data/water.log' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+    chooseDocumentFile('water.log');
 
     await waitFor(() => {
       expect(screen.getByTestId('viewer-document')).toHaveTextContent(
@@ -2421,9 +2361,15 @@ describe('App', () => {
       name: 'Vibrational Modes',
     });
     fireEvent.click(
+      within(modesPanel).getByRole('button', { name: 'Select mode 1' }),
+    );
+    fireEvent.click(
       within(modesPanel).getByRole('button', {
         name: 'Play Mode Animation',
       }),
+    );
+    fireEvent.click(
+      within(modesPanel).getByText('Structure and displacement data'),
     );
     fireEvent.click(
       within(modesPanel).getByRole('button', { name: 'Download −Q as XYZ' }),
@@ -2500,10 +2446,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText('Document path'), {
-      target: { value: 'sample-data/water.log' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+    chooseDocumentFile('water.log');
 
     await waitFor(() => {
       expect(screen.getByTestId('viewer-document')).toHaveTextContent(
@@ -2511,12 +2454,17 @@ describe('App', () => {
       );
     });
     const dialog = openResultsDialog('Vibrations...');
+    const modesPanel = within(dialog).getByRole('region', {
+      name: 'Vibrational Modes',
+    });
     fireEvent.click(
-      within(
-        within(dialog).getByRole('region', {
-          name: 'Vibrational Modes',
-        }),
-      ).getByRole('button', { name: 'Download +Q as XYZ' }),
+      within(modesPanel).getByRole('button', { name: 'Select mode 1' }),
+    );
+    fireEvent.click(
+      within(modesPanel).getByText('Structure and displacement data'),
+    );
+    fireEvent.click(
+      within(modesPanel).getByRole('button', { name: 'Download +Q as XYZ' }),
     );
 
     await waitFor(() => {
@@ -2549,7 +2497,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+    chooseDocumentFile();
 
     await waitFor(() => {
       expect(screen.getByTestId('viewer-document')).toHaveTextContent(
@@ -2601,10 +2549,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText('Document path'), {
-      target: { value: 'sample-data/water.gjf' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+    chooseDocumentFile('water.gjf');
 
     await waitFor(() => {
       expect(screen.getByTestId('viewer-document')).toHaveTextContent(
@@ -2658,7 +2603,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
+    chooseDocumentFile();
 
     await waitFor(() => {
       expect(screen.getByTestId('viewer-document')).toHaveTextContent(
@@ -2834,27 +2779,6 @@ describe('App', () => {
     expect(screen.getByTestId('viewer-document')).toHaveTextContent(
       JSON.stringify(EDITED_WATER_DOCUMENT),
     );
-  });
-
-  it('toggles the viewer bond display setting', async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({ status: 'ok' }));
-
-    render(<App />);
-
-    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    activateDisplaySidebar();
-    const showBondsControl = screen.getByRole('checkbox', {
-      name: 'Show Bonds',
-    });
-
-    expect(showBondsControl).toBeChecked();
-    expect(useViewerStore.getState().showBonds).toBe(true);
-
-    fireEvent.click(showBondsControl);
-
-    expect(showBondsControl).not.toBeChecked();
-    expect(useViewerStore.getState().showBonds).toBe(false);
-    expect(useDocumentStore.getState().currentDocument).toBeNull();
   });
 
   it('toggles the viewer atom label display setting', async () => {
@@ -3034,7 +2958,7 @@ describe('App', () => {
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
 
-    fireEvent.keyDown(screen.getByLabelText('Document path'), {
+    fireEvent.keyDown(screen.getByLabelText('Choose document file'), {
       key: 'z',
       metaKey: true,
     });

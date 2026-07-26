@@ -119,23 +119,26 @@ describe('VibrationalModesPanel', () => {
     expect(rows[0]).toHaveTextContent('Mode');
     expect(rows[0]).toHaveTextContent('Frequency (cm⁻¹)');
     expect(rows[0]).toHaveTextContent('IR intensity (km/mol)');
-    expect(rows[0]).toHaveTextContent('Reduced mass (amu)');
-    expect(rows[0]).toHaveTextContent('Force constant (mDyne/Å)');
+    expect(rows[0]).toHaveTextContent('Type');
+    expect(rows[0]).toHaveTextContent('Symmetry');
 
-    expect(rows[1]).toHaveTextContent('Select mode 1');
+    expect(within(rows[1]).getByRole('button', { name: 'Select mode 1' }))
+      .toHaveTextContent('1');
     expect(rows[1]).toHaveTextContent('-530.2');
     expect(rows[1]).toHaveTextContent('Imaginary');
     expect(rows[1]).toHaveTextContent('12.3457');
     expect(rows[1]).toHaveTextContent('A1');
-    expect(rows[1]).toHaveTextContent('1.2');
-    expect(rows[1]).toHaveTextContent('0.3');
-    expect(rows[1]).toHaveTextContent('2');
 
-    expect(rows[2]).toHaveTextContent('Select mode 2');
+    expect(within(rows[2]).getByRole('button', { name: 'Select mode 2' }))
+      .toHaveTextContent('2');
     expect(rows[2]).toHaveTextContent('1628.3334');
     expect(rows[2]).toHaveTextContent('Real');
-    expect(within(rows[2]).getAllByText('Unavailable')).toHaveLength(4);
-    expect(rows[2]).toHaveTextContent('0');
+    expect(within(rows[2]).getAllByText('Unavailable')).toHaveLength(2);
+    expect(
+      screen.getByText(
+        'Select a mode to inspect or animate it in the molecular viewer.',
+      ),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole('region', { name: 'IR Stick Spectrum' }),
     ).toBeInTheDocument();
@@ -144,8 +147,12 @@ describe('VibrationalModesPanel', () => {
   it('shows selected mode displacement vectors by atom index', () => {
     render(<VibrationalModesPanel document={GAUSSIAN_OUTPUT_DOCUMENT} />);
 
-    expect(screen.getByRole('heading', { name: 'Selected Mode 1' }))
+    expect(screen.queryByRole('heading', { name: 'Mode 1' }))
+      .not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Select mode 1' }));
+    expect(screen.getByRole('heading', { name: 'Mode 1' }))
       .toBeInTheDocument();
+    fireEvent.click(screen.getByText('Structure and displacement data'));
     const displacementTable = screen.getByRole('table', {
       name: 'Selected mode displacement vectors',
     });
@@ -171,7 +178,7 @@ describe('VibrationalModesPanel', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Select mode 2' }));
 
-    expect(screen.getByRole('heading', { name: 'Selected Mode 2' }))
+    expect(screen.getByRole('heading', { name: 'Mode 2' }))
       .toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Select mode 2' }),
@@ -203,7 +210,7 @@ describe('VibrationalModesPanel', () => {
       />,
     );
 
-    expect(screen.getByRole('heading', { name: 'Selected Mode 2' }))
+    expect(screen.getByRole('heading', { name: 'Mode 2' }))
       .toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Select mode 2' }),
@@ -232,7 +239,7 @@ describe('VibrationalModesPanel', () => {
       screen.getByRole('button', { name: 'Select IR peak mode 2' }),
     );
 
-    expect(screen.getByRole('heading', { name: 'Selected Mode 2' }))
+    expect(screen.getByRole('heading', { name: 'Mode 2' }))
       .toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Select IR mode 2' }),
@@ -277,6 +284,27 @@ describe('VibrationalModesPanel', () => {
     fireEvent.click(pauseButton);
 
     expect(onAnimationPlayingChange).toHaveBeenCalledWith(false);
+  });
+
+  it('shows displacement vectors only after the user enables them', () => {
+    const onShowDisplacementVectorsChange = vi.fn();
+    render(
+      <VibrationalModesPanel
+        document={GAUSSIAN_OUTPUT_DOCUMENT}
+        onShowDisplacementVectorsChange={onShowDisplacementVectorsChange}
+        selectedModeIndex={1}
+        showDisplacementVectors={false}
+      />,
+    );
+
+    const vectorControl = screen.getByRole('checkbox', {
+      name: 'Show displacement vectors',
+    });
+    expect(vectorControl).not.toBeChecked();
+
+    fireEvent.click(vectorControl);
+
+    expect(onShowDisplacementVectorsChange).toHaveBeenCalledWith(true);
   });
 
   it('disables animation controls when selected mode has no vectors', () => {
@@ -404,15 +432,15 @@ describe('VibrationalModesPanel', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Select mode 2' }));
-    expect(screen.getByRole('heading', { name: 'Selected Mode 2' }))
+    expect(screen.getByRole('heading', { name: 'Mode 2' }))
       .toBeInTheDocument();
 
     rerender(<VibrationalModesPanel document={secondDocument} />);
 
-    expect(screen.getByRole('heading', { name: 'Selected Mode 4' }))
-      .toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Mode 4' }))
+      .not.toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Select mode 4' }),
-    ).toHaveAttribute('aria-pressed', 'true');
+    ).toHaveAttribute('aria-pressed', 'false');
   });
 });

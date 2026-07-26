@@ -1,10 +1,4 @@
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  within,
-} from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { DocumentOpenPanel } from './DocumentOpenPanel';
@@ -14,56 +8,44 @@ describe('DocumentOpenPanel', () => {
     cleanup();
   });
 
-  it('shows path entry, status, and supported document hints', () => {
+  it('shows a system file chooser action and supported document hints', () => {
     render(
       <DocumentOpenPanel
         backendHealthStatus="ok"
-        documentPath="sample-data/water.xyz"
         error={null}
         isOpeningDocument={false}
-        onDocumentOpen={vi.fn()}
-        onDocumentPathChange={vi.fn()}
+        onChooseDocument={vi.fn()}
       />,
     );
 
     const panel = screen.getByRole('region', { name: 'Open Document' });
-    expect(within(panel).getByLabelText('Document path'))
-      .toHaveValue('sample-data/water.xyz');
-    expect(within(panel).getByText('Backend:')).toBeInTheDocument();
     expect(within(panel).getByText('Connected')).toBeInTheDocument();
     expect(
-      within(panel).getByText('Ready to open a local document path.'),
+      within(panel).getByRole('button', { name: 'Choose File...' }),
+    ).toBeEnabled();
+    expect(
+      within(panel).getByText('Choose a local molecular document to open.'),
     ).toBeInTheDocument();
     expect(
       within(panel).getByRole('heading', { name: 'Supported Documents' }),
     ).toBeInTheDocument();
-    expect(
-      within(panel).getByText(/Gaussian \.com\/\.gjf and ORCA \.inp/),
-    ).toBeInTheDocument();
+    expect(within(panel).queryByRole('textbox')).not.toBeInTheDocument();
   });
 
-  it('requests document opens from the form', () => {
-    const onDocumentOpen = vi.fn();
-    const onDocumentPathChange = vi.fn();
-
+  it('requests the system file chooser', () => {
+    const onChooseDocument = vi.fn();
     render(
       <DocumentOpenPanel
         backendHealthStatus="ok"
-        documentPath="sample-data/water.xyz"
         error={null}
         isOpeningDocument={false}
-        onDocumentOpen={onDocumentOpen}
-        onDocumentPathChange={onDocumentPathChange}
+        onChooseDocument={onChooseDocument}
       />,
     );
 
-    fireEvent.change(screen.getByLabelText('Document path'), {
-      target: { value: 'sample-data/water.log' },
-    });
-    expect(onDocumentPathChange).toHaveBeenCalledWith('sample-data/water.log');
+    fireEvent.click(screen.getByRole('button', { name: 'Choose File...' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open Document' }));
-    expect(onDocumentOpen).toHaveBeenCalledWith();
+    expect(onChooseDocument).toHaveBeenCalledOnce();
   });
 
   it('shows a successful document-open summary', () => {
@@ -71,11 +53,9 @@ describe('DocumentOpenPanel', () => {
       <DocumentOpenPanel
         backendHealthStatus="ok"
         documentOpenStatus="Opened water.xyz · 3 atoms"
-        documentPath="sample-data/water.xyz"
         error={null}
         isOpeningDocument={false}
-        onDocumentOpen={vi.fn()}
-        onDocumentPathChange={vi.fn()}
+        onChooseDocument={vi.fn()}
       />,
     );
 
@@ -84,22 +64,19 @@ describe('DocumentOpenPanel', () => {
     );
   });
 
-  it('shows opening state and disables open controls', () => {
+  it('shows opening state and disables the chooser', () => {
     render(
       <DocumentOpenPanel
         backendHealthStatus="ok"
-        documentPath="sample-data/water.out"
         error="Backend unavailable"
         isOpeningDocument
-        onDocumentOpen={vi.fn()}
-        onDocumentPathChange={vi.fn()}
+        onChooseDocument={vi.fn()}
+        openingDocumentName="water.out"
       />,
     );
 
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Opening sample-data/water.out...',
-    );
-    expect(screen.getByRole('button', { name: 'Open Document' }))
+    expect(screen.getByRole('status')).toHaveTextContent('Opening water.out...');
+    expect(screen.getByRole('button', { name: 'Choose File...' }))
       .toBeDisabled();
     expect(screen.getByText('Error: Backend unavailable')).toBeInTheDocument();
   });

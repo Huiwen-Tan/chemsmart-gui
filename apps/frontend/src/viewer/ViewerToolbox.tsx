@@ -1,5 +1,3 @@
-import type { ReactNode } from 'react';
-
 import type { MoleculeDocument } from '../shared/types';
 
 interface ViewerToolboxProps {
@@ -7,10 +5,8 @@ interface ViewerToolboxProps {
   onClearSelection: () => void;
   onResetView: () => void;
   onShowAtomLabelsChange: (showAtomLabels: boolean) => void;
-  onShowBondsChange: (showBonds: boolean) => void;
   selectedAtomIndices: readonly number[];
   showAtomLabels: boolean;
-  showBonds: boolean;
 }
 
 export function ViewerToolbox({
@@ -18,97 +14,56 @@ export function ViewerToolbox({
   onClearSelection,
   onResetView,
   onShowAtomLabelsChange,
-  onShowBondsChange,
   selectedAtomIndices,
   showAtomLabels,
-  showBonds,
 }: ViewerToolboxProps): JSX.Element {
-  const selectedAtoms = getVisibleSelectedAtomIndices(
+  const visibleSelectedAtomIndices = getVisibleSelectedAtomIndices(
     document,
     selectedAtomIndices,
   );
-  const selectedAtomLabel =
-    selectedAtoms.length > 0
-      ? `Selected: ${selectedAtoms.join(', ')}`
-      : 'Selected: none';
-  const moleculeStateLabel = document
-    ? `${document.atoms.length} atom${document.atoms.length === 1 ? '' : 's'}`
-    : 'No molecule loaded';
-  const measurementHint = formatMeasurementHint(selectedAtoms.length);
 
   return (
-    <section
-      aria-label="Viewer toolbox"
-      className="workbench-viewer-toolbox"
-    >
-      <ToolboxGroup label="Selection">
-        <p className="workbench-viewer-toolbox-status">
-          {moleculeStateLabel} · {selectedAtomLabel}
-        </p>
-        <button
-          className="workbench-viewer-toolbox-button"
-          disabled={selectedAtoms.length === 0}
-          onClick={onClearSelection}
-          type="button"
+    <section aria-label="Viewer tools" className="workbench-viewer-toolbox">
+      <button
+        aria-label="Reset View"
+        className="workbench-viewer-toolbox-button"
+        onClick={onResetView}
+        title="Reset view"
+        type="button"
+      >
+        <ResetViewIcon />
+      </button>
+      <button
+        aria-label="Show Atom Labels"
+        aria-pressed={showAtomLabels}
+        className="workbench-viewer-toolbox-button"
+        disabled={!document}
+        onClick={() => onShowAtomLabelsChange(!showAtomLabels)}
+        title="Show atom labels"
+        type="button"
+      >
+        <LabelIcon />
+      </button>
+      <button
+        aria-label="Clear Selection"
+        className="workbench-viewer-toolbox-button"
+        disabled={visibleSelectedAtomIndices.length === 0}
+        onClick={onClearSelection}
+        title="Clear atom selection"
+        type="button"
+      >
+        <ClearSelectionIcon />
+      </button>
+      {visibleSelectedAtomIndices.length > 0 ? (
+        <span
+          aria-label={`${visibleSelectedAtomIndices.length} selected atoms`}
+          className="workbench-viewer-toolbox-count"
+          title={`Selected atoms: ${visibleSelectedAtomIndices.join(', ')}`}
         >
-          Clear Selection
-        </button>
-      </ToolboxGroup>
-      <ToolboxGroup label="Navigate">
-        <button
-          className="workbench-viewer-toolbox-button"
-          onClick={onResetView}
-          type="button"
-        >
-          Reset View
-        </button>
-        <p className="workbench-viewer-toolbox-hint">
-          Drag to rotate · Right-drag to pan · Scroll to zoom
-        </p>
-      </ToolboxGroup>
-      <ToolboxGroup label="Measure">
-        <p className="workbench-viewer-toolbox-status">{measurementHint}</p>
-        <p className="workbench-viewer-toolbox-hint">
-          Values appear in the Details panel.
-        </p>
-      </ToolboxGroup>
-      <ToolboxGroup label="Display">
-        <button
-          aria-pressed={showBonds}
-          className="workbench-viewer-toolbox-button"
-          onClick={() => onShowBondsChange(!showBonds)}
-          type="button"
-        >
-          Show Bonds
-        </button>
-        <button
-          aria-pressed={showAtomLabels}
-          className="workbench-viewer-toolbox-button"
-          onClick={() => onShowAtomLabelsChange(!showAtomLabels)}
-          type="button"
-        >
-          Show Atom Labels
-        </button>
-      </ToolboxGroup>
+          {visibleSelectedAtomIndices.length}
+        </span>
+      ) : null}
     </section>
-  );
-}
-
-interface ToolboxGroupProps {
-  children: ReactNode;
-  label: string;
-}
-
-function ToolboxGroup({ children, label }: ToolboxGroupProps): JSX.Element {
-  return (
-    <div
-      aria-label={`${label} tools`}
-      className="workbench-viewer-toolbox-group"
-      role="group"
-    >
-      <p className="workbench-viewer-toolbox-label">{label}</p>
-      <div className="workbench-viewer-toolbox-items">{children}</div>
-    </div>
   );
 }
 
@@ -124,15 +79,30 @@ function getVisibleSelectedAtomIndices(
   return selectedAtomIndices.filter((atomIndex) => atomIndices.has(atomIndex));
 }
 
-function formatMeasurementHint(selectedAtomCount: number): string {
-  if (selectedAtomCount === 2) {
-    return 'Distance measurement ready';
-  }
-  if (selectedAtomCount === 3) {
-    return 'Angle measurement ready';
-  }
-  if (selectedAtomCount === 4) {
-    return 'Dihedral measurement ready';
-  }
-  return 'Select 2, 3, or 4 atoms to measure';
+function ResetViewIcon(): JSX.Element {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path d="M4 12a8 8 0 1 0 2.34-5.66L4 8.67" />
+      <path d="M4 4v4.67h4.67" />
+      <circle cx="12" cy="12" r="2" />
+    </svg>
+  );
+}
+
+function LabelIcon(): JSX.Element {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path d="M4 5h10l6 7-6 7H4z" />
+      <circle cx="8" cy="12" r="1.5" />
+    </svg>
+  );
+}
+
+function ClearSelectionIcon(): JSX.Element {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="8" />
+      <path d="m9 9 6 6m0-6-6 6" />
+    </svg>
+  );
 }

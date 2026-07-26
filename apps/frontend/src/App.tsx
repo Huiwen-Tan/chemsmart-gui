@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import {
   generateMoleculeModeDisplacement,
   healthCheck,
+  importDocument,
   openDocument,
   previewBroadenedIrSpectrum,
   previewMoleculeExport,
@@ -78,8 +79,11 @@ function pluralizedCount(count: number, singular: string): string {
   return `${count} ${singular}${count === 1 ? '' : 's'}`;
 }
 
-function openedDocumentStatus(document: OpenedDocument): string {
-  const filename = document.source?.filename ?? document.name;
+function openedDocumentStatus(
+  document: OpenedDocument,
+  importedFilename?: string,
+): string {
+  const filename = importedFilename ?? document.source?.filename ?? document.name;
 
   if (document.document_kind === 'trajectory') {
     const atomCount = document.frames[0]?.atoms.length ?? 0;
@@ -128,11 +132,7 @@ function selectedVibrationalModeFromIndex(
   modes: VibrationalMode[],
   selectedModeIndex: number | null,
 ): VibrationalMode | null {
-  return (
-    modes.find((mode) => mode.index === selectedModeIndex) ??
-    modes[0] ??
-    null
-  );
+  return modes.find((mode) => mode.index === selectedModeIndex) ?? null;
 }
 
 function isTrajectoryDocument(
@@ -178,11 +178,9 @@ export function App(): JSX.Element {
     setCurrentDocument,
     undoMoleculeEdit,
   } = useDocumentStore();
-  const showBonds = useViewerStore((state) => state.showBonds);
   const selectedAtomIndices = useViewerStore(
     (state) => state.selectedAtomIndices,
   );
-  const setShowBonds = useViewerStore((state) => state.setShowBonds);
   const showAtomLabels = useViewerStore((state) => state.showAtomLabels);
   const setShowAtomLabels = useViewerStore(
     (state) => state.setShowAtomLabels,
@@ -191,9 +189,9 @@ export function App(): JSX.Element {
   const clearAtomSelection = useViewerStore(
     (state) => state.clearAtomSelection,
   );
+  const documentFileInputRef = useRef<HTMLInputElement | null>(null);
   const [healthStatus, setHealthStatus] = useState('checking...');
   const [error, setError] = useState<string | null>(null);
-  const [documentPath, setDocumentPath] = useState('sample-data/water.xyz');
   const [
     selectedVibrationalModeIndex,
     setSelectedVibrationalModeIndex,
@@ -202,9 +200,13 @@ export function App(): JSX.Element {
   const [documentOpenStatus, setDocumentOpenStatus] = useState<string | null>(
     null,
   );
-  const [openingDocumentPath, setOpeningDocumentPath] = useState<string | null>(
+  const [openingDocumentName, setOpeningDocumentName] = useState<string | null>(
     null,
   );
+  const [
+    showVibrationalModeDisplacementVectors,
+    setShowVibrationalModeDisplacementVectors,
+  ] = useState(false);
   const [
     activeVibrationalModeAnimationKey,
     setActiveVibrationalModeAnimationKey,
@@ -327,7 +329,8 @@ export function App(): JSX.Element {
   ]);
 
   useEffect(() => {
-    setSelectedVibrationalModeIndex(vibrationalModes[0]?.index ?? null);
+    setSelectedVibrationalModeIndex(null);
+    setShowVibrationalModeDisplacementVectors(false);
     setActiveVibrationalModeAnimationKey(null);
     setBroadenedIrSpectrum(null);
     setBroadenedIrSpectrumError(null);
@@ -384,6 +387,7 @@ export function App(): JSX.Element {
   const selectVibrationalMode = (modeIndex: number): void => {
     setActiveVibrationalModeAnimationKey(null);
     setSelectedVibrationalModeIndex(modeIndex);
+    setShowVibrationalModeDisplacementVectors(true);
   };
 
   const selectTrajectoryFrame = (frameIndex: number): void => {
@@ -503,11 +507,11 @@ export function App(): JSX.Element {
     }
   };
 
-  const openDocumentPath = async (pathOverride?: string): Promise<void> => {
+  const openDocumentPath = async (path: string): Promise<void> => {
     setError(null);
     setDocumentOpenStatus(null);
-    const path = (pathOverride ?? documentPath).trim();
-    if (!path) {
+    const trimmedPath = path.trim();
+    if (!trimmedPath) {
       setError('A document path is required.');
       return;
     }
@@ -519,24 +523,45 @@ export function App(): JSX.Element {
     }
 
     try {
-      setOpeningDocumentPath(path);
+      setOpeningDocumentName(trimmedPath);
       setIsOpeningDocument(true);
-      const document = await openDocument({ path });
+      const document = await openDocument({ path: trimmedPath });
       setCurrentDocument(document);
       setDocumentOpenStatus(openedDocumentStatus(document));
-      if (pathOverride !== undefined) {
-        setDocumentPath(path);
-      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
-      setOpeningDocumentPath(null);
+      setOpeningDocumentName(null);
       setIsOpeningDocument(false);
     }
   };
 
-  const openCurrentDocument = async (): Promise<void> => {
-    await openDocumentPath();
+  const chooseDocumentFile = (): void => {
+    documentFileInputRef.current?.click();
+  };
+
+  const openDocumentFile = async (file: File): Promise<void> => {
+    setError(null);
+    setDocumentOpenStatus(null);
+    if (
+      hasUnsavedMoleculeEdits &&
+      !window.confirm(REPLACE_UNSAVED_EDITS_MESSAGE)
+    ) {
+      return;
+    }
+
+    try {
+      setOpeningDocumentName(file.name);
+      setIsOpeningDocument(true);
+      const document = await importDocument(file);
+      setCurrentDocument(document);
+      setDocumentOpenStatus(openedDocumentStatus(document, file.name));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setOpeningDocumentName(null);
+      setIsOpeningDocument(false);
+    }
   };
 
   const openSettingsDrawer = (section: SettingsDrawerSection): void => {
@@ -570,13 +595,11 @@ export function App(): JSX.Element {
     ],
     file: [
       {
-        disabled: documentPath.trim().length === 0 || isOpeningDocument,
+        disabled: isOpeningDocument,
         id: 'open-document',
         kind: 'action',
         label: 'Open Document',
-        onSelect: () => {
-          void openCurrentDocument();
-        },
+        onSelect: chooseDocumentFile,
       },
     ],
     settings: [
@@ -646,13 +669,6 @@ export function App(): JSX.Element {
         onSelect: requestViewReset,
       },
       {
-        checked: showBonds,
-        id: 'show-bonds',
-        kind: 'checkbox',
-        label: 'Show Bonds',
-        onSelect: () => setShowBonds(!showBonds),
-      },
-      {
         checked: showAtomLabels,
         id: 'show-atom-labels',
         kind: 'checkbox',
@@ -665,28 +681,16 @@ export function App(): JSX.Element {
   const explorerSidebarPanel = (
     <DocumentOpenPanel
       backendHealthStatus={healthStatus}
-      documentPath={documentPath}
       error={error}
       isOpeningDocument={isOpeningDocument}
       documentOpenStatus={documentOpenStatus}
-      onDocumentOpen={(pathOverride) => {
-        void openDocumentPath(pathOverride);
-      }}
-      onDocumentPathChange={setDocumentPath}
-      openingDocumentPath={openingDocumentPath}
+      onChooseDocument={chooseDocumentFile}
+      openingDocumentName={openingDocumentName}
     />
   );
 
   const displaySidebarPanel = (
     <>
-      <label className="workbench-inline-control">
-        <input
-          checked={showBonds}
-          onChange={(event) => setShowBonds(event.currentTarget.checked)}
-          type="checkbox"
-        />
-        Show Bonds
-      </label>
       <label className="workbench-inline-control">
         <input
           checked={showAtomLabels}
@@ -754,6 +758,10 @@ export function App(): JSX.Element {
             }
             onSelectedModeIndexChange={selectVibrationalMode}
             selectedModeIndex={selectedVibrationalMode?.index ?? null}
+            showDisplacementVectors={showVibrationalModeDisplacementVectors}
+            onShowDisplacementVectorsChange={
+              setShowVibrationalModeDisplacementVectors
+            }
             showIrSpectrum={false}
           />
         );
@@ -788,6 +796,20 @@ export function App(): JSX.Element {
 
   return (
     <>
+      <input
+        accept=".xyz,.com,.gjf,.inp,.log,.out"
+        aria-label="Choose document file"
+        className="workbench-visually-hidden"
+        onChange={(event) => {
+          const file = event.currentTarget.files?.[0];
+          event.currentTarget.value = '';
+          if (file) {
+            void openDocumentFile(file);
+          }
+        }}
+        ref={documentFileInputRef}
+        type="file"
+      />
       <AppShell
         bottomDockPanels={{
           analysis: (
@@ -834,22 +856,30 @@ export function App(): JSX.Element {
         }}
         workspace={(
           <div className="workbench-viewer-workspace">
-            <ViewerToolbox
+            <div className="workbench-viewer-stage">
+              <MolecularViewer
+                autoFrameKey={viewerAutoFrameKey}
+                document={activeMoleculeDocument}
+                isVibrationalModeAnimationPlaying={
+                  isVibrationalModeAnimationPlaying
+                }
+                selectedVibrationalMode={selectedVibrationalMode}
+                showVibrationalModeDisplacementVectors={
+                  showVibrationalModeDisplacementVectors
+                }
+              />
+              <ViewerToolbox
+                document={activeMoleculeDocument}
+                onClearSelection={clearAtomSelection}
+                onResetView={requestViewReset}
+                onShowAtomLabelsChange={setShowAtomLabels}
+                selectedAtomIndices={selectedAtomIndices}
+                showAtomLabels={showAtomLabels}
+              />
+            </div>
+            <ViewerStatusBar
               document={activeMoleculeDocument}
-              onClearSelection={clearAtomSelection}
-              onResetView={requestViewReset}
-              onShowAtomLabelsChange={setShowAtomLabels}
-              onShowBondsChange={setShowBonds}
               selectedAtomIndices={selectedAtomIndices}
-              showAtomLabels={showAtomLabels}
-              showBonds={showBonds}
-            />
-            <MolecularViewer
-              autoFrameKey={viewerAutoFrameKey}
-              document={activeMoleculeDocument}
-              isVibrationalModeAnimationPlaying={
-                isVibrationalModeAnimationPlaying
-              }
               selectedVibrationalMode={selectedVibrationalMode}
             />
             <ViewerPlaybackControls
@@ -858,11 +888,6 @@ export function App(): JSX.Element {
               onTrajectoryPlaybackPlayingChange={setIsTrajectoryPlaybackPlaying}
               selectedTrajectoryFrameIndex={selectedTrajectoryFrameIndex}
               trajectoryDocument={trajectoryDocument}
-            />
-            <ViewerStatusBar
-              document={activeMoleculeDocument}
-              selectedAtomIndices={selectedAtomIndices}
-              selectedVibrationalMode={selectedVibrationalMode}
             />
           </div>
         )}

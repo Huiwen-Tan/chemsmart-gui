@@ -21,6 +21,7 @@ import {
   applyMoleculeEdit,
   checkMoleculeSourceStatus,
   generateMoleculeModeDisplacement,
+  importDocument,
   openDocument,
   previewBroadenedIrSpectrum,
   previewMoleculeExport,
@@ -412,6 +413,24 @@ describe('api client', () => {
 
     await expect(openDocument({ path: 'water.xyz' })).rejects.toThrow(
       'Request failed (500): Internal Server Error',
+    );
+  });
+
+  it('uploads a local document with its filename', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(WATER_DOCUMENT));
+    const file = new File(['water molecule'], 'water sample.xyz', {
+      type: 'chemical/x-xyz',
+    });
+
+    await expect(importDocument(file)).resolves.toEqual(WATER_DOCUMENT);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/api/documents/import?filename=water%20sample.xyz',
+      {
+        headers: { 'Content-Type': 'application/octet-stream' },
+        method: 'POST',
+        body: file,
+      },
     );
   });
 

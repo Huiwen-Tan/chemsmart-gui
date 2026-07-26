@@ -4,10 +4,27 @@ import { CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 import type { MoleculeDocument, VibrationalMode } from '../../shared/types';
 import { DEFAULT_ELEMENT_COLOR, ELEMENT_COLORS } from './elementColors';
 
-const ATOM_RADIUS = 0.2;
+const HYDROGEN_ATOM_RADIUS = 0.2;
+const DEFAULT_ATOM_RADIUS = 0.3;
+const ELEMENT_RADII: Readonly<Record<string, number>> = {
+  H: HYDROGEN_ATOM_RADIUS,
+  He: 0.23,
+  B: 0.3,
+  C: 0.3,
+  N: 0.28,
+  O: 0.27,
+  F: 0.26,
+  Ne: 0.26,
+  Si: 0.34,
+  P: 0.34,
+  S: 0.34,
+  Cl: 0.33,
+  Ar: 0.33,
+  Br: 0.36,
+  I: 0.39,
+};
 const BOND_COLOR = 0xa8b0ba;
 const BOND_RADIUS = 0.055;
-const LABEL_OFFSET = ATOM_RADIUS * 1.8;
 const MODE_DISPLACEMENT_ARROW_COLOR = 0xf97316;
 const MODE_DISPLACEMENT_ARROW_SCALE = 2.5;
 const MODE_DISPLACEMENT_ARROW_MIN_LENGTH = 0.25;
@@ -27,6 +44,7 @@ function createAtomLabel(
   text: string,
   position: THREE.Vector3,
   atomIndex: number,
+  atomRadius: number,
 ): CSS2DObject {
   const element = document.createElement('span');
   element.textContent = text;
@@ -35,7 +53,7 @@ function createAtomLabel(
 
   const label = new CSS2DObject(element);
   label.position.copy(position);
-  label.position.y += LABEL_OFFSET;
+  label.position.y += atomRadius * 1.8;
   label.visible = false;
   label.userData.moleculeObject = true;
   label.userData.atomLabel = true;
@@ -131,7 +149,8 @@ export class MoleculeScene {
       const position = new THREE.Vector3(atom.x, atom.y, atom.z);
       this.atomBasePositions.set(atom.index, position);
 
-      const geometry = new THREE.SphereGeometry(ATOM_RADIUS, 24, 24);
+      const atomRadius = ELEMENT_RADII[atom.element] ?? DEFAULT_ATOM_RADIUS;
+      const geometry = new THREE.SphereGeometry(atomRadius, 24, 24);
       const color = ELEMENT_COLORS[atom.element] ?? DEFAULT_ELEMENT_COLOR;
       const material = new THREE.MeshStandardMaterial({ color });
       const isFrozen = frozenAtomIndices.has(atom.index);
@@ -140,11 +159,17 @@ export class MoleculeScene {
       sphere.position.copy(position);
       sphere.userData.moleculeObject = true;
       sphere.userData.atomIndex = atom.index;
+      sphere.userData.atomRadius = atomRadius;
       sphere.userData.frozenAtom = isFrozen;
       this.scene.add(sphere);
 
       this.scene.add(
-        createAtomLabel(`${atom.index} ${atom.element}`, position, atom.index),
+        createAtomLabel(
+          `${atom.index} ${atom.element}`,
+          position,
+          atom.index,
+          atomRadius,
+        ),
       );
     }
 
@@ -174,7 +199,10 @@ export class MoleculeScene {
     }
   }
 
-  public setModeDisplacementVectors(mode: VibrationalMode | null): void {
+  public setModeDisplacementVectors(
+    mode: VibrationalMode | null,
+    showDisplacementVectors = true,
+  ): void {
     this.resetModeAnimationFrame();
     this.modeAnimationPlaying = false;
     this.modeDisplacementVectors.clear();
@@ -200,6 +228,10 @@ export class MoleculeScene {
         continue;
       }
       this.modeDisplacementVectors.set(displacement.atom_index, vector.clone());
+
+      if (!showDisplacementVectors) {
+        continue;
+      }
 
       const arrowLength = Math.min(
         MODE_DISPLACEMENT_ARROW_MAX_LENGTH,
@@ -300,14 +332,6 @@ export class MoleculeScene {
     }
   }
 
-  public setBondVisibility(showBonds: boolean): void {
-    for (const object of this.scene.children) {
-      if (object.userData.bondObject) {
-        object.visible = showBonds;
-      }
-    }
-  }
-
   public setAtomLabelVisibility(showAtomLabels: boolean): void {
     for (const object of this.scene.children) {
       if (object.userData.atomLabel) {
@@ -357,7 +381,14 @@ export class MoleculeScene {
 
       if (object.userData.atomLabelIndex === atomIndex) {
         object.position.copy(position);
-        object.position.y += LABEL_OFFSET;
+        const atomObject = this.scene.children.find((candidate) => (
+          candidate.userData.atomIndex === atomIndex
+        ));
+        const atomRadius =
+          typeof atomObject?.userData.atomRadius === 'number'
+            ? atomObject.userData.atomRadius
+            : DEFAULT_ATOM_RADIUS;
+        object.position.y += atomRadius * 1.8;
       }
     }
   }

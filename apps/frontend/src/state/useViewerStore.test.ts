@@ -6,7 +6,6 @@ describe('useViewerStore', () => {
   beforeEach(() => {
     useViewerStore.setState({
       selectedAtomIndices: [],
-      showBonds: true,
       showAtomLabels: false,
       viewResetRequestId: 0,
     });
@@ -14,82 +13,41 @@ describe('useViewerStore', () => {
 
   it('toggles multiple 1-based atom indices', () => {
     const { toggleAtomSelection } = useViewerStore.getState();
-
     toggleAtomSelection(1);
     toggleAtomSelection(3);
-
     expect(useViewerStore.getState().selectedAtomIndices).toEqual([1, 3]);
 
     toggleAtomSelection(1);
-
     expect(useViewerStore.getState().selectedAtomIndices).toEqual([3]);
   });
 
   it('clears the atom selection', () => {
     useViewerStore.setState({ selectedAtomIndices: [1, 2] });
-
     useViewerStore.getState().clearAtomSelection();
-
     expect(useViewerStore.getState().selectedAtomIndices).toEqual([]);
   });
 
-  it('sets bond visibility without changing selection', () => {
+  it('sets atom label visibility without changing selection', () => {
     useViewerStore.setState({ selectedAtomIndices: [1, 2] });
-
-    useViewerStore.getState().setShowBonds(false);
-
-    expect(useViewerStore.getState().showBonds).toBe(false);
-    expect(useViewerStore.getState().selectedAtomIndices).toEqual([1, 2]);
-
-    useViewerStore.getState().setShowBonds(true);
-
-    expect(useViewerStore.getState().showBonds).toBe(true);
-    expect(useViewerStore.getState().selectedAtomIndices).toEqual([1, 2]);
-  });
-
-  it('sets atom label visibility without changing selection or bonds', () => {
-    useViewerStore.setState({
-      selectedAtomIndices: [1, 2],
-      showBonds: false,
-    });
-
     useViewerStore.getState().setShowAtomLabels(true);
-
     expect(useViewerStore.getState().showAtomLabels).toBe(true);
-    expect(useViewerStore.getState().showBonds).toBe(false);
-    expect(useViewerStore.getState().selectedAtomIndices).toEqual([1, 2]);
-
-    useViewerStore.getState().setShowAtomLabels(false);
-
-    expect(useViewerStore.getState().showAtomLabels).toBe(false);
-    expect(useViewerStore.getState().showBonds).toBe(false);
     expect(useViewerStore.getState().selectedAtomIndices).toEqual([1, 2]);
   });
 
   it('requests view resets without changing display or selection state', () => {
-    useViewerStore.setState({
-      selectedAtomIndices: [1, 2],
-      showBonds: false,
-    });
-
+    useViewerStore.setState({ selectedAtomIndices: [1, 2] });
     useViewerStore.getState().requestViewReset();
-
     expect(useViewerStore.getState().viewResetRequestId).toBe(1);
     expect(useViewerStore.getState().selectedAtomIndices).toEqual([1, 2]);
-    expect(useViewerStore.getState().showBonds).toBe(false);
 
     useViewerStore.getState().requestViewReset();
-
     expect(useViewerStore.getState().viewResetRequestId).toBe(2);
-    expect(useViewerStore.getState().selectedAtomIndices).toEqual([1, 2]);
-    expect(useViewerStore.getState().showBonds).toBe(false);
   });
 
   it.each([0, -1, 1.5])('rejects invalid atom index %s', (atomIndex) => {
     expect(() => {
       useViewerStore.getState().toggleAtomSelection(atomIndex);
     }).toThrow('Atom index must be a positive integer.');
-
     expect(useViewerStore.getState().selectedAtomIndices).toEqual([]);
   });
 });

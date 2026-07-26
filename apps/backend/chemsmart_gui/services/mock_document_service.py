@@ -69,6 +69,17 @@ class MockDocumentService(DocumentService):
         self._documents[document.id] = document
         return document
 
+    def import_document(
+        self,
+        filename: str,
+        content: bytes,
+    ) -> MoleculeDocument:
+        del content
+        document = self.open_document(OpenDocumentRequest(path=filename))
+        imported_document = document.model_copy(update={"source": None})
+        self._documents[imported_document.id] = imported_document
+        return imported_document
+
     def get_document(self, document_id: str) -> MoleculeDocument | None:
         return self._documents.get(document_id)
 

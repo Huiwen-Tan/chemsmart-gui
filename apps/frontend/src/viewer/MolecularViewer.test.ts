@@ -6,7 +6,6 @@ import {
   connectAtomHighlights,
   connectAtomLabelVisibility,
   connectAtomPicking,
-  connectBondVisibility,
   connectViewReset,
   shouldAutoFrameViewer,
 } from './MolecularViewer';
@@ -38,7 +37,6 @@ describe('connectAtomPicking', () => {
   beforeEach(() => {
     useViewerStore.setState({
       selectedAtomIndices: [],
-      showBonds: true,
       showAtomLabels: false,
       viewResetRequestId: 0,
     });
@@ -173,38 +171,10 @@ describe('connectAtomHighlights', () => {
   });
 });
 
-describe('connectBondVisibility', () => {
-  beforeEach(() => {
-    useViewerStore.setState({
-      selectedAtomIndices: [],
-      showBonds: true,
-      showAtomLabels: false,
-      viewResetRequestId: 0,
-    });
-  });
-
-  it('synchronizes bond visibility changes until disconnected', () => {
-    const setBondVisibility = vi.fn();
-    useViewerStore.setState({ showBonds: false });
-
-    const disconnect = connectBondVisibility({ setBondVisibility });
-
-    expect(setBondVisibility).toHaveBeenLastCalledWith(false);
-
-    useViewerStore.getState().setShowBonds(true);
-    expect(setBondVisibility).toHaveBeenLastCalledWith(true);
-
-    disconnect();
-    useViewerStore.getState().setShowBonds(false);
-    expect(setBondVisibility).toHaveBeenCalledTimes(2);
-  });
-});
-
 describe('connectAtomLabelVisibility', () => {
   beforeEach(() => {
     useViewerStore.setState({
       selectedAtomIndices: [],
-      showBonds: true,
       showAtomLabels: false,
       viewResetRequestId: 0,
     });
@@ -238,7 +208,6 @@ describe('connectViewReset', () => {
   beforeEach(() => {
     useViewerStore.setState({
       selectedAtomIndices: [],
-      showBonds: true,
       showAtomLabels: false,
       viewResetRequestId: 0,
     });
@@ -254,7 +223,7 @@ describe('connectViewReset', () => {
     useViewerStore.getState().requestViewReset();
     expect(onResetView).toHaveBeenCalledOnce();
 
-    useViewerStore.getState().setShowBonds(false);
+    useViewerStore.getState().setShowAtomLabels(true);
     expect(onResetView).toHaveBeenCalledOnce();
 
     disconnect();

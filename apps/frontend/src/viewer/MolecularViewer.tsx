@@ -12,6 +12,7 @@ interface MolecularViewerProps {
   document: MoleculeDocument | null;
   isVibrationalModeAnimationPlaying: boolean;
   selectedVibrationalMode: VibrationalMode | null;
+  showVibrationalModeDisplacementVectors: boolean;
 }
 
 interface AtomPicker {
@@ -20,10 +21,6 @@ interface AtomPicker {
 
 interface AtomHighlighter {
   setSelectedAtomIndices(selectedAtomIndices: readonly number[]): void;
-}
-
-interface BondVisibilityController {
-  setBondVisibility(showBonds: boolean): void;
 }
 
 interface AtomLabelVisibilityController {
@@ -52,22 +49,6 @@ export function connectAtomHighlights(scene: AtomHighlighter): () => void {
   applyAtomHighlights(scene, useViewerStore.getState().selectedAtomIndices);
   return useViewerStore.subscribe((state) => {
     applyAtomHighlights(scene, state.selectedAtomIndices);
-  });
-}
-
-function applyBondVisibility(
-  scene: BondVisibilityController,
-  showBonds: boolean,
-): void {
-  scene.setBondVisibility(showBonds);
-}
-
-export function connectBondVisibility(
-  scene: BondVisibilityController,
-): () => void {
-  applyBondVisibility(scene, useViewerStore.getState().showBonds);
-  return useViewerStore.subscribe((state) => {
-    applyBondVisibility(scene, state.showBonds);
   });
 }
 
@@ -214,6 +195,7 @@ export function MolecularViewer({
   document,
   isVibrationalModeAnimationPlaying,
   selectedVibrationalMode,
+  showVibrationalModeDisplacementVectors,
 }: MolecularViewerProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const sceneRef = useRef<MoleculeScene | null>(null);
@@ -276,7 +258,6 @@ export function MolecularViewer({
       clearAtomSelection,
     );
     const disconnectAtomHighlights = connectAtomHighlights(sceneWrapper);
-    const disconnectBondVisibility = connectBondVisibility(sceneWrapper);
     const disconnectAtomLabelVisibility = connectAtomLabelVisibility(
       sceneWrapper,
       () => {
@@ -320,7 +301,6 @@ export function MolecularViewer({
       cancelAnimationFrame(animationFrameId);
       disconnectAtomPicking();
       disconnectAtomHighlights();
-      disconnectBondVisibility();
       disconnectAtomLabelVisibility();
       disconnectViewReset();
       controls.dispose();
@@ -349,7 +329,10 @@ export function MolecularViewer({
     previousAutoFrameKeyRef.current = autoFrameKey;
 
     sceneWrapper.setMolecule(document);
-    sceneWrapper.setModeDisplacementVectors(selectedVibrationalModeRef.current);
+    sceneWrapper.setModeDisplacementVectors(
+      selectedVibrationalModeRef.current,
+      showVibrationalModeDisplacementVectors,
+    );
     sceneWrapper.setModeAnimationPlaying(
       isVibrationalModeAnimationPlayingRef.current,
     );
@@ -357,7 +340,6 @@ export function MolecularViewer({
       sceneWrapper,
       useViewerStore.getState().selectedAtomIndices,
     );
-    applyBondVisibility(sceneWrapper, useViewerStore.getState().showBonds);
     applyAtomLabelVisibility(
       sceneWrapper,
       useViewerStore.getState().showAtomLabels,
@@ -373,7 +355,7 @@ export function MolecularViewer({
       frameMolecule(sceneWrapper, camera, controls);
     }
     labelRendererRef.current?.render(sceneWrapper.getScene(), camera);
-  }, [autoFrameKey, document]);
+  }, [autoFrameKey, document, showVibrationalModeDisplacementVectors]);
 
   useEffect(() => {
     const sceneWrapper = sceneRef.current;
@@ -381,7 +363,10 @@ export function MolecularViewer({
       return;
     }
 
-    sceneWrapper.setModeDisplacementVectors(selectedVibrationalMode);
+    sceneWrapper.setModeDisplacementVectors(
+      selectedVibrationalMode,
+      showVibrationalModeDisplacementVectors,
+    );
     sceneWrapper.setModeAnimationPlaying(
       isVibrationalModeAnimationPlayingRef.current,
     );
@@ -389,7 +374,7 @@ export function MolecularViewer({
     if (camera) {
       labelRendererRef.current?.render(sceneWrapper.getScene(), camera);
     }
-  }, [selectedVibrationalMode]);
+  }, [selectedVibrationalMode, showVibrationalModeDisplacementVectors]);
 
   useEffect(() => {
     const sceneWrapper = sceneRef.current;

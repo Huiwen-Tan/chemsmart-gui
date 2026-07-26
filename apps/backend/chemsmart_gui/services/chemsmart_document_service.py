@@ -1,4 +1,5 @@
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import cast
 
 from chemsmart_gui.adapters.chemsmart_adapter import (
@@ -47,6 +48,7 @@ SOURCE_WRITE_EXPORT_FILETYPES: dict[
     "inp": "inp",
 }
 READ_ONLY_SOURCE_FILETYPES = {"log", "out"}
+MAX_IMPORTED_DOCUMENT_BYTES = 100 * 1024 * 1024
 
 
 class ChemsmartDocumentService(DocumentService):
@@ -64,6 +66,26 @@ class ChemsmartDocumentService(DocumentService):
         document = self._adapter.open_document_from_path(request.path)
         self._documents[document.id] = document
         return document
+
+    def import_document(
+        self,
+        filename: str,
+        content: bytes,
+    ) -> OpenedDocument:
+        safe_filename = Path(filename).name
+        if not safe_filename or safe_filename in {".", ".."}:
+            raise ValueError("An imported document filename is required.")
+        if len(content) > MAX_IMPORTED_DOCUMENT_BYTES:
+            raise ValueError("Imported documents must not exceed 100 MB.")
+
+        with TemporaryDirectory(prefix="chemsmart-gui-import-") as directory:
+            import_path = Path(directory) / safe_filename
+            import_path.write_bytes(content)
+            document = self._adapter.open_document_from_path(str(import_path))
+
+        imported_document = document.model_copy(update={"source": None})
+        self._documents[imported_document.id] = imported_document
+        return imported_document
 
     def get_document(self, document_id: str) -> OpenedDocument | None:
         return self._documents.get(document_id)

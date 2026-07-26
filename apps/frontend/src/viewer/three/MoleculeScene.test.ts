@@ -329,25 +329,17 @@ describe('MoleculeScene', () => {
     expect(durationMs).toBeLessThan(MEDIUM_SCENE_GENERATION_BUDGET_MS);
   });
 
-  it('toggles bond visibility without hiding atoms', () => {
+  it('keeps hydrogen compact while enlarging heavier atoms', () => {
     const moleculeScene = new MoleculeScene();
     moleculeScene.setMolecule(WATER);
-    const scene = moleculeScene.getScene();
-    const atoms = atomObjects(scene);
-    const bonds = bondObjects(scene);
+    const radii = atomObjects(moleculeScene.getScene()).map((object) => {
+      if (!(object instanceof THREE.Mesh)) {
+        throw new Error('Expected atom mesh');
+      }
+      return (object.geometry as THREE.SphereGeometry).parameters.radius;
+    });
 
-    expect(bonds).toHaveLength(2);
-    expect(bonds.every((object) => object.visible)).toBe(true);
-
-    moleculeScene.setBondVisibility(false);
-
-    expect(bonds.every((object) => !object.visible)).toBe(true);
-    expect(atoms.every((object) => object.visible)).toBe(true);
-
-    moleculeScene.setBondVisibility(true);
-
-    expect(bonds.every((object) => object.visible)).toBe(true);
-    expect(atoms.every((object) => object.visible)).toBe(true);
+    expect(radii).toEqual([0.27, 0.2, 0.2]);
   });
 
   it('shows selected mode displacement arrows from vibration vectors', () => {
@@ -377,6 +369,22 @@ describe('MoleculeScene', () => {
       [0.8, 0.6, 0],
     ]);
     expect(moleculeScene.computeBoundingBox()?.equals(boxBefore)).toBe(true);
+  });
+
+  it('keeps displacement arrows hidden while retaining mode animation data', () => {
+    const moleculeScene = new MoleculeScene();
+    moleculeScene.setMolecule(WATER_WITH_VIBRATIONAL_MODES);
+    const scene = moleculeScene.getScene();
+
+    moleculeScene.setModeDisplacementVectors(
+      WATER_WITH_VIBRATIONAL_MODES.vibrational_modes[0],
+      false,
+    );
+
+    expect(modeDisplacementObjects(scene)).toHaveLength(0);
+    moleculeScene.setModeAnimationPlaying(true, 0);
+    moleculeScene.updateModeAnimationFrame(400);
+    expectPositionCloseTo(atomPosition(scene, 2), [1.1, 0.6, 0.15]);
   });
 
   it('replaces and clears selected mode displacement arrows', () => {
@@ -432,7 +440,7 @@ describe('MoleculeScene', () => {
     expectPositionCloseTo(atomPosition(scene, 3), [-0.8, 0.6, 0]);
     expectPositionCloseTo(atomLabelObjects(scene)[0].position.toArray(), [
       0,
-      0.36,
+      0.486,
       -0.15,
     ]);
     const firstBond = bondObjects(scene)[0];

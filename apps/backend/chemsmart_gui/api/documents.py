@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Annotated
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 
 from chemsmart_gui.domain.document import OpenedDocument, OpenDocumentRequest
 from chemsmart_gui.domain.displacement import (
@@ -53,6 +55,21 @@ def open_document(
             detail=str(exc),
         ) from exc
     except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+
+@router.post("/import", response_model=OpenedDocument)
+def import_document(
+    filename: Annotated[str, Query(min_length=1)],
+    content: Annotated[bytes, Body(media_type="application/octet-stream")],
+    document_service: DocumentService = Depends(get_document_service),
+) -> OpenedDocument:
+    try:
+        return document_service.import_document(filename, content)
+    except (FileNotFoundError, ValueError) as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),

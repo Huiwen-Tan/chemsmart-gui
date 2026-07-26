@@ -63,12 +63,12 @@ describe('ViewerPlaybackControls', () => {
     vi.clearAllMocks();
   });
 
-  it('shows an explicit empty playback state', () => {
+  it('stays hidden when the active document is not a trajectory', () => {
     render(<ViewerPlaybackControls {...DEFAULT_PROPS} />);
 
-    expect(screen.getByRole('region', {
+    expect(screen.queryByRole('region', {
       name: 'Viewer playback controls',
-    })).toHaveTextContent('No trajectory playback available.');
+    })).not.toBeInTheDocument();
   });
 
   it('runs trajectory frame and playback controls', () => {
@@ -89,7 +89,7 @@ describe('ViewerPlaybackControls', () => {
     expect(playback).toHaveTextContent('of 2');
     expect(
       within(playback).getByRole('button', { name: 'Previous Frame' }),
-    ).toBeDisabled();
+    ).toBeEnabled();
     expect(
       within(playback).queryByLabelText('Viewer trajectory playback speed'),
     ).not.toBeInTheDocument();
@@ -99,6 +99,9 @@ describe('ViewerPlaybackControls', () => {
       }),
     ).not.toBeInTheDocument();
 
+    fireEvent.click(
+      within(playback).getByRole('button', { name: 'Previous Frame' }),
+    );
     fireEvent.click(
       within(playback).getByRole('button', { name: 'Next Frame' }),
     );
@@ -112,8 +115,23 @@ describe('ViewerPlaybackControls', () => {
     expect(DEFAULT_PROPS.onSelectedTrajectoryFrameIndexChange)
       .toHaveBeenCalledWith(1);
     expect(DEFAULT_PROPS.onSelectedTrajectoryFrameIndexChange)
-      .toHaveBeenCalledTimes(2);
+      .toHaveBeenCalledTimes(3);
     expect(DEFAULT_PROPS.onTrajectoryPlaybackPlayingChange)
       .toHaveBeenCalledWith(true);
+  });
+
+  it('wraps the next frame from the end back to the beginning', () => {
+    render(
+      <ViewerPlaybackControls
+        {...DEFAULT_PROPS}
+        selectedTrajectoryFrameIndex={1}
+        trajectoryDocument={TRAJECTORY}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next Frame' }));
+
+    expect(DEFAULT_PROPS.onSelectedTrajectoryFrameIndexChange)
+      .toHaveBeenCalledWith(0);
   });
 });

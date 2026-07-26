@@ -67,6 +67,17 @@ export function openDocument(
   });
 }
 
+export function importDocument(file: File): Promise<OpenedDocument> {
+  return request(
+    `/api/documents/import?filename=${encodeURIComponent(file.name)}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: file,
+    },
+  );
+}
+
 export function applyMoleculeEdit(
   payload: ApplyMoleculeEditRequest,
 ): Promise<MoleculeEditResponse> {

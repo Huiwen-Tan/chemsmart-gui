@@ -1,26 +1,20 @@
 interface DocumentOpenPanelProps {
   backendHealthStatus: string;
   documentOpenStatus?: string | null;
-  documentPath: string;
   error: string | null;
   isOpeningDocument: boolean;
-  onDocumentOpen: (pathOverride?: string) => void;
-  onDocumentPathChange: (path: string) => void;
-  openingDocumentPath?: string | null;
+  onChooseDocument: () => void;
+  openingDocumentName?: string | null;
 }
 
 export function DocumentOpenPanel({
   backendHealthStatus,
   documentOpenStatus = null,
-  documentPath,
   error,
   isOpeningDocument,
-  onDocumentOpen,
-  onDocumentPathChange,
-  openingDocumentPath,
+  onChooseDocument,
+  openingDocumentName,
 }: DocumentOpenPanelProps): JSX.Element {
-  const trimmedDocumentPath = documentPath.trim();
-  const activeOpeningPath = openingDocumentPath ?? trimmedDocumentPath;
   const backendHealth = formatBackendHealth(backendHealthStatus);
 
   return (
@@ -43,36 +37,19 @@ export function DocumentOpenPanel({
         </span>
       </p>
 
-      <form
-        className="workbench-form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          onDocumentOpen();
-        }}
+      <button
+        className="workbench-button workbench-button-primary workbench-document-choose-button"
+        disabled={isOpeningDocument || backendHealth.status === 'unavailable'}
+        onClick={onChooseDocument}
+        type="button"
       >
-        <label className="workbench-field">
-          <span className="workbench-field-label">Document path</span>
-          <input
-            className="workbench-input"
-            onChange={(event) => onDocumentPathChange(event.currentTarget.value)}
-            placeholder="sample-data/water.xyz"
-            type="text"
-            value={documentPath}
-          />
-        </label>
-        <button
-          className="workbench-button workbench-button-primary"
-          disabled={isOpeningDocument}
-          type="submit"
-        >
-          Open Document
-        </button>
-      </form>
+        Choose File...
+      </button>
 
       <p className="workbench-document-open-status" role="status">
         {isOpeningDocument
-          ? `Opening ${activeOpeningPath || 'document'}...`
-          : (documentOpenStatus ?? 'Ready to open a local document path.')}
+          ? `Opening ${openingDocumentName || 'document'}...`
+          : (documentOpenStatus ?? 'Choose a local molecular document to open.')}
       </p>
       {error ? (
         <p className="workbench-error" role="alert">

@@ -25,6 +25,14 @@ class DocumentService(ABC):
         """Open a molecular document and return normalized data."""
 
     @abstractmethod
+    def import_document(
+        self,
+        filename: str,
+        content: bytes,
+    ) -> OpenedDocument:
+        """Import uploaded document content without tracking a source path."""
+
+    @abstractmethod
     def get_document(self, document_id: str) -> OpenedDocument | None:
         """Retrieve an existing molecule document by identifier."""
 
