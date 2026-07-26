@@ -46,11 +46,6 @@ function formatSourceModifiedTime(
   return modifiedTime.toLocaleString();
 }
 
-function countImaginaryModes(document: MoleculeDocument): number {
-  return document.vibrational_modes.filter((mode) => mode.is_imaginary)
-    .length;
-}
-
 function formatDocumentKind(kind: MoleculeDocument['document_kind']): string {
   return kind === 'structure' ? 'Structure' : kind;
 }
@@ -99,16 +94,6 @@ export function DocumentSummaryPanel({
               <dd>{formatProgram(document.calculation.program)}</dd>
               <dt>Calculation state</dt>
               <dd>{formatCalculationState(document.calculation)}</dd>
-            </>
-          ) : null}
-          {document.vibrational_modes.length > 0 ? (
-            <>
-              <dt>Vibrational modes</dt>
-              <dd>{document.vibrational_modes.length}</dd>
-              <dt>Imaginary vibrational modes</dt>
-              <dd>{countImaginaryModes(document)}</dd>
-              <dt>Vibrational frequency unit</dt>
-              <dd>cm⁻¹</dd>
             </>
           ) : null}
         </dl>

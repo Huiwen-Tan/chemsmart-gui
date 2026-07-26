@@ -165,6 +165,7 @@ export function AppShell({
   const hasLegacyContent = children !== undefined && children !== null;
   const applicationMenuGroups = createApplicationMenuGroups({
     bottomDockTab,
+    hasCustomBottomDock: bottomDock !== undefined,
     menuItems,
     rightPanelTab,
     setActiveBottomDockTab,
@@ -312,6 +313,7 @@ export function AppShell({
 
 interface ApplicationMenuGroupsOptions {
   bottomDockTab: BottomDockTab;
+  hasCustomBottomDock: boolean;
   menuItems?: WorkbenchMenuItems;
   rightPanelTab: RightPanelTab;
   setActiveBottomDockTab: (tab: BottomDockTab) => void;
@@ -322,6 +324,7 @@ interface ApplicationMenuGroupsOptions {
 
 function createApplicationMenuGroups({
   bottomDockTab,
+  hasCustomBottomDock,
   menuItems,
   rightPanelTab,
   setActiveBottomDockTab,
@@ -341,13 +344,15 @@ function createApplicationMenuGroups({
           label: 'Show Explorer Sidebar',
           onSelect: () => setActiveSidebarView('explorer'),
         },
-        {
-          active: bottomDockTab === 'export',
-          id: 'show-export-dock',
-          kind: 'action',
-          label: 'Show Export Dock',
-          onSelect: () => setActiveBottomDockTab('export'),
-        },
+        ...(hasCustomBottomDock
+          ? []
+          : [{
+              active: bottomDockTab === 'export',
+              id: 'show-export-dock',
+              kind: 'action' as const,
+              label: 'Show Export Dock',
+              onSelect: () => setActiveBottomDockTab('export'),
+            }]),
       ]),
     },
     {

@@ -608,7 +608,7 @@ function activateTasksSidebar(): HTMLElement {
 
 function activateBottomDockTab(tabName: string): HTMLElement {
   const dock = screen.getByRole('region', { name: 'Workbench dock' });
-  fireEvent.click(within(dock).getByRole('tab', { name: tabName }));
+  expect(tabName).toBe('Export');
   return dock;
 }
 
@@ -680,7 +680,8 @@ describe('App', () => {
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
     expect(screen.getByTestId('viewer-document')).toHaveTextContent('null');
-    expect(screen.getByText('No document loaded.')).toBeInTheDocument();
+    expect(screen.getByText('No molecule document loaded.'))
+      .toBeInTheDocument();
     useViewerStore.setState({ selectedAtomIndices: [1, 2] });
 
     chooseDocumentFile();
@@ -690,7 +691,8 @@ describe('App', () => {
         JSON.stringify(WATER_DOCUMENT),
       );
     });
-    const documentSummary = screen.getByRole('region', {
+    const summaryDialog = openResultsDialog('Summary');
+    const documentSummary = within(summaryDialog).getByRole('region', {
       name: 'Current Document',
     });
     expect(
@@ -813,28 +815,17 @@ describe('App', () => {
     expect(
       screen.queryByRole('region', { name: 'Legacy workspace content' }),
     ).not.toBeInTheDocument();
+    expect(within(dock).queryByRole('tablist')).not.toBeInTheDocument();
     expect(
-      within(dock).getByRole('tabpanel', { name: 'Properties' }),
-    ).toContainElement(
-      within(dock).getByRole('region', { name: 'Current Document' }),
-    );
+      within(dock).getByRole('region', { name: 'Export Preview' }),
+    ).toBeInTheDocument();
+    expect(
+      within(dock).queryByRole('region', { name: 'Current Document' }),
+    ).not.toBeInTheDocument();
     expect(
       within(rightPanel).getByRole('tabpanel', { name: 'Details' }),
     ).toContainElement(
       within(rightPanel).getByRole('region', { name: 'Selected Atoms' }),
-    );
-
-    fireEvent.click(within(dock).getByRole('tab', { name: 'Export' }));
-    expect(
-      within(dock).getByRole('tabpanel', { name: 'Export' }),
-    ).toContainElement(
-      within(dock).getByRole('region', { name: 'Export Preview' }),
-    );
-    fireEvent.click(within(dock).getByRole('tab', { name: 'Analysis' }));
-    expect(
-      within(dock).getByRole('tabpanel', { name: 'Analysis' }),
-    ).toHaveTextContent(
-      'Open a trajectory or choose a result from the Results menu.',
     );
 
     activateDisplaySidebar();
@@ -910,6 +901,12 @@ describe('App', () => {
         { name: 'Open Document' },
       ),
     ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('menu', { name: 'File menu' })).queryByRole(
+        'menuitem',
+        { name: 'Show Export Dock' },
+      ),
+    ).not.toBeInTheDocument();
 
     fireEvent.click(within(applicationMenu).getByRole('button', {
       name: 'Edit',
@@ -955,19 +952,19 @@ describe('App', () => {
     }));
     const resultsMenu = screen.getByRole('menu', { name: 'Results menu' });
     expect(
-      within(resultsMenu).getByRole('menuitem', { name: 'Vibrations...' }),
+      within(resultsMenu).getByRole('menuitem', { name: 'Vibrations' }),
     ).toBeDisabled();
     expect(
-      within(resultsMenu).getByRole('menuitem', { name: 'IR Spectrum...' }),
+      within(resultsMenu).getByRole('menuitem', { name: 'IR Spectrum' }),
     ).toBeDisabled();
     expect(
       within(resultsMenu).getByRole('menuitem', {
-        name: 'Trajectory Energy Profile...',
+        name: 'Trajectory',
       }),
     ).toBeDisabled();
     expect(
       within(resultsMenu).getByRole('menuitem', {
-        name: 'Charge Distribution...',
+        name: 'Charge Distribution',
       }),
     ).toBeDisabled();
     expect(
@@ -1150,13 +1147,19 @@ describe('App', () => {
         name: 'Pause Trajectory',
       }),
     ).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+      JSON.stringify(TRAJECTORY_FRAME_ONE),
+    );
 
     act(() => {
       vi.advanceTimersByTime(50);
     });
     expect(screen.getByTestId('viewer-document')).toHaveTextContent(
-      JSON.stringify(TRAJECTORY_FRAME_ONE),
+      JSON.stringify(TRAJECTORY_FRAME_TWO),
     );
+    expect(
+      within(playback).getByRole('button', { name: 'Play Trajectory' }),
+    ).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByTestId('viewer-auto-frame-key')).toHaveTextContent(
       JSON.stringify(TRAJECTORY_DOCUMENT.id),
     );
@@ -1185,16 +1188,16 @@ describe('App', () => {
       name: 'Viewer playback controls',
     })).not.toBeInTheDocument();
 
-    const dialog = openResultsDialog('Vibrations...');
+    const dialog = openResultsDialog('Vibrations');
     const modesPanel = within(dialog).getByRole('region', {
       name: 'Vibrational Modes',
     });
     expect(
       within(modesPanel).queryByRole('region', { name: 'IR Stick Spectrum' }),
     ).not.toBeInTheDocument();
-    fireEvent.click(
-      within(modesPanel).getByRole('button', { name: 'Select mode 2' }),
-    );
+    fireEvent.click(within(modesPanel).getByRole('row', {
+      name: 'Mode 2, frequency 1628.3334 cm⁻¹',
+    }));
     expect(screen.getByTestId('viewer-mode')).toHaveTextContent(
       JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT.vibrational_modes[1]),
     );
@@ -1205,9 +1208,9 @@ describe('App', () => {
       'true',
     );
 
-    fireEvent.click(
-      within(modesPanel).getByRole('button', { name: 'Select mode 1' }),
-    );
+    fireEvent.click(within(modesPanel).getByRole('row', {
+      name: 'Mode 1, frequency -530.2 cm⁻¹',
+    }));
     fireEvent.click(
       within(modesPanel).getByRole('button', {
         name: 'Play Mode Animation',
@@ -1221,7 +1224,7 @@ describe('App', () => {
     ).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('passes the selected trajectory frame to the viewer', async () => {
+  it('opens trajectory results and selects frames by row', async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
       .mockResolvedValueOnce(jsonResponse(TRAJECTORY_DOCUMENT));
@@ -1236,77 +1239,38 @@ describe('App', () => {
         JSON.stringify(TRAJECTORY_FRAME_ONE),
       );
     });
-    expect(screen.getByTestId('viewer-auto-frame-key')).toHaveTextContent(
-      JSON.stringify(TRAJECTORY_DOCUMENT.id),
-    );
 
-    const dock = activateBottomDockTab('Analysis');
-    const trajectoryPanel = within(dock).getByRole('region', {
-      name: 'Trajectory Frames',
+    const dialog = openResultsDialog('Trajectory');
+    const profile = within(dialog).getByRole('region', {
+      name: 'Trajectory',
     });
     expect(
-      within(trajectoryPanel).getByText('water-optimization'),
-    ).toBeInTheDocument();
-    expect(within(trajectoryPanel).getByText('Frame 1 of 2')).toBeInTheDocument();
-    expect(
-      screen.getByRole('region', { name: 'Viewer status' }),
-    ).not.toHaveTextContent('Frame 1 of 2');
-    expect(
-      within(trajectoryPanel).getByRole('button', { name: 'Previous Frame' }),
-    ).toBeDisabled();
-    expect(
-      within(trajectoryPanel).getByRole('button', { name: 'Next Frame' }),
-    ).toBeEnabled();
-    const propertiesTable = within(trajectoryPanel).getByRole('table', {
-      name: 'Selected trajectory frame properties',
-    });
-    expect(within(propertiesTable).getByText('Energy (Hartree)'))
-      .toBeInTheDocument();
-    expect(within(propertiesTable).getByText('-76.1')).toBeInTheDocument();
-    expect(
-      within(trajectoryPanel).getByRole('region', {
-        name: 'Trajectory Energy Profile',
+      within(profile).getByRole('img', {
+        name: 'Trajectory energy chart',
       }),
     ).toBeInTheDocument();
 
     act(() => {
       useViewerStore.setState({ selectedAtomIndices: [1] });
     });
-    fireEvent.click(
-      within(trajectoryPanel).getByRole('button', {
-        name: 'Select energy frame 2',
-      }),
-    );
+    fireEvent.click(within(profile).getByRole('row', {
+      name: 'Frame 2, energy -76.2 Hartree',
+    }));
 
     await waitFor(() => {
       expect(screen.getByTestId('viewer-document')).toHaveTextContent(
         JSON.stringify(TRAJECTORY_FRAME_TWO),
       );
     });
-    expect(screen.getByTestId('viewer-auto-frame-key')).toHaveTextContent(
-      JSON.stringify(TRAJECTORY_DOCUMENT.id),
-    );
     expect(useViewerStore.getState().selectedAtomIndices).toEqual([]);
-    expect(within(trajectoryPanel).getByText('Frame 2 of 2')).toBeInTheDocument();
     expect(
-      screen.getByRole('region', { name: 'Viewer status' }),
-    ).not.toHaveTextContent('Frame 2 of 2');
-    expect(
-      within(trajectoryPanel).getByRole('button', { name: 'Previous Frame' }),
-    ).toBeEnabled();
-    expect(
-      within(trajectoryPanel).getByRole('button', { name: 'Next Frame' }),
-    ).toBeDisabled();
-    const selectedFramePropertiesTable = within(trajectoryPanel).getByRole(
-      'table',
-      { name: 'Selected trajectory frame properties' },
-    );
-    expect(within(selectedFramePropertiesTable).getByText('-76.2'))
-      .toBeInTheDocument();
-    expect(screen.queryByText('Unsaved edits')).not.toBeInTheDocument();
+      within(profile).getByRole('row', {
+        name: 'Frame 2, energy -76.2 Hartree',
+      }),
+    ).toHaveAttribute('aria-selected', 'true');
   });
 
-  it('opens the trajectory energy profile from the Results menu', async () => {
+  it('plays one trajectory pass, stops at the end, and restarts cleanly', async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
       .mockResolvedValueOnce(jsonResponse(TRAJECTORY_DOCUMENT));
@@ -1322,58 +1286,18 @@ describe('App', () => {
       );
     });
 
-    const dialog = openResultsDialog('Trajectory Energy Profile...');
-    const profile = within(dialog).getByRole('region', {
-      name: 'Trajectory Energy Profile',
-    });
-    expect(
-      within(profile).getByRole('img', {
-        name: 'Trajectory energy profile chart',
-      }),
-    ).toBeInTheDocument();
-
-    fireEvent.click(
-      within(profile).getByRole('button', {
-        name: 'Select energy frame 2',
-      }),
-    );
-
-    await waitFor(() => {
-      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
-        JSON.stringify(TRAJECTORY_FRAME_TWO),
-      );
-    });
-  });
-
-  it('plays trajectory frames and loops to the first frame', async () => {
-    fetchMock
-      .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
-      .mockResolvedValueOnce(jsonResponse(TRAJECTORY_DOCUMENT));
-
-    render(<App />);
-
-    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    chooseDocumentFile('water.log');
-
-    await waitFor(() => {
-      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
-        JSON.stringify(TRAJECTORY_FRAME_ONE),
-      );
-    });
-
-    const dock = activateBottomDockTab('Analysis');
-    const trajectoryPanel = within(dock).getByRole('region', {
-      name: 'Trajectory Frames',
+    const playback = screen.getByRole('region', {
+      name: 'Viewer playback controls',
     });
     vi.useFakeTimers();
 
     fireEvent.click(
-      within(trajectoryPanel).getByRole('button', {
+      within(playback).getByRole('button', {
         name: 'Play Trajectory',
       }),
     );
     expect(
-      within(trajectoryPanel).getByRole('button', {
+      within(playback).getByRole('button', {
         name: 'Pause Trajectory',
       }),
     ).toHaveAttribute('aria-pressed', 'true');
@@ -1384,26 +1308,21 @@ describe('App', () => {
     expect(screen.getByTestId('viewer-document')).toHaveTextContent(
       JSON.stringify(TRAJECTORY_FRAME_TWO),
     );
-    expect(within(trajectoryPanel).getByText('Frame 2 of 2')).toBeInTheDocument();
-
-    act(() => {
-      vi.advanceTimersByTime(50);
-    });
-    expect(screen.getByTestId('viewer-document')).toHaveTextContent(
-      JSON.stringify(TRAJECTORY_FRAME_ONE),
-    );
-    expect(within(trajectoryPanel).getByText('Frame 1 of 2')).toBeInTheDocument();
-
-    fireEvent.click(
-      within(trajectoryPanel).getByRole('button', {
-        name: 'Pause Trajectory',
-      }),
-    );
     expect(
-      within(trajectoryPanel).getByRole('button', {
+      within(playback).getByRole('button', {
         name: 'Play Trajectory',
       }),
     ).toHaveAttribute('aria-pressed', 'false');
+
+    fireEvent.click(within(playback).getByRole('button', {
+      name: 'Play Trajectory',
+    }));
+    expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+      JSON.stringify(TRAJECTORY_FRAME_ONE),
+    );
+    expect(
+      within(playback).getByRole('button', { name: 'Pause Trajectory' }),
+    ).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('uses fixed trajectory playback speed', async () => {
@@ -1422,16 +1341,15 @@ describe('App', () => {
       );
     });
 
-    const dock = activateBottomDockTab('Analysis');
-    const trajectoryPanel = within(dock).getByRole('region', {
-      name: 'Trajectory Frames',
+    const playback = screen.getByRole('region', {
+      name: 'Viewer playback controls',
     });
     expect(
-      within(trajectoryPanel).queryByLabelText('Trajectory playback speed'),
+      within(playback).queryByLabelText('Viewer trajectory playback speed'),
     ).not.toBeInTheDocument();
     vi.useFakeTimers();
     fireEvent.click(
-      within(trajectoryPanel).getByRole('button', {
+      within(playback).getByRole('button', {
         name: 'Play Trajectory',
       }),
     );
@@ -1468,12 +1386,11 @@ describe('App', () => {
       );
     });
 
-    const dock = activateBottomDockTab('Analysis');
-    const trajectoryPanel = within(dock).getByRole('region', {
-      name: 'Trajectory Frames',
+    const playback = screen.getByRole('region', {
+      name: 'Viewer playback controls',
     });
     fireEvent.click(
-      within(trajectoryPanel).getByRole('button', { name: 'Next Frame' }),
+      within(playback).getByRole('button', { name: 'Next Frame' }),
     );
 
     await waitFor(() => {
@@ -1482,12 +1399,12 @@ describe('App', () => {
       );
     });
     fireEvent.click(
-      within(trajectoryPanel).getByRole('button', {
+      within(playback).getByRole('button', {
         name: 'Play Trajectory',
       }),
     );
     expect(
-      within(trajectoryPanel).getByRole('button', {
+      within(playback).getByRole('button', {
         name: 'Pause Trajectory',
       }),
     ).toBeInTheDocument();
@@ -1502,12 +1419,10 @@ describe('App', () => {
     expect(screen.getByTestId('viewer-auto-frame-key')).toHaveTextContent(
       JSON.stringify(SECOND_TRAJECTORY_DOCUMENT.id),
     );
-    expect(within(trajectoryPanel).getByText('Frame 1 of 2')).toBeInTheDocument();
+    expect(within(playback).getByLabelText('Viewer trajectory frame'))
+      .toHaveValue(1);
     expect(
-      within(trajectoryPanel).getByLabelText('Trajectory frame'),
-    ).toHaveValue('0');
-    expect(
-      within(trajectoryPanel).getByRole('button', {
+      within(playback).getByRole('button', {
         name: 'Play Trajectory',
       }),
     ).toBeInTheDocument();
@@ -1533,7 +1448,10 @@ describe('App', () => {
         }),
       );
     });
-    expect(screen.getByText('/tmp/helium.xyz')).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('region', { name: 'Open Document' }))
+        .getByRole('status'),
+    ).toHaveTextContent('Opened helium.xyz · 1 atom');
   });
 
   it('keeps unsaved molecule edits when replacing the document is declined', async () => {
@@ -1553,7 +1471,7 @@ describe('App', () => {
     expect(screen.getByTestId('viewer-document')).toHaveTextContent(
       JSON.stringify(EDITED_WATER_DOCUMENT),
     );
-    expect(screen.getByText('Unsaved edits')).toBeInTheDocument();
+    expect(useDocumentStore.getState().hasUnsavedMoleculeEdits).toBe(true);
   });
 
   it('opens the requested document after confirming unsaved edit replacement', async () => {
@@ -1584,7 +1502,7 @@ describe('App', () => {
         body: expect.any(File),
       }),
     );
-    expect(screen.getByText('No unsaved edits')).toBeInTheDocument();
+    expect(useDocumentStore.getState().hasUnsavedMoleculeEdits).toBe(false);
   });
 
   it('adds a selected atom bond through edit controls', async () => {
@@ -1621,7 +1539,7 @@ describe('App', () => {
         JSON.stringify(BONDED_WATER_DOCUMENT),
       );
     });
-    expect(screen.getByText('Unsaved edits')).toBeInTheDocument();
+    expect(useDocumentStore.getState().hasUnsavedMoleculeEdits).toBe(true);
     activateDisplaySidebar();
     expect(screen.getByRole('button', { name: 'Undo Edit' })).toBeEnabled();
     expect(fetchMock).toHaveBeenNthCalledWith(
@@ -1683,7 +1601,7 @@ describe('App', () => {
         JSON.stringify(ADDED_ATOM_WATER_DOCUMENT),
       );
     });
-    expect(screen.getByText('Unsaved edits')).toBeInTheDocument();
+    expect(useDocumentStore.getState().hasUnsavedMoleculeEdits).toBe(true);
     expect(fetchMock).toHaveBeenNthCalledWith(
       3,
       'http://127.0.0.1:8000/api/documents/edit',
@@ -1738,7 +1656,7 @@ describe('App', () => {
         JSON.stringify(DISTANCE_EDITED_WATER_DOCUMENT),
       );
     });
-    expect(screen.getByText('Unsaved edits')).toBeInTheDocument();
+    expect(useDocumentStore.getState().hasUnsavedMoleculeEdits).toBe(true);
     expect(fetchMock).toHaveBeenNthCalledWith(
       3,
       'http://127.0.0.1:8000/api/documents/edit',
@@ -1793,7 +1711,7 @@ describe('App', () => {
         JSON.stringify(FROZEN_WATER_DOCUMENT),
       );
     });
-    expect(screen.getByText('Unsaved edits')).toBeInTheDocument();
+    expect(useDocumentStore.getState().hasUnsavedMoleculeEdits).toBe(true);
     expect(fetchMock).toHaveBeenNthCalledWith(
       3,
       'http://127.0.0.1:8000/api/documents/edit',
@@ -1847,7 +1765,7 @@ describe('App', () => {
         JSON.stringify(ANGLE_EDITED_WATER_DOCUMENT),
       );
     });
-    expect(screen.getByText('Unsaved edits')).toBeInTheDocument();
+    expect(useDocumentStore.getState().hasUnsavedMoleculeEdits).toBe(true);
     expect(fetchMock).toHaveBeenNthCalledWith(
       3,
       'http://127.0.0.1:8000/api/documents/edit',
@@ -1903,7 +1821,7 @@ describe('App', () => {
         JSON.stringify(DIHEDRAL_EDITED_FRAGMENT_DOCUMENT),
       );
     });
-    expect(screen.getByText('Unsaved edits')).toBeInTheDocument();
+    expect(useDocumentStore.getState().hasUnsavedMoleculeEdits).toBe(true);
     expect(fetchMock).toHaveBeenNthCalledWith(
       3,
       'http://127.0.0.1:8000/api/documents/edit',
@@ -1959,7 +1877,7 @@ describe('App', () => {
         JSON.stringify(DELETED_ATOM_WATER_DOCUMENT),
       );
     });
-    expect(screen.getByText('Unsaved edits')).toBeInTheDocument();
+    expect(useDocumentStore.getState().hasUnsavedMoleculeEdits).toBe(true);
     expect(useViewerStore.getState().selectedAtomIndices).toEqual([]);
     expect(fetchMock).toHaveBeenNthCalledWith(
       3,
@@ -2038,7 +1956,7 @@ describe('App', () => {
     });
     expect(screen.getByTestId('viewer-mode')).toHaveTextContent('null');
     expect(screen.getByTestId('viewer-animation')).toHaveTextContent('false');
-    const dialog = openResultsDialog('Vibrations...');
+    const dialog = openResultsDialog('Vibrations');
     const modesPanel = within(dialog).getByRole('region', {
       name: 'Vibrational Modes',
     });
@@ -2050,9 +1968,9 @@ describe('App', () => {
     expect(rows[1]).toHaveTextContent('Imaginary');
     expect(rows[2]).toHaveTextContent('1628.3334');
     expect(rows[2]).toHaveTextContent('Real');
-    fireEvent.click(
-      within(modesPanel).getByRole('button', { name: 'Select mode 2' }),
-    );
+    fireEvent.click(within(modesPanel).getByRole('row', {
+      name: 'Mode 2, frequency 1628.3334 cm⁻¹',
+    }));
     expect(screen.getByTestId('viewer-mode')).toHaveTextContent(
       JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT.vibrational_modes[1]),
     );
@@ -2063,9 +1981,9 @@ describe('App', () => {
     expect(
       within(modesPanel).queryByRole('heading', { name: 'Mode 1' }),
     ).not.toBeInTheDocument();
-    fireEvent.click(
-      within(modesPanel).getByRole('button', { name: 'Select mode 1' }),
-    );
+    fireEvent.click(within(modesPanel).getByRole('row', {
+      name: 'Mode 1, frequency -530.2 cm⁻¹',
+    }));
     expect(
       within(modesPanel).getByRole('heading', { name: 'Mode 1' }),
     ).toBeInTheDocument();
@@ -2090,9 +2008,9 @@ describe('App', () => {
       }),
     ).toHaveAttribute('aria-pressed', 'true');
 
-    fireEvent.click(
-      within(modesPanel).getByRole('button', { name: 'Select mode 2' }),
-    );
+    fireEvent.click(within(modesPanel).getByRole('row', {
+      name: 'Mode 2, frequency 1628.3334 cm⁻¹',
+    }));
 
     expect(screen.getByTestId('viewer-mode')).toHaveTextContent(
       JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT.vibrational_modes[1]),
@@ -2127,7 +2045,7 @@ describe('App', () => {
     expect(
       screen.getByRole('region', { name: 'Viewer status' }),
     ).not.toHaveTextContent('Mode');
-    const dialog = openResultsDialog('IR Spectrum...');
+    const dialog = openResultsDialog('IR Spectrum');
     const spectrumPanel = within(dialog).getByRole('region', {
       name: 'IR Stick Spectrum',
     });
@@ -2184,23 +2102,19 @@ describe('App', () => {
       );
     });
 
-    const dock = activateBottomDockTab('Analysis');
-    const trajectoryPanel = within(dock).getByRole('region', {
-      name: 'Trajectory Frames',
+    const playback = screen.getByRole('region', {
+      name: 'Viewer playback controls',
     });
-    fireEvent.change(
-      within(trajectoryPanel).getByLabelText('Trajectory frame'),
-      {
-        target: { value: '1' },
-      },
-    );
+    fireEvent.click(within(playback).getByRole('button', {
+      name: 'Next Frame',
+    }));
 
     await waitFor(() => {
       expect(screen.getByTestId('viewer-document')).toHaveTextContent(
         JSON.stringify(ORCA_OUTPUT_FINAL_FRAME),
       );
     });
-    const dialog = openResultsDialog('IR Spectrum...');
+    const dialog = openResultsDialog('IR Spectrum');
     const spectrumPanel = within(dialog).getByRole('region', {
       name: 'IR Stick Spectrum',
     });
@@ -2263,13 +2177,13 @@ describe('App', () => {
         JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT),
       );
     });
-    const dialog = openResultsDialog('Vibrations...');
+    const dialog = openResultsDialog('Vibrations');
     const modesPanel = within(dialog).getByRole('region', {
       name: 'Vibrational Modes',
     });
-    fireEvent.click(
-      within(modesPanel).getByRole('button', { name: 'Select mode 1' }),
-    );
+    fireEvent.click(within(modesPanel).getByRole('row', {
+      name: 'Mode 1, frequency -530.2 cm⁻¹',
+    }));
     fireEvent.click(
       within(modesPanel).getByRole('button', {
         name: 'Play Mode Animation',
@@ -2305,7 +2219,7 @@ describe('App', () => {
       }),
     );
     expect(screen.getByTestId('viewer-animation')).toHaveTextContent('false');
-    expect(screen.getByText('No unsaved edits')).toBeInTheDocument();
+    expect(useDocumentStore.getState().hasUnsavedMoleculeEdits).toBe(false);
     expect(
       within(modesPanel).getByText(
         'No vibrational modes available for this document.',
@@ -2356,13 +2270,13 @@ describe('App', () => {
         JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT),
       );
     });
-    const dialog = openResultsDialog('Vibrations...');
+    const dialog = openResultsDialog('Vibrations');
     const modesPanel = within(dialog).getByRole('region', {
       name: 'Vibrational Modes',
     });
-    fireEvent.click(
-      within(modesPanel).getByRole('button', { name: 'Select mode 1' }),
-    );
+    fireEvent.click(within(modesPanel).getByRole('row', {
+      name: 'Mode 1, frequency -530.2 cm⁻¹',
+    }));
     fireEvent.click(
       within(modesPanel).getByRole('button', {
         name: 'Play Mode Animation',
@@ -2453,13 +2367,13 @@ describe('App', () => {
         JSON.stringify(GAUSSIAN_OUTPUT_DOCUMENT),
       );
     });
-    const dialog = openResultsDialog('Vibrations...');
+    const dialog = openResultsDialog('Vibrations');
     const modesPanel = within(dialog).getByRole('region', {
       name: 'Vibrational Modes',
     });
-    fireEvent.click(
-      within(modesPanel).getByRole('button', { name: 'Select mode 1' }),
-    );
+    fireEvent.click(within(modesPanel).getByRole('row', {
+      name: 'Mode 1, frequency -530.2 cm⁻¹',
+    }));
     fireEvent.click(
       within(modesPanel).getByText('Structure and displacement data'),
     );
@@ -2652,14 +2566,14 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    expect(screen.getByText('Unsaved edits')).toBeInTheDocument();
+    expect(useDocumentStore.getState().hasUnsavedMoleculeEdits).toBe(true);
     const dock = activateBottomDockTab('Export');
     fireEvent.click(
       within(dock).getByRole('button', { name: 'Update Source File' }),
     );
 
     await waitFor(() => {
-      expect(screen.getByText('No unsaved edits')).toBeInTheDocument();
+      expect(useDocumentStore.getState().hasUnsavedMoleculeEdits).toBe(false);
     });
     expect(confirm).toHaveBeenCalledWith(
       expect.stringContaining('sample-data/water.xyz'),
@@ -2726,7 +2640,7 @@ describe('App', () => {
     expect(confirm).toHaveBeenCalledWith(
       'Current molecule has unsaved edits. Open a different document and discard them?',
     );
-    expect(screen.getByText('No unsaved edits')).toBeInTheDocument();
+    expect(useDocumentStore.getState().hasUnsavedMoleculeEdits).toBe(false);
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
       'http://127.0.0.1:8000/api/documents/source-status',
@@ -2775,7 +2689,7 @@ describe('App', () => {
       'Current molecule has unsaved edits. Open a different document and discard them?',
     );
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(screen.getByText('Unsaved edits')).toBeInTheDocument();
+    expect(useDocumentStore.getState().hasUnsavedMoleculeEdits).toBe(true);
     expect(screen.getByTestId('viewer-document')).toHaveTextContent(
       JSON.stringify(EDITED_WATER_DOCUMENT),
     );

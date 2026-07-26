@@ -1,3 +1,5 @@
+import type { KeyboardEvent } from 'react';
+
 import type { TrajectoryDocument } from '../shared/types';
 
 interface TrajectoryEnergyProfileProps {
@@ -97,15 +99,24 @@ export function TrajectoryEnergyProfile({
   );
   const frameCount = document?.frames.length ?? 0;
 
+  const handleFrameKeyDown = (
+    event: KeyboardEvent<HTMLTableRowElement>,
+    frameIndex: number,
+  ): void => {
+    if (event.key !== 'Enter' && event.key !== ' ') {
+      return;
+    }
+    event.preventDefault();
+    onSelectedFrameIndexChange?.(frameIndex);
+  };
+
   return (
     <section
       aria-labelledby="trajectory-energy-profile-heading"
       className="workbench-result-section"
     >
-      <h3 id="trajectory-energy-profile-heading">
-        Trajectory Energy Profile
-      </h3>
-      {!document ? <p>No trajectory document loaded for energy profile.</p> : null}
+      <h3 id="trajectory-energy-profile-heading">Trajectory</h3>
+      {!document ? <p>No trajectory document loaded.</p> : null}
       {document && energyPoints.length === 0 ? (
         <p>No numeric energy values are available for this trajectory.</p>
       ) : null}
@@ -124,7 +135,7 @@ export function TrajectoryEnergyProfile({
             </dd>
           </dl>
           <svg
-            aria-label="Trajectory energy profile chart"
+            aria-label="Trajectory energy chart"
             className="workbench-chart"
             role="img"
             viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
@@ -195,40 +206,45 @@ export function TrajectoryEnergyProfile({
               );
             })}
           </svg>
-          <table
-            aria-label="Trajectory energy values"
-            className="workbench-data-table"
-          >
-            <thead>
-              <tr>
-                <th scope="col">Frame</th>
-                <th scope="col">Energy (Hartree)</th>
-                <th scope="col">State</th>
-              </tr>
-            </thead>
-            <tbody>
-              {energyPoints.map((point) => {
-                const isSelected = point.frameIndex === selectedFrameIndex;
-                return (
-                  <tr key={point.frameIndex}>
-                    <th scope="row">
-                      <button
-                        aria-pressed={isSelected}
-                        onClick={() => {
-                          onSelectedFrameIndexChange?.(point.frameIndex);
-                        }}
-                        type="button"
-                      >
-                        Select energy frame {point.frameIndex + 1}
-                      </button>
-                    </th>
-                    <td>{formatEnergyHartree(point.energyHartree)}</td>
-                    <td>{isSelected ? 'Selected' : 'Not selected'}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className="workbench-result-table-scroll">
+            <table
+              aria-label="Trajectory energy values"
+              className="workbench-data-table"
+            >
+              <thead>
+                <tr>
+                  <th scope="col">Frame</th>
+                  <th scope="col">Energy (Hartree)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {energyPoints.map((point) => {
+                  const isSelected = point.frameIndex === selectedFrameIndex;
+                  return (
+                    <tr
+                      aria-label={
+                        `Frame ${point.frameIndex + 1}, energy ` +
+                        `${formatEnergyHartree(point.energyHartree)} Hartree`
+                      }
+                      aria-selected={isSelected}
+                      data-selected={isSelected}
+                      key={point.frameIndex}
+                      onClick={() => {
+                        onSelectedFrameIndexChange?.(point.frameIndex);
+                      }}
+                      onKeyDown={(event) => {
+                        handleFrameKeyDown(event, point.frameIndex);
+                      }}
+                      tabIndex={0}
+                    >
+                      <th scope="row">{point.frameIndex + 1}</th>
+                      <td>{formatEnergyHartree(point.energyHartree)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </>
       ) : null}
     </section>

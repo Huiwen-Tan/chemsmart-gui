@@ -860,6 +860,30 @@ textarea:focus-visible {
   background: var(--csw-color-surface-hover);
 }
 
+.workbench-data-table tbody tr[tabindex="0"] {
+  cursor: pointer;
+}
+
+.workbench-data-table tbody tr[tabindex="0"]:focus-visible {
+  outline: 2px solid var(--csw-color-accent-primary);
+  outline-offset: -2px;
+}
+
+.workbench-data-table tbody tr[data-selected="true"] {
+  background: var(--csw-color-surface-hover);
+}
+
+.workbench-result-table-scroll {
+  max-height: min(18rem, 38vh);
+  overflow: auto;
+  border: 1px solid var(--csw-color-border-subtle);
+  border-radius: var(--csw-radius-md);
+}
+
+.workbench-result-table-scroll table {
+  border: 0;
+}
+
 .workbench-control-row,
 .workbench-action-row {
   display: flex;
@@ -1510,10 +1534,6 @@ textarea:focus-visible {
 
 .workbench-vibration-mode-table tr[data-selected="true"] {
   background: var(--csw-color-surface-hover);
-}
-
-.workbench-vibration-mode-table button {
-  min-width: 3rem;
 }
 
 .workbench-vibration-controls {

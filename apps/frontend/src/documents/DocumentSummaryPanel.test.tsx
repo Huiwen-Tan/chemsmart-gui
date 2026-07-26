@@ -173,9 +173,12 @@ describe('DocumentSummaryPanel', () => {
     expect(within(panel).getByText('water.log')).toBeInTheDocument();
     expect(within(panel).getByText('Gaussian')).toBeInTheDocument();
     expect(within(panel).getByText('Normal termination')).toBeInTheDocument();
-    expect(within(panel).getByText('2')).toBeInTheDocument();
-    expect(within(panel).getByText('1')).toBeInTheDocument();
-    expect(within(panel).getByText('cm⁻¹')).toBeInTheDocument();
+    expect(within(panel).queryByText('Vibrational modes'))
+      .not.toBeInTheDocument();
+    expect(within(panel).queryByText('Imaginary vibrational modes'))
+      .not.toBeInTheDocument();
+    expect(within(panel).queryByText('Vibrational frequency unit'))
+      .not.toBeInTheDocument();
   });
 
   it('shows incomplete or failed state for non-normal termination', () => {

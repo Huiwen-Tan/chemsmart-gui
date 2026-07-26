@@ -141,15 +141,14 @@ describe('IrSpectrumPanel', () => {
     expect(rows[0]).toHaveTextContent('Mode');
     expect(rows[0]).toHaveTextContent('Frequency (cm⁻¹)');
     expect(rows[0]).toHaveTextContent('IR intensity (km/mol)');
-    expect(rows[1]).toHaveTextContent('Select IR mode 1');
+    expect(rows[1]).toHaveTextContent('1');
     expect(rows[1]).toHaveTextContent('-530.2');
     expect(rows[1]).toHaveTextContent('12.3457');
-    expect(rows[2]).toHaveTextContent('Select IR mode 3');
+    expect(rows[1]).toHaveAttribute('aria-selected', 'true');
+    expect(rows[2]).toHaveTextContent('3');
     expect(rows[2]).toHaveTextContent('3745.5');
     expect(rows[2]).toHaveTextContent('4.5');
-    expect(
-      within(table).queryByRole('button', { name: 'Select IR mode 2' }),
-    ).not.toBeInTheDocument();
+    expect(rows[2]).toHaveAttribute('aria-selected', 'false');
   });
 
   it('selects modes from the chart and table', () => {
@@ -165,12 +164,15 @@ describe('IrSpectrumPanel', () => {
     fireEvent.click(
       screen.getByRole('button', { name: 'Select IR peak mode 3' }),
     );
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Select IR mode 1' }),
-    );
+    const firstModeRow = screen.getByRole('row', {
+      name: 'IR mode 1, frequency -530.2 cm⁻¹',
+    });
+    fireEvent.click(firstModeRow);
+    fireEvent.keyDown(firstModeRow, { key: ' ' });
 
     expect(onSelectedModeIndexChange).toHaveBeenNthCalledWith(1, 3);
     expect(onSelectedModeIndexChange).toHaveBeenNthCalledWith(2, 1);
+    expect(onSelectedModeIndexChange).toHaveBeenNthCalledWith(3, 1);
   });
 
   it('selects modes from the chart with the keyboard', () => {

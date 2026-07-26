@@ -89,12 +89,10 @@ describe('TrajectoryEnergyProfile', () => {
     );
 
     const profile = screen.getByRole('region', {
-      name: 'Trajectory Energy Profile',
+      name: 'Trajectory',
     });
     expect(
-      within(profile).getByText(
-        'No trajectory document loaded for energy profile.',
-      ),
+      within(profile).getByText('No trajectory document loaded.'),
     ).toBeInTheDocument();
   });
 
@@ -107,16 +105,17 @@ describe('TrajectoryEnergyProfile', () => {
     );
 
     const profile = screen.getByRole('region', {
-      name: 'Trajectory Energy Profile',
+      name: 'Trajectory',
     });
     expect(
       within(profile).getByRole('img', {
-        name: 'Trajectory energy profile chart',
+        name: 'Trajectory energy chart',
       }),
     ).toBeInTheDocument();
     expect(within(profile).getByText('Energy unit')).toBeInTheDocument();
     expect(within(profile).getByText('Hartree')).toBeInTheDocument();
-    expect(within(profile).getByText('2')).toBeInTheDocument();
+    expect(within(profile).getByText('Plotted frames').nextElementSibling)
+      .toHaveTextContent('2');
 
     const energyTable = within(profile).getByRole('table', {
       name: 'Trajectory energy values',
@@ -126,16 +125,12 @@ describe('TrajectoryEnergyProfile', () => {
     expect(rows).toHaveLength(3);
     expect(rows[0]).toHaveTextContent('Frame');
     expect(rows[0]).toHaveTextContent('Energy (Hartree)');
-    expect(rows[1]).toHaveTextContent('Select energy frame 1');
+    expect(rows[1]).toHaveTextContent('1');
     expect(rows[1]).toHaveTextContent('-76.1');
-    expect(
-      within(rows[1]).getByRole('button', { name: 'Select energy frame 1' }),
-    ).toHaveAttribute('aria-pressed', 'true');
-    expect(rows[2]).toHaveTextContent('Select energy frame 2');
+    expect(rows[1]).toHaveAttribute('aria-selected', 'true');
+    expect(rows[2]).toHaveTextContent('2');
     expect(rows[2]).toHaveTextContent('-76.2');
-    expect(
-      within(rows[2]).getByRole('button', { name: 'Select energy frame 2' }),
-    ).toHaveAttribute('aria-pressed', 'false');
+    expect(rows[2]).toHaveAttribute('aria-selected', 'false');
   });
 
   it('selects a frame from the energy table', () => {
@@ -148,11 +143,14 @@ describe('TrajectoryEnergyProfile', () => {
       />,
     );
 
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Select energy frame 2' }),
-    );
+    const secondFrameRow = screen.getByRole('row', {
+      name: 'Frame 2, energy -76.2 Hartree',
+    });
+    fireEvent.click(secondFrameRow);
+    fireEvent.keyDown(secondFrameRow, { key: 'Enter' });
 
-    expect(onSelectedFrameIndexChange).toHaveBeenCalledWith(1);
+    expect(onSelectedFrameIndexChange).toHaveBeenNthCalledWith(1, 1);
+    expect(onSelectedFrameIndexChange).toHaveBeenNthCalledWith(2, 1);
   });
 
   it('skips missing energy values and reports unavailable selected energy', () => {
@@ -180,7 +178,7 @@ describe('TrajectoryEnergyProfile', () => {
     );
 
     const profile = screen.getByRole('region', {
-      name: 'Trajectory Energy Profile',
+      name: 'Trajectory',
     });
     const energyTable = within(profile).getByRole('table', {
       name: 'Trajectory energy values',
@@ -188,7 +186,7 @@ describe('TrajectoryEnergyProfile', () => {
     const rows = within(energyTable).getAllByRole('row');
 
     expect(rows).toHaveLength(2);
-    expect(rows[1]).toHaveTextContent('Select energy frame 1');
+    expect(rows[1]).toHaveTextContent('1');
     expect(rows[1]).toHaveTextContent('-76.1');
     expect(
       within(profile).getByText('Selected frame energy'),
@@ -208,7 +206,7 @@ describe('TrajectoryEnergyProfile', () => {
     );
 
     const profile = screen.getByRole('region', {
-      name: 'Trajectory Energy Profile',
+      name: 'Trajectory',
     });
     expect(
       within(profile).getByText(

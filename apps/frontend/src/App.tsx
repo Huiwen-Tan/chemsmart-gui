@@ -15,7 +15,6 @@ import { DocumentSummaryPanel } from './documents/DocumentSummaryPanel';
 import { IrSpectrumPanel } from './documents/IrSpectrumPanel';
 import { MoleculeExportPreviewPanel } from './documents/MoleculeExportPreviewPanel';
 import { TrajectoryEnergyProfile } from './documents/TrajectoryEnergyProfile';
-import { TrajectoryFramesPanel } from './documents/TrajectoryFramesPanel';
 import { VibrationalModesPanel } from './documents/VibrationalModesPanel';
 import { TaskCatalogPanel } from './tasks/TaskCatalogPanel';
 import {
@@ -51,7 +50,7 @@ type ResultsDialogId =
   | 'summary'
   | 'vibrations'
   | 'ir-spectrum'
-  | 'trajectory-energy-profile';
+  | 'trajectory';
 
 const RESULTS_DIALOG_COPY: Record<
   ResultsDialogId,
@@ -69,9 +68,9 @@ const RESULTS_DIALOG_COPY: Record<
     title: 'IR Spectrum',
     description: 'Stick and broadened IR spectrum from parsed modes.',
   },
-  'trajectory-energy-profile': {
-    title: 'Trajectory Energy Profile',
-    description: 'Energy profile for parsed trajectory frames.',
+  trajectory: {
+    title: 'Trajectory',
+    description: 'Parsed trajectory frames and their energy profile.',
   },
 };
 
@@ -365,13 +364,13 @@ export function App(): JSX.Element {
       return undefined;
     }
 
-    const frameCount = trajectoryDocument.frames.length;
+    const lastFrameIndex = trajectoryDocument.frames.length - 1;
     const intervalMs = 1000 / FIXED_TRAJECTORY_PLAYBACK_FRAMES_PER_SECOND;
     const intervalId = window.setInterval(() => {
       setActiveVibrationalModeAnimationKey(null);
       clearAtomSelection();
       setSelectedTrajectoryFrameIndex((currentFrameIndex) => (
-        (currentFrameIndex + 1) % frameCount
+        Math.min(currentFrameIndex + 1, lastFrameIndex)
       ));
     }, intervalMs);
 
@@ -381,6 +380,20 @@ export function App(): JSX.Element {
   }, [
     clearAtomSelection,
     isTrajectoryPlaybackPlaying,
+    trajectoryDocument,
+  ]);
+
+  useEffect(() => {
+    if (
+      trajectoryDocument &&
+      isTrajectoryPlaybackPlaying &&
+      selectedTrajectoryFrameIndex >= trajectoryDocument.frames.length - 1
+    ) {
+      setIsTrajectoryPlaybackPlaying(false);
+    }
+  }, [
+    isTrajectoryPlaybackPlaying,
+    selectedTrajectoryFrameIndex,
     trajectoryDocument,
   ]);
 
@@ -394,6 +407,17 @@ export function App(): JSX.Element {
     setActiveVibrationalModeAnimationKey(null);
     clearAtomSelection();
     setSelectedTrajectoryFrameIndex(frameIndex);
+  };
+
+  const setTrajectoryPlaybackPlaying = (isPlaying: boolean): void => {
+    if (
+      isPlaying &&
+      trajectoryDocument &&
+      selectedTrajectoryFrameIndex >= trajectoryDocument.frames.length - 1
+    ) {
+      selectTrajectoryFrame(0);
+    }
+    setIsTrajectoryPlaybackPlaying(isPlaying);
   };
 
   const setVibrationalModeAnimationPlaying = (isPlaying: boolean): void => {
@@ -570,7 +594,7 @@ export function App(): JSX.Element {
   };
 
   const openResultsDialog = (dialogId: ResultsDialogId): void => {
-    if (dialogId !== 'trajectory-energy-profile') {
+    if (dialogId !== 'trajectory') {
       setIsTrajectoryPlaybackPlaying(false);
     }
     setActiveResultsDialog(dialogId);
@@ -621,7 +645,7 @@ export function App(): JSX.Element {
         disabled: !activeMoleculeDocument,
         id: 'results-summary',
         kind: 'action',
-        label: 'Summary...',
+        label: 'Summary',
         onSelect: () => openResultsDialog('summary'),
       },
       {
@@ -632,14 +656,14 @@ export function App(): JSX.Element {
         disabled: vibrationalModes.length === 0,
         id: 'results-vibrations',
         kind: 'action',
-        label: 'Vibrations...',
+        label: 'Vibrations',
         onSelect: () => openResultsDialog('vibrations'),
       },
       {
         disabled: vibrationalModes.length === 0,
         id: 'results-ir-spectrum',
         kind: 'action',
-        label: 'IR Spectrum...',
+        label: 'IR Spectrum',
         onSelect: () => openResultsDialog('ir-spectrum'),
       },
       {
@@ -647,7 +671,7 @@ export function App(): JSX.Element {
         disabled: true,
         id: 'results-charge-distribution',
         kind: 'action',
-        label: 'Charge Distribution...',
+        label: 'Charge Distribution',
       },
       {
         id: 'results-trajectory-separator',
@@ -655,10 +679,10 @@ export function App(): JSX.Element {
       },
       {
         disabled: !trajectoryDocument,
-        id: 'results-trajectory-energy-profile',
+        id: 'results-trajectory',
         kind: 'action',
-        label: 'Trajectory Energy Profile...',
-        onSelect: () => openResultsDialog('trajectory-energy-profile'),
+        label: 'Trajectory',
+        onSelect: () => openResultsDialog('trajectory'),
       },
     ],
     view: [
@@ -777,7 +801,7 @@ export function App(): JSX.Element {
             selectedModeIndex={selectedVibrationalMode?.index ?? null}
           />
         );
-      case 'trajectory-energy-profile':
+      case 'trajectory':
         return (
           <TrajectoryEnergyProfile
             document={trajectoryDocument}
@@ -811,38 +835,13 @@ export function App(): JSX.Element {
         type="file"
       />
       <AppShell
-        bottomDockPanels={{
-          analysis: (
-            <div className="workbench-panel-stack">
-              {trajectoryDocument ? (
-                <TrajectoryFramesPanel
-                  document={trajectoryDocument}
-                  isPlaybackPlaying={isTrajectoryPlaybackPlaying}
-                  onSelectedFrameIndexChange={selectTrajectoryFrame}
-                  onPlaybackPlayingChange={setIsTrajectoryPlaybackPlaying}
-                  selectedFrameIndex={selectedTrajectoryFrameIndex}
-                />
-              ) : (
-                <p className="workbench-placeholder">
-                  Open a trajectory or choose a result from the Results menu.
-                </p>
-              )}
-            </div>
-          ),
-          export: (
-            <MoleculeExportPreviewPanel
-              document={activeEditableMoleculeDocument}
-              onReopenSource={openDocumentPath}
-              onSourceWrite={markMoleculeDocumentSaved}
-            />
-          ),
-          properties: (
-            <DocumentSummaryPanel
-              document={activeMoleculeDocument}
-              hasUnsavedMoleculeEdits={hasUnsavedMoleculeEdits}
-            />
-          ),
-        }}
+        bottomDock={(
+          <MoleculeExportPreviewPanel
+            document={activeEditableMoleculeDocument}
+            onReopenSource={openDocumentPath}
+            onSourceWrite={markMoleculeDocumentSaved}
+          />
+        )}
         menuItems={applicationMenuItems}
         rightPanelPanels={{
           details: (
@@ -885,7 +884,7 @@ export function App(): JSX.Element {
             <ViewerPlaybackControls
               isTrajectoryPlaybackPlaying={isTrajectoryPlaybackPlaying}
               onSelectedTrajectoryFrameIndexChange={selectTrajectoryFrame}
-              onTrajectoryPlaybackPlayingChange={setIsTrajectoryPlaybackPlaying}
+              onTrajectoryPlaybackPlayingChange={setTrajectoryPlaybackPlaying}
               selectedTrajectoryFrameIndex={selectedTrajectoryFrameIndex}
               trajectoryDocument={trajectoryDocument}
             />

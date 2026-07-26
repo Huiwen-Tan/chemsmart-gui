@@ -174,6 +174,17 @@ export function IrSpectrumPanel({
     selectPeak(modeIndex);
   };
 
+  const handlePeakRowKeyDown = (
+    event: KeyboardEvent<HTMLTableRowElement>,
+    modeIndex: number,
+  ): void => {
+    if (event.key !== 'Enter' && event.key !== ' ') {
+      return;
+    }
+    event.preventDefault();
+    selectPeak(modeIndex);
+  };
+
   return (
     <section
       aria-labelledby="ir-stick-spectrum-heading"
@@ -276,40 +287,45 @@ export function IrSpectrumPanel({
               );
             })}
           </svg>
-          <table
-            aria-label="IR stick spectrum peaks"
-            className="workbench-data-table"
-          >
-            <thead>
-              <tr>
-                <th scope="col">Mode</th>
-                <th scope="col">Frequency (cm⁻¹)</th>
-                <th scope="col">IR intensity (km/mol)</th>
-                <th scope="col">State</th>
-              </tr>
-            </thead>
-            <tbody>
-              {peaks.map((peak) => {
-                const isSelected = peak.modeIndex === selectedModeIndex;
-                return (
-                  <tr key={peak.modeIndex}>
-                    <th scope="row">
-                      <button
-                        aria-pressed={isSelected}
-                        onClick={() => selectPeak(peak.modeIndex)}
-                        type="button"
-                      >
-                        Select IR mode {peak.modeIndex}
-                      </button>
-                    </th>
-                    <td>{formatNumber(peak.frequencyCmMinus1)}</td>
-                    <td>{formatNumber(peak.intensityKmPerMol)}</td>
-                    <td>{isSelected ? 'Selected' : 'Not selected'}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className="workbench-result-table-scroll">
+            <table
+              aria-label="IR stick spectrum peaks"
+              className="workbench-data-table"
+            >
+              <thead>
+                <tr>
+                  <th scope="col">Mode</th>
+                  <th scope="col">Frequency (cm⁻¹)</th>
+                  <th scope="col">IR intensity (km/mol)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {peaks.map((peak) => {
+                  const isSelected = peak.modeIndex === selectedModeIndex;
+                  return (
+                    <tr
+                      aria-label={
+                        `IR mode ${peak.modeIndex}, frequency ` +
+                        `${formatNumber(peak.frequencyCmMinus1)} cm⁻¹`
+                      }
+                      aria-selected={isSelected}
+                      data-selected={isSelected}
+                      key={peak.modeIndex}
+                      onClick={() => selectPeak(peak.modeIndex)}
+                      onKeyDown={(event) => {
+                        handlePeakRowKeyDown(event, peak.modeIndex);
+                      }}
+                      tabIndex={0}
+                    >
+                      <th scope="row">{peak.modeIndex}</th>
+                      <td>{formatNumber(peak.frequencyCmMinus1)}</td>
+                      <td>{formatNumber(peak.intensityKmPerMol)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
           <section
             aria-labelledby="broadened-ir-spectrum-heading"
             className="workbench-result-section"

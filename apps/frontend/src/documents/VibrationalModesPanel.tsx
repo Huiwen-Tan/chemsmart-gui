@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type KeyboardEvent } from 'react';
 
 import type {
   BroadenedIrSpectrumOptions,
@@ -91,6 +91,16 @@ export function VibrationalModesPanel({
     setInternalSelectedModeIndex(modeIndex);
     onSelectedModeIndexChange?.(modeIndex);
   };
+  const handleModeKeyDown = (
+    event: KeyboardEvent<HTMLTableRowElement>,
+    modeIndex: number,
+  ): void => {
+    if (event.key !== 'Enter' && event.key !== ' ') {
+      return;
+    }
+    event.preventDefault();
+    selectMode(modeIndex);
+  };
   const canGenerateDisplacedStructure =
     selectedMode !== null &&
     selectedMode.displacements.length > 0 &&
@@ -130,19 +140,20 @@ export function VibrationalModesPanel({
             <tbody>
               {modes.map((mode) => (
                 <tr
+                  aria-label={
+                    `Mode ${mode.index}, frequency ` +
+                    `${formatNumber(mode.frequency_cm_minus_1)} cm⁻¹`
+                  }
+                  aria-selected={selectedMode?.index === mode.index}
                   data-selected={selectedMode?.index === mode.index}
                   key={mode.index}
+                  onClick={() => selectMode(mode.index)}
+                  onKeyDown={(event) => {
+                    handleModeKeyDown(event, mode.index);
+                  }}
+                  tabIndex={0}
                 >
-                  <th scope="row">
-                    <button
-                      aria-label={`Select mode ${mode.index}`}
-                      aria-pressed={selectedMode?.index === mode.index}
-                      onClick={() => selectMode(mode.index)}
-                      type="button"
-                    >
-                      {mode.index}
-                    </button>
-                  </th>
+                  <th scope="row">{mode.index}</th>
                   <td>{formatNumber(mode.frequency_cm_minus_1)}</td>
                   <td>{formatOptionalNumber(mode.ir_intensity_km_per_mol)}</td>
                   <td>{mode.is_imaginary ? 'Imaginary' : 'Real'}</td>

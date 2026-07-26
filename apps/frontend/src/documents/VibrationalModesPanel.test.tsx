@@ -122,15 +122,13 @@ describe('VibrationalModesPanel', () => {
     expect(rows[0]).toHaveTextContent('Type');
     expect(rows[0]).toHaveTextContent('Symmetry');
 
-    expect(within(rows[1]).getByRole('button', { name: 'Select mode 1' }))
-      .toHaveTextContent('1');
+    expect(rows[1]).toHaveTextContent('1');
     expect(rows[1]).toHaveTextContent('-530.2');
     expect(rows[1]).toHaveTextContent('Imaginary');
     expect(rows[1]).toHaveTextContent('12.3457');
     expect(rows[1]).toHaveTextContent('A1');
 
-    expect(within(rows[2]).getByRole('button', { name: 'Select mode 2' }))
-      .toHaveTextContent('2');
+    expect(rows[2]).toHaveTextContent('2');
     expect(rows[2]).toHaveTextContent('1628.3334');
     expect(rows[2]).toHaveTextContent('Real');
     expect(within(rows[2]).getAllByText('Unavailable')).toHaveLength(2);
@@ -149,7 +147,10 @@ describe('VibrationalModesPanel', () => {
 
     expect(screen.queryByRole('heading', { name: 'Mode 1' }))
       .not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Select mode 1' }));
+    const firstModeRow = screen.getByRole('row', {
+      name: 'Mode 1, frequency -530.2 cm⁻¹',
+    });
+    fireEvent.click(firstModeRow);
     expect(screen.getByRole('heading', { name: 'Mode 1' }))
       .toBeInTheDocument();
     fireEvent.click(screen.getByText('Structure and displacement data'));
@@ -168,21 +169,20 @@ describe('VibrationalModesPanel', () => {
     expect(rows[2]).toHaveTextContent('2');
     expect(rows[2]).toHaveTextContent('0.2');
     expect(rows[2]).toHaveTextContent('0.1');
-    expect(
-      screen.getByRole('button', { name: 'Select mode 1' }),
-    ).toHaveAttribute('aria-pressed', 'true');
+    expect(firstModeRow).toHaveAttribute('aria-selected', 'true');
   });
 
   it('updates the selected mode and shows displacement empty state', () => {
     render(<VibrationalModesPanel document={GAUSSIAN_OUTPUT_DOCUMENT} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Select mode 2' }));
+    const secondModeRow = screen.getByRole('row', {
+      name: 'Mode 2, frequency 1628.3334 cm⁻¹',
+    });
+    fireEvent.click(secondModeRow);
 
     expect(screen.getByRole('heading', { name: 'Mode 2' }))
       .toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: 'Select mode 2' }),
-    ).toHaveAttribute('aria-pressed', 'true');
+    expect(secondModeRow).toHaveAttribute('aria-selected', 'true');
     expect(
       screen.queryByRole('table', {
         name: 'Selected mode displacement vectors',
@@ -213,10 +213,14 @@ describe('VibrationalModesPanel', () => {
     expect(screen.getByRole('heading', { name: 'Mode 2' }))
       .toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: 'Select mode 2' }),
-    ).toHaveAttribute('aria-pressed', 'true');
+      screen.getByRole('row', {
+        name: 'Mode 2, frequency 1628.3334 cm⁻¹',
+      }),
+    ).toHaveAttribute('aria-selected', 'true');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Select mode 1' }));
+    fireEvent.click(screen.getByRole('row', {
+      name: 'Mode 1, frequency -530.2 cm⁻¹',
+    }));
 
     expect(onSelectedModeIndexChange).toHaveBeenCalledWith(1);
   });
@@ -242,8 +246,10 @@ describe('VibrationalModesPanel', () => {
     expect(screen.getByRole('heading', { name: 'Mode 2' }))
       .toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: 'Select IR mode 2' }),
-    ).toHaveAttribute('aria-pressed', 'true');
+      screen.getByRole('row', {
+        name: 'IR mode 2, frequency 1628.3334 cm⁻¹',
+      }),
+    ).toHaveAttribute('aria-selected', 'true');
   });
 
   it('shows play and pause controls for selected mode animation', () => {
@@ -431,7 +437,9 @@ describe('VibrationalModesPanel', () => {
       <VibrationalModesPanel document={GAUSSIAN_OUTPUT_DOCUMENT} />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Select mode 2' }));
+    fireEvent.click(screen.getByRole('row', {
+      name: 'Mode 2, frequency 1628.3334 cm⁻¹',
+    }));
     expect(screen.getByRole('heading', { name: 'Mode 2' }))
       .toBeInTheDocument();
 
@@ -440,7 +448,9 @@ describe('VibrationalModesPanel', () => {
     expect(screen.queryByRole('heading', { name: 'Mode 4' }))
       .not.toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: 'Select mode 4' }),
-    ).toHaveAttribute('aria-pressed', 'false');
+      screen.getByRole('row', {
+        name: 'Mode 4, frequency 1628.3334 cm⁻¹',
+      }),
+    ).toHaveAttribute('aria-selected', 'false');
   });
 });
