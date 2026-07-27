@@ -424,6 +424,28 @@ describe('AppShell', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('can remove the bottom dock from a viewer-centered workspace', () => {
+    const { container } = render(
+      <AppShell showBottomDock={false} workspace={<p>Viewer workspace</p>} />,
+    );
+    const shell = within(container);
+
+    expect(
+      shell.queryByRole('region', { name: 'Workbench dock' }),
+    ).not.toBeInTheDocument();
+    expect(
+      shell.getByRole('region', { name: 'Molecular viewer workspace' }),
+    ).toHaveTextContent('Viewer workspace');
+
+    fireEvent.click(shell.getByRole('button', { name: 'File' }));
+    expect(
+      within(shell.getByRole('menu', { name: 'File menu' })).queryByRole(
+        'menuitem',
+        { name: 'Show Export Dock' },
+      ),
+    ).not.toBeInTheDocument();
+  });
+
   it('renders custom primary sidebar view content', () => {
     const { container } = render(
       <AppShell

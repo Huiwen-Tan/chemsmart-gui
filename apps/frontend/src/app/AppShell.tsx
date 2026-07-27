@@ -143,6 +143,7 @@ interface AppShellProps {
   menuItems?: WorkbenchMenuItems;
   rightPanel?: ReactNode;
   rightPanelPanels?: Partial<Record<RightPanelTab, ReactNode>>;
+  showBottomDock?: boolean;
   sidebarPanels?: Partial<Record<SidebarView, ReactNode>>;
   workspace?: ReactNode;
 }
@@ -154,6 +155,7 @@ export function AppShell({
   menuItems,
   rightPanel,
   rightPanelPanels,
+  showBottomDock = true,
   sidebarPanels,
   workspace,
 }: AppShellProps): JSX.Element {
@@ -165,7 +167,7 @@ export function AppShell({
   const hasLegacyContent = children !== undefined && children !== null;
   const applicationMenuGroups = createApplicationMenuGroups({
     bottomDockTab,
-    hasCustomBottomDock: bottomDock !== undefined,
+    showExportDockMenuItem: showBottomDock && bottomDock === undefined,
     menuItems,
     rightPanelTab,
     setActiveBottomDockTab,
@@ -207,7 +209,10 @@ export function AppShell({
         </div>
         <WorkbenchMenuBar groups={applicationMenuGroups} />
       </header>
-      <div className="workbench-layout">
+      <div
+        className="workbench-layout"
+        data-bottom-dock={showBottomDock ? 'visible' : 'hidden'}
+      >
         <aside
           aria-label="Primary workspace navigation"
           className="workbench-sidebar"
@@ -287,25 +292,27 @@ export function AppShell({
             />
           )}
         </aside>
-        <section aria-label="Workbench dock" className="workbench-bottom-dock">
-          {bottomDock ? (
-            <section
-              aria-label="Custom bottom dock content"
-              className="workbench-panel-slot"
-            >
-              {bottomDock}
-            </section>
-          ) : (
-            <PlaceholderTabs
-              activeTab={bottomDockTab}
-              ariaLabel="Workbench dock tabs"
-              idPrefix="workbench-bottom-dock"
-              onActiveTabChange={setActiveBottomDockTab}
-              panelContent={bottomDockPanels}
-              tabs={BOTTOM_DOCK_TABS}
-            />
-          )}
-        </section>
+        {showBottomDock ? (
+          <section aria-label="Workbench dock" className="workbench-bottom-dock">
+            {bottomDock ? (
+              <section
+                aria-label="Custom bottom dock content"
+                className="workbench-panel-slot"
+              >
+                {bottomDock}
+              </section>
+            ) : (
+              <PlaceholderTabs
+                activeTab={bottomDockTab}
+                ariaLabel="Workbench dock tabs"
+                idPrefix="workbench-bottom-dock"
+                onActiveTabChange={setActiveBottomDockTab}
+                panelContent={bottomDockPanels}
+                tabs={BOTTOM_DOCK_TABS}
+              />
+            )}
+          </section>
+        ) : null}
       </div>
     </div>
   );
@@ -313,23 +320,23 @@ export function AppShell({
 
 interface ApplicationMenuGroupsOptions {
   bottomDockTab: BottomDockTab;
-  hasCustomBottomDock: boolean;
   menuItems?: WorkbenchMenuItems;
   rightPanelTab: RightPanelTab;
   setActiveBottomDockTab: (tab: BottomDockTab) => void;
   setActiveRightPanelTab: (tab: RightPanelTab) => void;
   setActiveSidebarView: (view: SidebarView) => void;
+  showExportDockMenuItem: boolean;
   sidebarView: SidebarView;
 }
 
 function createApplicationMenuGroups({
   bottomDockTab,
-  hasCustomBottomDock,
   menuItems,
   rightPanelTab,
   setActiveBottomDockTab,
   setActiveRightPanelTab,
   setActiveSidebarView,
+  showExportDockMenuItem,
   sidebarView,
 }: ApplicationMenuGroupsOptions): WorkbenchMenuGroup[] {
   return [
@@ -344,15 +351,15 @@ function createApplicationMenuGroups({
           label: 'Show Explorer Sidebar',
           onSelect: () => setActiveSidebarView('explorer'),
         },
-        ...(hasCustomBottomDock
-          ? []
-          : [{
+        ...(showExportDockMenuItem
+          ? [{
               active: bottomDockTab === 'export',
               id: 'show-export-dock',
               kind: 'action' as const,
               label: 'Show Export Dock',
               onSelect: () => setActiveBottomDockTab('export'),
-            }]),
+            }]
+          : []),
       ]),
     },
     {

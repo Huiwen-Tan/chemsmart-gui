@@ -606,10 +606,20 @@ function activateTasksSidebar(): HTMLElement {
   return sidebar;
 }
 
-function activateBottomDockTab(tabName: string): HTMLElement {
-  const dock = screen.getByRole('region', { name: 'Workbench dock' });
-  expect(tabName).toBe('Export');
-  return dock;
+function openExportDialog(): HTMLElement {
+  const applicationMenu = screen.getByRole('navigation', {
+    name: 'Application menu',
+  });
+  fireEvent.click(
+    within(applicationMenu).getByRole('button', { name: 'File' }),
+  );
+  fireEvent.click(
+    within(screen.getByRole('menu', { name: 'File menu' })).getByRole(
+      'menuitem',
+      { name: 'Export...' },
+    ),
+  );
+  return screen.getByRole('dialog', { name: 'Export Structure' });
 }
 
 function openResultsDialog(menuItemName: string): HTMLElement {
@@ -648,6 +658,7 @@ describe('App', () => {
     });
     fetchMock.mockReset();
     vi.stubGlobal('fetch', fetchMock);
+    delete window.chemsmartDesktop;
   });
 
   afterEach(() => {
@@ -655,6 +666,7 @@ describe('App', () => {
     vi.useRealTimers();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    delete window.chemsmartDesktop;
     window.localStorage.removeItem(WORKBENCH_LAYOUT_PREFERENCES_STORAGE_KEY);
   });
 
@@ -680,8 +692,6 @@ describe('App', () => {
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
     expect(screen.getByTestId('viewer-document')).toHaveTextContent('null');
-    expect(screen.getByText('No molecule document loaded.'))
-      .toBeInTheDocument();
     useViewerStore.setState({ selectedAtomIndices: [1, 2] });
 
     chooseDocumentFile();
@@ -786,7 +796,6 @@ describe('App', () => {
     const sidebar = screen.getByRole('complementary', {
       name: 'Primary workspace navigation',
     });
-    const dock = screen.getByRole('region', { name: 'Workbench dock' });
     const rightPanel = screen.getByRole('complementary', {
       name: 'Context panel',
     });
@@ -800,10 +809,10 @@ describe('App', () => {
       }),
     ).toHaveTextContent('No molecule loaded');
     expect(
-      within(viewerWorkspace).getByRole('region', {
+      within(viewerWorkspace).queryByRole('region', {
         name: 'Viewer tools',
       }),
-    ).toBeInTheDocument();
+    ).not.toBeInTheDocument();
     expect(
       within(viewerWorkspace).queryByRole('region', {
         name: 'Viewer playback controls',
@@ -815,12 +824,11 @@ describe('App', () => {
     expect(
       screen.queryByRole('region', { name: 'Legacy workspace content' }),
     ).not.toBeInTheDocument();
-    expect(within(dock).queryByRole('tablist')).not.toBeInTheDocument();
     expect(
-      within(dock).getByRole('region', { name: 'Export Preview' }),
-    ).toBeInTheDocument();
+      screen.queryByRole('region', { name: 'Workbench dock' }),
+    ).not.toBeInTheDocument();
     expect(
-      within(dock).queryByRole('region', { name: 'Current Document' }),
+      screen.queryByRole('region', { name: 'Export Options' }),
     ).not.toBeInTheDocument();
     expect(
       within(rightPanel).getByRole('tabpanel', { name: 'Details' }),
@@ -901,6 +909,12 @@ describe('App', () => {
         { name: 'Open Document' },
       ),
     ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('menu', { name: 'File menu' })).getByRole(
+        'menuitem',
+        { name: 'Export...' },
+      ),
+    ).toBeDisabled();
     expect(
       within(screen.getByRole('menu', { name: 'File menu' })).queryByRole(
         'menuitem',
@@ -1049,7 +1063,7 @@ describe('App', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('wires current viewer actions into the viewer toolbox', async () => {
+  it('keeps occasional viewer actions in View without a floating toolbox', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ status: 'ok' }));
     useDocumentStore.setState({
       currentDocument: WATER_DOCUMENT,
@@ -1063,23 +1077,22 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    const toolbox = screen.getByRole('region', { name: 'Viewer tools' });
-
     expect(
-      within(toolbox).getByLabelText('2 selected atoms'),
-    ).toBeInTheDocument();
+      screen.queryByRole('region', { name: 'Viewer tools' }),
+    ).not.toBeInTheDocument();
+    const applicationMenu = screen.getByRole('navigation', {
+      name: 'Application menu',
+    });
     fireEvent.click(
-      within(toolbox).getByRole('button', { name: 'Clear Selection' }),
+      within(applicationMenu).getByRole('button', { name: 'View' }),
+    );
+    fireEvent.click(
+      within(screen.getByRole('menu', { name: 'View menu' })).getByRole(
+        'menuitem',
+        { name: 'Clear Selection' },
+      ),
     );
     expect(useViewerStore.getState().selectedAtomIndices).toEqual([]);
-
-    fireEvent.click(
-      within(toolbox).getByRole('button', { name: 'Show Atom Labels' }),
-    );
-    expect(useViewerStore.getState().showAtomLabels).toBe(true);
-
-    fireEvent.click(within(toolbox).getByRole('button', { name: 'Reset View' }));
-    expect(useViewerStore.getState().viewResetRequestId).toBe(1);
   });
 
   it('wires trajectory playback controls near the viewer', async () => {
@@ -2418,9 +2431,9 @@ describe('App', () => {
         JSON.stringify(WATER_DOCUMENT),
       );
     });
-    const dock = activateBottomDockTab('Export');
+    const exportDialog = openExportDialog();
     fireEvent.click(
-      within(dock).getByRole('button', { name: 'Preview XYZ Export' }),
+      within(exportDialog).getByRole('button', { name: 'Preview XYZ Export' }),
     );
 
     await waitFor(() => {
@@ -2429,9 +2442,7 @@ describe('App', () => {
       );
     });
     expect(
-      within(
-        within(dock).getByRole('region', { name: 'Export Preview' }),
-      ).getByText('water.xyz'),
+      within(exportDialog).getByText('water.xyz · XYZ'),
     ).toBeInTheDocument();
     expect(fetchMock).toHaveBeenNthCalledWith(
       3,
@@ -2470,12 +2481,16 @@ describe('App', () => {
         JSON.stringify(GAUSSIAN_DOCUMENT),
       );
     });
-    const dock = activateBottomDockTab('Export');
-    fireEvent.change(within(dock).getByRole('combobox', { name: 'Format' }), {
+    const exportDialog = openExportDialog();
+    fireEvent.change(
+      within(exportDialog).getByRole('combobox', { name: 'File type' }), {
       target: { value: 'gjf' },
-    });
+      },
+    );
     fireEvent.click(
-      within(dock).getByRole('button', { name: 'Preview Gaussian Input' }),
+      within(exportDialog).getByRole('button', {
+        name: 'Preview Gaussian Input',
+      }),
     );
 
     await waitFor(() => {
@@ -2484,9 +2499,7 @@ describe('App', () => {
       );
     });
     expect(
-      within(
-        within(dock).getByRole('region', { name: 'Export Preview' }),
-      ).getByText('water.gjf'),
+      within(exportDialog).getByText('water.gjf · GJF'),
     ).toBeInTheDocument();
     expect(fetchMock).toHaveBeenNthCalledWith(
       3,
@@ -2501,16 +2514,28 @@ describe('App', () => {
     );
   });
 
-  it('saves XYZ export content to a backend target path', async () => {
+  it('saves XYZ export content through the desktop Save As bridge', async () => {
+    const saveTextFile = vi.fn().mockResolvedValue({
+      filename: 'water-copy.xyz',
+      filetype: 'xyz',
+      path: '/Users/example/Documents/water-copy.xyz',
+      bytes_written: 128,
+    });
+    Object.defineProperty(window, 'chemsmartDesktop', {
+      configurable: true,
+      value: {
+        backendBaseUrl: 'http://127.0.0.1:8000',
+        saveTextFile,
+      },
+    });
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
       .mockResolvedValueOnce(jsonResponse(WATER_DOCUMENT))
       .mockResolvedValueOnce(
         jsonResponse({
-          filename: 'water-copy.xyz',
+          filename: 'water.xyz',
           filetype: 'xyz',
-          path: '/tmp/water-copy.xyz',
-          bytes_written: 128,
+          content: '3\nwater\nO 0 0 0\nH 1 1 1\nH -1 1 1\n',
         }),
       );
 
@@ -2524,27 +2549,34 @@ describe('App', () => {
         JSON.stringify(WATER_DOCUMENT),
       );
     });
-    const dock = activateBottomDockTab('Export');
-    fireEvent.change(within(dock).getByLabelText('Backend target path'), {
-      target: { value: '/tmp/water-copy.xyz' },
-    });
-    fireEvent.click(within(dock).getByRole('button', { name: 'Save Export' }));
+    const exportDialog = openExportDialog();
+    fireEvent.click(
+      within(exportDialog).getByRole('button', { name: 'Save As...' }),
+    );
 
     await waitFor(() => {
-      expect(screen.getByText('/tmp/water-copy.xyz')).toBeInTheDocument();
+      expect(
+        within(exportDialog).getByText(
+          '/Users/example/Documents/water-copy.xyz',
+        ),
+      ).toBeInTheDocument();
     });
     expect(fetchMock).toHaveBeenNthCalledWith(
       3,
-      'http://127.0.0.1:8000/api/documents/export',
+      'http://127.0.0.1:8000/api/documents/export-preview',
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({
           document: WATER_DOCUMENT,
           filetype: 'xyz',
-          target_path: '/tmp/water-copy.xyz',
         }),
       }),
     );
+    expect(saveTextFile).toHaveBeenCalledWith({
+      content: '3\nwater\nO 0 0 0\nH 1 1 1\nH -1 1 1\n',
+      defaultFilename: 'water.xyz',
+      filetype: 'xyz',
+    });
   });
 
   it('writes source changes back and clears unsaved edit state', async () => {
@@ -2567,9 +2599,10 @@ describe('App', () => {
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
     expect(useDocumentStore.getState().hasUnsavedMoleculeEdits).toBe(true);
-    const dock = activateBottomDockTab('Export');
+    const exportDialog = openExportDialog();
+    fireEvent.click(within(exportDialog).getByText('Source File Actions'));
     fireEvent.click(
-      within(dock).getByRole('button', { name: 'Update Source File' }),
+      within(exportDialog).getByRole('button', { name: 'Update Source File' }),
     );
 
     await waitFor(() => {
@@ -2618,18 +2651,23 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    const dock = activateBottomDockTab('Export');
+    const exportDialog = openExportDialog();
+    fireEvent.click(within(exportDialog).getByText('Source File Actions'));
     fireEvent.click(
-      within(dock).getByRole('button', { name: 'Update Source File' }),
+      within(exportDialog).getByRole('button', { name: 'Update Source File' }),
     );
 
     await waitFor(() => {
       expect(
-        within(dock).getByRole('button', { name: 'Reopen Source File' }),
+        within(exportDialog).getByRole('button', {
+          name: 'Reopen Source File',
+        }),
       ).toBeEnabled();
     });
     fireEvent.click(
-      within(dock).getByRole('button', { name: 'Reopen Source File' }),
+      within(exportDialog).getByRole('button', {
+        name: 'Reopen Source File',
+      }),
     );
 
     await waitFor(() => {
@@ -2671,18 +2709,23 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
-    const dock = activateBottomDockTab('Export');
+    const exportDialog = openExportDialog();
+    fireEvent.click(within(exportDialog).getByText('Source File Actions'));
     fireEvent.click(
-      within(dock).getByRole('button', { name: 'Update Source File' }),
+      within(exportDialog).getByRole('button', { name: 'Update Source File' }),
     );
 
     await waitFor(() => {
       expect(
-        within(dock).getByRole('button', { name: 'Reopen Source File' }),
+        within(exportDialog).getByRole('button', {
+          name: 'Reopen Source File',
+        }),
       ).toBeEnabled();
     });
     fireEvent.click(
-      within(dock).getByRole('button', { name: 'Reopen Source File' }),
+      within(exportDialog).getByRole('button', {
+        name: 'Reopen Source File',
+      }),
     );
 
     expect(confirm).toHaveBeenCalledWith(

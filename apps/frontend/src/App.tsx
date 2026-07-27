@@ -27,7 +27,6 @@ import { MolecularViewer } from './viewer/MolecularViewer';
 import { SelectedAtomPanel } from './viewer/SelectedAtomPanel';
 import { ViewerPlaybackControls } from './viewer/ViewerPlaybackControls';
 import { ViewerStatusBar } from './viewer/ViewerStatusBar';
-import { ViewerToolbox } from './viewer/ViewerToolbox';
 import { downloadTextFile } from './shared/download';
 import type {
   ModeDisplacementDirection,
@@ -250,6 +249,7 @@ export function App(): JSX.Element {
     activeResultsDialog,
     setActiveResultsDialog,
   ] = useState<ResultsDialogId | null>(null);
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const trajectoryDocument = isTrajectoryDocument(currentDocument)
     ? currentDocument
     : null;
@@ -625,6 +625,13 @@ export function App(): JSX.Element {
         label: 'Open Document',
         onSelect: chooseDocumentFile,
       },
+      {
+        disabled: !activeEditableMoleculeDocument,
+        id: 'export-document',
+        kind: 'action',
+        label: 'Export...',
+        onSelect: () => setIsExportDialogOpen(true),
+      },
     ],
     settings: [
       {
@@ -686,6 +693,13 @@ export function App(): JSX.Element {
       },
     ],
     view: [
+      {
+        disabled: selectedAtomIndices.length === 0,
+        id: 'clear-selection',
+        kind: 'action',
+        label: 'Clear Selection',
+        onSelect: clearAtomSelection,
+      },
       {
         id: 'reset-view',
         kind: 'action',
@@ -835,13 +849,6 @@ export function App(): JSX.Element {
         type="file"
       />
       <AppShell
-        bottomDock={(
-          <MoleculeExportPreviewPanel
-            document={activeEditableMoleculeDocument}
-            onReopenSource={openDocumentPath}
-            onSourceWrite={markMoleculeDocumentSaved}
-          />
-        )}
         menuItems={applicationMenuItems}
         rightPanelPanels={{
           details: (
@@ -853,6 +860,7 @@ export function App(): JSX.Element {
           tasks: <TaskCatalogPanel />,
           display: displaySidebarPanel,
         }}
+        showBottomDock={false}
         workspace={(
           <div className="workbench-viewer-workspace">
             <div className="workbench-viewer-stage">
@@ -866,14 +874,6 @@ export function App(): JSX.Element {
                 showVibrationalModeDisplacementVectors={
                   showVibrationalModeDisplacementVectors
                 }
-              />
-              <ViewerToolbox
-                document={activeMoleculeDocument}
-                onClearSelection={clearAtomSelection}
-                onResetView={requestViewReset}
-                onShowAtomLabelsChange={setShowAtomLabels}
-                selectedAtomIndices={selectedAtomIndices}
-                showAtomLabels={showAtomLabels}
               />
             </div>
             <ViewerStatusBar
@@ -907,6 +907,18 @@ export function App(): JSX.Element {
           {resultsDialogContent}
         </WorkbenchDialog>
       ) : null}
+      <WorkbenchDialog
+        description="Choose a supported format, preview the generated content, and save it locally."
+        isOpen={isExportDialogOpen}
+        onClose={() => setIsExportDialogOpen(false)}
+        title="Export Structure"
+      >
+        <MoleculeExportPreviewPanel
+          document={activeEditableMoleculeDocument}
+          onReopenSource={openDocumentPath}
+          onSourceWrite={markMoleculeDocumentSaved}
+        />
+      </WorkbenchDialog>
     </>
   );
 }

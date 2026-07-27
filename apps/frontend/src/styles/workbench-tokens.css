@@ -430,6 +430,11 @@ textarea:focus-visible {
   gap: 0;
 }
 
+.workbench-layout[data-bottom-dock="hidden"] {
+  grid-template-areas: "sidebar workspace right";
+  grid-template-rows: minmax(0, 1fr);
+}
+
 .workbench-sidebar,
 .workbench-main,
 .workbench-right-rail,
@@ -1091,85 +1096,6 @@ textarea:focus-visible {
   gap: var(--csw-space-2);
 }
 
-.workbench-viewer-toolbox {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0;
-  padding: var(--csw-space-1);
-  border: 1px solid var(--csw-color-divider);
-  border-radius: var(--csw-radius-md);
-  background: var(--csw-color-panel-strong);
-}
-
-.workbench-viewer-toolbox-group {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: var(--csw-space-1);
-  padding: var(--csw-space-1) var(--csw-space-2);
-  border-right: 1px solid var(--csw-color-divider);
-  background: transparent;
-}
-
-.workbench-viewer-toolbox-group:last-child {
-  border-right: 0;
-}
-
-.workbench-viewer-toolbox-label {
-  margin: 0;
-  color: var(--csw-color-text);
-  font-size: var(--csw-font-size-xs);
-  font-weight: var(--csw-font-weight-semibold);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.workbench-viewer-toolbox-items {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--csw-space-2);
-  align-items: center;
-}
-
-.workbench-viewer-toolbox-status,
-.workbench-viewer-toolbox-hint {
-  margin: 0;
-  color: var(--csw-color-text-muted);
-  font-size: var(--csw-font-size-xs);
-}
-
-.workbench-viewer-toolbox-hint {
-  color: var(--csw-color-text-subtle);
-}
-
-.workbench-viewer-toolbox-button {
-  border: 1px solid var(--csw-color-border-subtle);
-  border-radius: var(--csw-radius-sm);
-  background: var(--csw-color-surface-sunken);
-  color: var(--csw-color-text-muted);
-  cursor: pointer;
-  font-size: var(--csw-font-size-xs);
-  font-weight: var(--csw-font-weight-medium);
-  padding: var(--csw-space-1) var(--csw-space-2);
-}
-
-.workbench-viewer-toolbox-button:hover:not(:disabled) {
-  background: var(--csw-color-surface-hover);
-  color: var(--csw-color-text);
-}
-
-.workbench-viewer-toolbox-button[aria-pressed="true"] {
-  border-color: var(--csw-color-accent-primary);
-  background: var(--csw-color-surface-raised);
-  color: var(--csw-color-text);
-}
-
-.workbench-viewer-toolbox-button:disabled {
-  color: var(--csw-color-text-subtle);
-  cursor: not-allowed;
-  opacity: var(--csw-opacity-disabled);
-}
-
 .workbench-molecular-viewer {
   position: relative;
   width: 100%;
@@ -1435,54 +1361,68 @@ textarea:focus-visible {
   flex: 1;
 }
 
-.workbench-viewer-stage .workbench-viewer-toolbox {
-  position: absolute;
-  z-index: 4;
-  top: var(--csw-space-3);
-  left: var(--csw-space-3);
+.workbench-export-panel {
+  min-width: min(42rem, 100%);
+}
+
+.workbench-export-controls,
+.workbench-export-actions,
+.workbench-export-preview-heading {
   display: flex;
-  width: auto;
-  grid-template-columns: none;
-  gap: var(--csw-space-1);
-  align-items: center;
-  padding: var(--csw-space-1);
-  border: 1px solid var(--csw-color-border-subtle);
-  border-radius: var(--csw-radius-md);
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: var(--csw-shadow-panel);
-  backdrop-filter: blur(8px);
+  gap: var(--csw-space-3);
+  align-items: flex-end;
 }
 
-.workbench-viewer-stage .workbench-viewer-toolbox-button {
-  display: inline-flex;
-  width: 2rem;
-  height: 2rem;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
+.workbench-export-controls {
+  justify-content: space-between;
 }
 
-.workbench-viewer-toolbox-button svg {
-  width: 1.05rem;
-  height: 1.05rem;
-  fill: none;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 1.8;
+.workbench-export-controls .workbench-field {
+  min-width: min(20rem, 100%);
 }
 
-.workbench-viewer-toolbox-count {
-  display: inline-flex;
-  min-width: 1.5rem;
-  height: 1.5rem;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  background: var(--csw-color-accent-primary);
-  color: var(--csw-color-text-inverse);
-  font-size: var(--csw-font-size-xs);
+.workbench-export-actions {
+  flex-wrap: wrap;
+}
+
+.workbench-export-help {
+  color: var(--csw-color-text-subtle);
+  font-size: var(--csw-font-size-sm);
+}
+
+.workbench-export-preview-heading {
+  justify-content: space-between;
+  color: var(--csw-color-text-subtle);
+  font-size: var(--csw-font-size-sm);
+}
+
+.workbench-export-preview-content {
+  max-height: min(22rem, 42vh);
+  overflow: auto;
+}
+
+.workbench-export-source-actions {
+  padding-top: var(--csw-space-3);
+  border-top: 1px solid var(--csw-color-divider);
+}
+
+.workbench-export-source-actions summary {
+  color: var(--csw-color-text-muted);
+  cursor: pointer;
+  font-size: var(--csw-font-size-sm);
   font-weight: var(--csw-font-weight-semibold);
+}
+
+.workbench-export-source-actions > .workbench-panel-stack {
+  margin-top: var(--csw-space-3);
+}
+
+.workbench-source-status[data-status="current"] {
+  color: var(--csw-color-status-success);
+}
+
+.workbench-source-status:not([data-status="current"]) {
+  color: var(--csw-color-status-warning);
 }
 
 .workbench-viewer-workspace > .workbench-viewer-playback {
@@ -1616,6 +1556,13 @@ textarea:focus-visible {
       minmax(0, 1fr);
     grid-template-rows: auto minmax(20rem, 1fr) auto;
   }
+
+  .workbench-layout[data-bottom-dock="hidden"] {
+    grid-template-areas:
+      "sidebar workspace"
+      "right workspace";
+    grid-template-rows: auto minmax(20rem, 1fr);
+  }
 }
 
 @media (max-width: 820px) {
@@ -1641,17 +1588,20 @@ textarea:focus-visible {
     grid-template-rows: auto minmax(22rem, 1fr) auto auto;
   }
 
-  .workbench-sidebar-switcher,
-  .workbench-viewer-toolbox {
+  .workbench-layout[data-bottom-dock="hidden"] {
+    grid-template-areas:
+      "sidebar"
+      "workspace"
+      "right";
+    grid-template-rows: auto minmax(22rem, 1fr) auto;
+  }
+
+  .workbench-sidebar-switcher {
     grid-template-columns: 1fr;
   }
 
-  .workbench-viewer-toolbox-group {
-    border-right: 0;
-    border-bottom: 1px solid var(--csw-color-divider);
-  }
-
-  .workbench-viewer-toolbox-group:last-child {
-    border-bottom: 0;
+  .workbench-export-controls {
+    align-items: stretch;
+    flex-direction: column;
   }
 }

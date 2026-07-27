@@ -3,7 +3,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   checkMoleculeSourceStatus,
   previewMoleculeExport,
-  writeMoleculeExport,
   writeMoleculeSource,
 } from '../api/client';
 import { downloadTextFile } from '../shared/download';
@@ -25,53 +24,48 @@ interface MoleculeExportPreviewPanelProps {
 }
 
 interface ExportFormatOption {
+  contentType: string;
   filetype: MoleculeExportPreviewFiletype;
   label: string;
+  previewAriaLabel: string;
   previewButtonLabel: string;
   previewingButtonLabel: string;
-  downloadButtonLabel: string;
-  previewAriaLabel: string;
-  contentType: string;
 }
 
 const XYZ_EXPORT_OPTION: ExportFormatOption = {
+  contentType: 'chemical/x-xyz;charset=utf-8',
   filetype: 'xyz',
   label: 'XYZ coordinates (.xyz)',
+  previewAriaLabel: 'XYZ export preview',
   previewButtonLabel: 'Preview XYZ Export',
   previewingButtonLabel: 'Previewing XYZ Export...',
-  downloadButtonLabel: 'Download XYZ Export',
-  previewAriaLabel: 'XYZ export preview',
-  contentType: 'chemical/x-xyz;charset=utf-8',
 };
 
 const COM_EXPORT_OPTION: ExportFormatOption = {
+  contentType: 'text/plain;charset=utf-8',
   filetype: 'com',
   label: 'Gaussian input (.com)',
+  previewAriaLabel: 'COM export preview',
   previewButtonLabel: 'Preview Gaussian Input',
   previewingButtonLabel: 'Previewing Gaussian Input...',
-  downloadButtonLabel: 'Download Gaussian Input',
-  previewAriaLabel: 'COM export preview',
-  contentType: 'text/plain;charset=utf-8',
 };
 
 const GJF_EXPORT_OPTION: ExportFormatOption = {
+  contentType: 'text/plain;charset=utf-8',
   filetype: 'gjf',
   label: 'Gaussian input (.gjf)',
+  previewAriaLabel: 'GJF export preview',
   previewButtonLabel: 'Preview Gaussian Input',
   previewingButtonLabel: 'Previewing Gaussian Input...',
-  downloadButtonLabel: 'Download Gaussian Input',
-  previewAriaLabel: 'GJF export preview',
-  contentType: 'text/plain;charset=utf-8',
 };
 
 const INP_EXPORT_OPTION: ExportFormatOption = {
+  contentType: 'text/plain;charset=utf-8',
   filetype: 'inp',
   label: 'ORCA input (.inp)',
+  previewAriaLabel: 'INP export preview',
   previewButtonLabel: 'Preview ORCA Input',
   previewingButtonLabel: 'Previewing ORCA Input...',
-  downloadButtonLabel: 'Download ORCA Input',
-  previewAriaLabel: 'INP export preview',
-  contentType: 'text/plain;charset=utf-8',
 };
 
 const SOURCE_WRITE_FILETYPES = new Set(['xyz', 'com', 'gjf', 'inp']);
@@ -86,8 +80,7 @@ function exportFormatsForDocument(
     options.push(COM_EXPORT_OPTION, GJF_EXPORT_OPTION);
   }
   if (sourceFiletype === 'gjf') {
-    options.push(GJF_EXPORT_OPTION);
-    options.push(COM_EXPORT_OPTION);
+    options.push(GJF_EXPORT_OPTION, COM_EXPORT_OPTION);
   }
   if (sourceFiletype === 'inp') {
     options.push(INP_EXPORT_OPTION);
@@ -141,9 +134,7 @@ function sourceStatusResolutionMessage(
     return 'Reopen the source file before writing back.';
   }
   if (status === 'missing') {
-    return (
-      'Restore the source file or open a different file before writing back.'
-    );
+    return 'Restore the source file or open a different file before writing back.';
   }
   return null;
 }
@@ -178,11 +169,13 @@ export function MoleculeExportPreviewPanel({
     useState<MoleculeExportPreviewResponse | null>(null);
   const [savedExport, setSavedExport] =
     useState<MoleculeExportWriteResponse | null>(null);
+  const [downloadedFilename, setDownloadedFilename] = useState<string | null>(
+    null,
+  );
   const [sourceStatus, setSourceStatus] =
     useState<MoleculeSourceStatusResponse | null>(null);
   const [sourceWriteResult, setSourceWriteResult] =
     useState<MoleculeSourceWriteResponse | null>(null);
-  const [saveTargetPath, setSaveTargetPath] = useState('');
   const [selectedFiletype, setSelectedFiletype] =
     useState<MoleculeExportPreviewFiletype>('xyz');
   const exportFormatOptions = useMemo(
@@ -204,6 +197,8 @@ export function MoleculeExportPreviewPanel({
   const sourceResolutionMessage = sourceStatus
     ? sourceStatusResolutionMessage(sourceStatus.status)
     : null;
+  const desktopSaveTextFile = window.chemsmartDesktop?.saveTextFile;
+  const isDesktopSaveAvailable = Boolean(desktopSaveTextFile);
   const isBusy =
     isPreviewing ||
     isSaving ||
@@ -237,41 +232,44 @@ export function MoleculeExportPreviewPanel({
     setIsWritingSource(false);
     setPreview(null);
     setSavedExport(null);
+    setDownloadedFilename(null);
     setSourceStatus(null);
     setSourceWriteResult(null);
-    setSaveTargetPath('');
-  }, [document?.id, selectedFiletype]);
+  }, [document, selectedFiletype]);
 
-  const previewSelectedExport = async (): Promise<void> => {
-    if (!document) {
-      setPreviewError('No molecule document is loaded.');
-      return;
-    }
+  const previewSelectedExport =
+    async (): Promise<MoleculeExportPreviewResponse | null> => {
+      if (!document) {
+        setPreviewError('No molecule document is loaded.');
+        return null;
+      }
 
-    const activeRequestVersion = previewRequestVersion.current + 1;
-    previewRequestVersion.current = activeRequestVersion;
-    setPreviewError(null);
-    setIsPreviewing(true);
-    setPreview(null);
+      const activeRequestVersion = previewRequestVersion.current + 1;
+      previewRequestVersion.current = activeRequestVersion;
+      setPreviewError(null);
+      setIsPreviewing(true);
+      setPreview(null);
 
-    try {
-      const response = await previewMoleculeExport({
-        document,
-        filetype: selectedOption.filetype,
-      });
-      if (previewRequestVersion.current === activeRequestVersion) {
-        setPreview(response);
+      try {
+        const response = await previewMoleculeExport({
+          document,
+          filetype: selectedOption.filetype,
+        });
+        if (previewRequestVersion.current === activeRequestVersion) {
+          setPreview(response);
+          return response;
+        }
+      } catch (err: unknown) {
+        if (previewRequestVersion.current === activeRequestVersion) {
+          setPreviewError(messageFromUnknownError(err));
+        }
+      } finally {
+        if (previewRequestVersion.current === activeRequestVersion) {
+          setIsPreviewing(false);
+        }
       }
-    } catch (err: unknown) {
-      if (previewRequestVersion.current === activeRequestVersion) {
-        setPreviewError(messageFromUnknownError(err));
-      }
-    } finally {
-      if (previewRequestVersion.current === activeRequestVersion) {
-        setIsPreviewing(false);
-      }
-    }
-  };
+      return null;
+    };
 
   const saveSelectedExport = async (): Promise<void> => {
     if (!document) {
@@ -279,26 +277,47 @@ export function MoleculeExportPreviewPanel({
       return;
     }
 
-    const targetPath = saveTargetPath.trim();
-    if (!targetPath) {
-      setSaveError('A backend target path is required.');
-      return;
-    }
-
     const activeRequestVersion = saveRequestVersion.current + 1;
     saveRequestVersion.current = activeRequestVersion;
     setSaveError(null);
-    setIsSaving(true);
     setSavedExport(null);
+    setDownloadedFilename(null);
+    setIsSaving(true);
 
     try {
-      const response = await writeMoleculeExport({
-        document,
-        filetype: selectedOption.filetype,
-        target_path: targetPath,
-      });
+      const exportPreview = await previewSelectedExport();
+      if (
+        !exportPreview ||
+        saveRequestVersion.current !== activeRequestVersion
+      ) {
+        return;
+      }
+
+      if (desktopSaveTextFile) {
+        const response = await desktopSaveTextFile({
+          content: exportPreview.content,
+          defaultFilename: exportPreview.filename,
+          filetype: exportPreview.filetype,
+        });
+        if (
+          response &&
+          saveRequestVersion.current === activeRequestVersion
+        ) {
+          setSavedExport(response);
+        }
+        return;
+      }
+
+      const previewOption = exportFormatOptionForFiletype(
+        exportPreview.filetype,
+      );
+      downloadTextFile(
+        exportPreview.filename,
+        exportPreview.content,
+        previewOption.contentType,
+      );
       if (saveRequestVersion.current === activeRequestVersion) {
-        setSavedExport(response);
+        setDownloadedFilename(exportPreview.filename);
       }
     } catch (err: unknown) {
       if (saveRequestVersion.current === activeRequestVersion) {
@@ -344,17 +363,6 @@ export function MoleculeExportPreviewPanel({
     };
 
   const checkSourceStatus = async (): Promise<void> => {
-    if (!document) {
-      setSourceStatusError('No molecule document is loaded.');
-      return;
-    }
-    if (!document.source) {
-      setSourceStatusError(
-        'Source status requires an existing source file.',
-      );
-      return;
-    }
-
     setIsCheckingSource(true);
     try {
       await loadSourceStatus();
@@ -415,10 +423,7 @@ export function MoleculeExportPreviewPanel({
       if (sourceWriteRequestVersion.current !== activeRequestVersion) {
         return;
       }
-      if (!preflightStatus) {
-        return;
-      }
-      if (preflightStatus.status !== 'current') {
+      if (!preflightStatus || preflightStatus.status !== 'current') {
         return;
       }
 
@@ -466,152 +471,66 @@ export function MoleculeExportPreviewPanel({
   };
 
   return (
-    <section
-      aria-labelledby="molecule-export-preview-heading"
-      style={{ marginTop: 16 }}
-    >
-      <h2 id="molecule-export-preview-heading">Export Preview</h2>
-      <p>
-        Preview backend-generated export content before write-back behavior.
-      </p>
-      <label htmlFor="molecule-export-preview-filetype">
-        Format
-        <select
-          disabled={!document || isBusy}
-          id="molecule-export-preview-filetype"
-          onChange={(event) => {
-            setSelectedFiletype(
-              event.currentTarget.value as MoleculeExportPreviewFiletype,
-            );
-          }}
-          style={{ marginLeft: 6 }}
-          value={selectedOption.filetype}
-        >
-          {exportFormatOptions.map((option) => (
-            <option key={option.filetype} value={option.filetype}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <button
-        disabled={!document || isBusy}
-        onClick={() => {
-          void previewSelectedExport();
-        }}
-        style={{ marginLeft: 12 }}
-        type="button"
-      >
-        {isPreviewing
-          ? selectedOption.previewingButtonLabel
-          : selectedOption.previewButtonLabel}
-      </button>
-      <div style={{ marginTop: 12 }}>
-        <p>
-          Save generated export content to a backend-accessible path. Existing
-          files are refused by the backend.
-        </p>
-        <label htmlFor="molecule-export-target-path">
-          Backend target path
-          <input
+    <section aria-label="Export Options" className="workbench-export-panel">
+      <div className="workbench-export-controls">
+        <label className="workbench-field" htmlFor="molecule-export-filetype">
+          <span className="workbench-field-label">File type</span>
+          <select
+            className="workbench-input"
             disabled={!document || isBusy}
-            id="molecule-export-target-path"
+            id="molecule-export-filetype"
             onChange={(event) => {
-              setSaveTargetPath(event.currentTarget.value);
-              setSaveError(null);
-              setSavedExport(null);
+              setSelectedFiletype(
+                event.currentTarget.value as MoleculeExportPreviewFiletype,
+              );
             }}
-            placeholder={`/tmp/molecule.${selectedOption.filetype}`}
-            style={{ marginLeft: 6, minWidth: 280 }}
-            type="text"
-            value={saveTargetPath}
-          />
-        </label>
-        <button
-          disabled={!document || isBusy || saveTargetPath.trim().length === 0}
-          onClick={() => {
-            void saveSelectedExport();
-          }}
-          style={{ marginLeft: 12 }}
-          type="button"
-        >
-          {isSaving ? 'Saving Export...' : 'Save Export'}
-        </button>
-      </div>
-      <div style={{ marginTop: 12 }}>
-        <p>
-          Check whether the original source file still matches the opened
-          revision before updating it.
-        </p>
-        <button
-          disabled={!document || isBusy || !document.source}
-          onClick={() => {
-            void checkSourceStatus();
-          }}
-          type="button"
-        >
-          {isCheckingSource
-            ? 'Checking Source Status...'
-            : 'Check Source Status'}
-        </button>
-        {document && !document.source ? (
-          <p>Source status requires an existing source file.</p>
-        ) : null}
-        {sourceStatus ? (
-          <p
-            aria-live="polite"
-            role={sourceStatus.status === 'current' ? 'status' : 'alert'}
-            style={{
-              color:
-                sourceStatus.status === 'current' ? '#8fd18f' : '#ffb86c',
-            }}
+            value={selectedOption.filetype}
           >
-            Source status:{' '}
-            <strong>{sourceStatusLabel(sourceStatus.status)}</strong>.{' '}
-            {sourceStatus.message}
-          </p>
-        ) : null}
-      </div>
-      <div style={{ marginTop: 12 }}>
-        <p>
-          Update the original source file after explicit confirmation. This is
-          available only for supported source inputs and coordinates.
-        </p>
-        <button
-          disabled={
-            !document ||
-            isBusy ||
-            !sourceWriteFiletype ||
-            sourceWriteBlockedByStatus
-          }
-          onClick={() => {
-            void writeBackToSource();
-          }}
-          type="button"
-        >
-          {isWritingSource ? 'Updating Source File...' : 'Update Source File'}
-        </button>
-        {document && !sourceWriteFiletype ? (
-          <p>Source write-back is not supported for this document.</p>
-        ) : null}
-        {sourceWriteBlockedByStatus ? (
-          <p>{sourceResolutionMessage}</p>
-        ) : null}
-        {canReopenSource ? (
+            {exportFormatOptions.map((option) => (
+              <option key={option.filetype} value={option.filetype}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="workbench-export-actions">
           <button
-            disabled={isBusy}
+            className="workbench-button"
+            disabled={!document || isBusy}
             onClick={() => {
-              void reopenSource();
+              void previewSelectedExport();
             }}
-            style={{ marginLeft: 12 }}
             type="button"
           >
-            {isReopeningSource
-              ? 'Reopening Source File...'
-              : 'Reopen Source File'}
+            {isPreviewing
+              ? selectedOption.previewingButtonLabel
+              : selectedOption.previewButtonLabel}
           </button>
-        ) : null}
+          <button
+            className="workbench-button workbench-button-primary"
+            disabled={!document || isBusy}
+            onClick={() => {
+              void saveSelectedExport();
+            }}
+            type="button"
+          >
+            {isSaving
+              ? isDesktopSaveAvailable
+                ? 'Saving...'
+                : 'Preparing Download...'
+              : isDesktopSaveAvailable
+                ? 'Save As...'
+                : 'Download Export'}
+          </button>
+        </div>
       </div>
+
+      <p className="workbench-export-help">
+        {isDesktopSaveAvailable
+          ? 'Save As opens the system file dialog and writes to the location you choose.'
+          : 'Browser development downloads the generated file. Desktop mode uses the system Save As dialog.'}
+      </p>
+
       {!document ? <p>No molecule document loaded.</p> : null}
       {previewError ? (
         <p className="workbench-error" role="alert">
@@ -623,61 +542,125 @@ export function MoleculeExportPreviewPanel({
           Export save error: {saveError}
         </p>
       ) : null}
-      {sourceStatusError ? (
-        <p className="workbench-error" role="alert">
-          Source status error: {sourceStatusError}
-        </p>
-      ) : null}
-      {sourceWriteError ? (
-        <p className="workbench-error" role="alert">
-          Source write-back error: {sourceWriteError}
-        </p>
-      ) : null}
       {savedExport ? (
-        <p aria-live="polite">
-          Saved export to <strong>{savedExport.path}</strong> (
-          {savedExport.bytes_written} bytes).
+        <p aria-live="polite" className="workbench-status-line">
+          Saved <strong>{savedExport.filename}</strong> to{' '}
+          <strong>{savedExport.path}</strong> ({savedExport.bytes_written} bytes).
         </p>
       ) : null}
-      {sourceWriteResult ? (
-        <p aria-live="polite">
-          Updated source file <strong>{sourceWriteResult.path}</strong> (
-          {sourceWriteResult.bytes_written} bytes).
+      {downloadedFilename ? (
+        <p aria-live="polite" className="workbench-status-line">
+          Downloaded <strong>{downloadedFilename}</strong>.
         </p>
       ) : null}
+
       {preview ? (
-        <div className="workbench-result-section">
-          <p>
-            Suggested filename: <strong>{preview.filename}</strong>
-          </p>
-          <p>
-            File type: <strong>{preview.filetype}</strong>
-          </p>
-          <button
-            onClick={() => {
-              const previewOption = exportFormatOptionForFiletype(
-                preview.filetype,
-              );
-              downloadTextFile(
-                preview.filename,
-                preview.content,
-                previewOption.contentType,
-              );
-            }}
-            type="button"
-          >
-            {exportFormatOptionForFiletype(preview.filetype)
-              .downloadButtonLabel}
-          </button>
+        <section aria-label="Export Preview" className="workbench-result-section">
+          <div className="workbench-export-preview-heading">
+            <h3>Preview</h3>
+            <span>
+              {preview.filename} · {preview.filetype.toUpperCase()}
+            </span>
+          </div>
           <pre
             aria-label={
               exportFormatOptionForFiletype(preview.filetype).previewAriaLabel
             }
-            className="workbench-code-preview"
+            className="workbench-code-preview workbench-export-preview-content"
           >
             {preview.content}
           </pre>
-        </div>
+        </section>
+      ) : null}
+
+      {document?.source ? (
+        <details className="workbench-export-source-actions">
+          <summary>Source File Actions</summary>
+          <div className="workbench-panel-stack">
+            <p>
+              Check the opened source revision before replacing the original
+              file with current molecule edits.
+            </p>
+            <div className="workbench-export-actions">
+              <button
+                className="workbench-button"
+                disabled={isBusy}
+                onClick={() => {
+                  void checkSourceStatus();
+                }}
+                type="button"
+              >
+                {isCheckingSource
+                  ? 'Checking Source Status...'
+                  : 'Check Source Status'}
+              </button>
+              <button
+                className="workbench-button"
+                disabled={
+                  isBusy ||
+                  !sourceWriteFiletype ||
+                  sourceWriteBlockedByStatus
+                }
+                onClick={() => {
+                  void writeBackToSource();
+                }}
+                type="button"
+              >
+                {isWritingSource
+                  ? 'Updating Source File...'
+                  : 'Update Source File'}
+              </button>
+              {canReopenSource ? (
+                <button
+                  className="workbench-button"
+                  disabled={isBusy}
+                  onClick={() => {
+                    void reopenSource();
+                  }}
+                  type="button"
+                >
+                  {isReopeningSource
+                    ? 'Reopening Source File...'
+                    : 'Reopen Source File'}
+                </button>
+              ) : null}
+            </div>
+            {!sourceWriteFiletype ? (
+              <p>Source write-back is not supported for this document.</p>
+            ) : null}
+            {sourceStatus ? (
+              <p
+                aria-live="polite"
+                className="workbench-source-status"
+                data-status={sourceStatus.status}
+                role={sourceStatus.status === 'current' ? 'status' : 'alert'}
+              >
+                Source status:{' '}
+                <strong>{sourceStatusLabel(sourceStatus.status)}</strong>.{' '}
+                {sourceStatus.message}
+              </p>
+            ) : null}
+            {sourceWriteBlockedByStatus ? (
+              <p>{sourceResolutionMessage}</p>
+            ) : null}
+            {sourceStatusError ? (
+              <p className="workbench-error" role="alert">
+                Source status error: {sourceStatusError}
+              </p>
+            ) : null}
+            {sourceWriteError ? (
+              <p className="workbench-error" role="alert">
+                Source write-back error: {sourceWriteError}
+              </p>
+            ) : null}
+            {sourceWriteResult ? (
+              <p aria-live="polite" className="workbench-status-line">
+                Updated source file <strong>{sourceWriteResult.path}</strong> (
+                {sourceWriteResult.bytes_written} bytes).
+              </p>
+            ) : null}
+          </div>
+        </details>
       ) : null}
     </section>
   );
