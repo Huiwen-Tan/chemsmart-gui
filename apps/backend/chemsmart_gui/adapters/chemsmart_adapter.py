@@ -9,6 +9,7 @@ from chemsmart.io.gaussian.output import Gaussian16Output
 from chemsmart.io.molecules.structure import Molecule
 from chemsmart.io.orca.input import ORCAInput
 from chemsmart.io.orca.output import ORCAOutput
+from chemsmart.io.xtb.output import XTBOutput
 from chemsmart.jobs.gaussian.job import GaussianJob
 from chemsmart.jobs.gaussian.settings import GaussianJobSettings
 from chemsmart.jobs.gaussian.writer import GaussianInputWriter
@@ -179,6 +180,33 @@ def _vibrational_modes_from_molecule(
         )
 
     return vibrational_modes
+
+
+def _attach_xtb_vibrations(
+    parser: XTBOutput,
+    molecule: Molecule,
+) -> None:
+    """Attach CHEMSMART's xTB companion-file vibration data to one frame."""
+    g98_file = parser.g98_file
+    if g98_file is None:
+        return
+
+    molecule.vibrational_frequencies = list(
+        g98_file.vibrational_frequencies or []
+    )
+    molecule.vibrational_reduced_masses = list(
+        g98_file.reduced_masses or []
+    )
+    molecule.vibrational_force_constants = list(
+        g98_file.force_constants or []
+    )
+    molecule.vibrational_ir_intensities = list(
+        g98_file.ir_intensities or []
+    )
+    molecule.vibrational_mode_symmetries = list(
+        g98_file.vibrational_mode_symmetries or []
+    )
+    molecule.vibrational_modes = list(g98_file.vibrational_modes or [])
 
 
 def _frame_properties_from_molecule(
@@ -518,6 +546,8 @@ class ChemsmartAdapter:
                 parser = Gaussian16Output(filename=path)
             elif program == "orca":
                 parser = ORCAOutput(filename=path)
+            elif program == "xtb":
+                parser = XTBOutput(folder=str(source_path.parent))
             else:
                 return None
         else:
@@ -529,9 +559,17 @@ class ChemsmartAdapter:
         )
         molecules = list(parser.all_structures or [])
         if not molecules:
+            if program == "xtb":
+                raise ValueError(
+                    "No molecular structure found in the xTB calculation "
+                    "directory. Open the main xTB .out file from its original "
+                    "result directory so companion files remain available."
+                )
             raise ValueError(
                 "No molecular structure found in calculation output."
             )
+        if program == "xtb":
+            _attach_xtb_vibrations(parser, molecules[-1])
         if len(molecules) > 1:
             return self.to_trajectory_document(
                 molecules,

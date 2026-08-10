@@ -341,6 +341,34 @@ def test_open_document_parses_orca_output() -> None:
     assert len(final_frame["vibrational_modes"]) == 3
 
 
+def test_open_document_parses_xtb_output_directory() -> None:
+    path = "sample-data/xtb/co2_ohess/co2_ohess.out"
+    response = client.post(
+        "/api/documents/open",
+        json={"path": path},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["document_kind"] == "trajectory"
+    assert body["source"] == expected_source_payload(
+        path,
+        "co2_ohess.out",
+        "out",
+    )
+    assert body["calculation"] == {
+        "program": "xtb",
+        "normal_termination": True,
+    }
+    assert len(body["frames"]) == 5
+    assert len(body["frame_properties"]) == 5
+    assert body["frame_properties"][-1]["energy_hartree"] == pytest.approx(
+        -10.308452289174
+    )
+    assert body["frame_properties"][-1]["is_optimized_structure"] is True
+    assert len(body["frames"][-1]["vibrational_modes"]) == 4
+
+
 def test_open_document_reports_missing_request_path() -> None:
     response = client.post("/api/documents/open", json={})
 

@@ -547,7 +547,8 @@ export function App(): JSX.Element {
     }
 
     try {
-      setOpeningDocumentName(trimmedPath);
+      const pathSegments = trimmedPath.split(/[\\/]/);
+      setOpeningDocumentName(pathSegments.at(-1) || trimmedPath);
       setIsOpeningDocument(true);
       const document = await openDocument({ path: trimmedPath });
       setCurrentDocument(document);
@@ -560,8 +561,23 @@ export function App(): JSX.Element {
     }
   };
 
-  const chooseDocumentFile = (): void => {
-    documentFileInputRef.current?.click();
+  const chooseDocumentFile = async (): Promise<void> => {
+    const chooseDocumentPath = window.chemsmartDesktop?.chooseDocumentPath;
+    if (!chooseDocumentPath) {
+      documentFileInputRef.current?.click();
+      return;
+    }
+
+    try {
+      const path = await chooseDocumentPath();
+      if (path) {
+        await openDocumentPath(path);
+      }
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error ? err.message : 'Could not open the file dialog.',
+      );
+    }
   };
 
   const openDocumentFile = async (file: File): Promise<void> => {
@@ -623,7 +639,9 @@ export function App(): JSX.Element {
         id: 'open-document',
         kind: 'action',
         label: 'Open Document',
-        onSelect: chooseDocumentFile,
+        onSelect: () => {
+          void chooseDocumentFile();
+        },
       },
       {
         disabled: !activeEditableMoleculeDocument,
@@ -722,7 +740,9 @@ export function App(): JSX.Element {
       error={error}
       isOpeningDocument={isOpeningDocument}
       documentOpenStatus={documentOpenStatus}
-      onChooseDocument={chooseDocumentFile}
+      onChooseDocument={() => {
+        void chooseDocumentFile();
+      }}
       openingDocumentName={openingDocumentName}
     />
   );

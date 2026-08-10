@@ -13,6 +13,13 @@ WATER_GJF_PATH = REPOSITORY_ROOT / "sample-data" / "water.gjf"
 WATER_INP_PATH = REPOSITORY_ROOT / "sample-data" / "water.inp"
 WATER_LOG_PATH = REPOSITORY_ROOT / "sample-data" / "water.log"
 WATER_OUT_PATH = REPOSITORY_ROOT / "sample-data" / "water.out"
+XTB_CO2_OUTPUT_PATH = (
+    REPOSITORY_ROOT
+    / "sample-data"
+    / "xtb"
+    / "co2_ohess"
+    / "co2_ohess.out"
+)
 
 
 def assert_source_matches_file(path: Path, source) -> None:
@@ -235,6 +242,50 @@ def test_open_orca_output_document_returns_trajectory() -> None:
     )
     assert document.frame_properties[-1]["is_optimized_structure"] is True
     assert len(document.frames[-1].vibrational_modes) == 3
+
+
+def test_open_xtb_output_document_returns_result_trajectory() -> None:
+    document = ChemsmartAdapter().open_document_from_path(
+        str(XTB_CO2_OUTPUT_PATH)
+    )
+
+    assert document.document_kind == "trajectory"
+    assert document.name.startswith("traj-co2_ohess-")
+    assert document.source is not None
+    assert document.source.path == str(XTB_CO2_OUTPUT_PATH)
+    assert document.source.filename == "co2_ohess.out"
+    assert document.source.filetype == "out"
+    assert document.calculation is not None
+    assert document.calculation.program == "xtb"
+    assert document.calculation.normal_termination is True
+    assert len(document.frames) == 5
+    assert len(document.frame_properties) == 5
+    assert [frame.charge for frame in document.frames] == [0] * 5
+    assert [frame.multiplicity for frame in document.frames] == [1] * 5
+    assert [
+        frame_property["energy_hartree"]
+        for frame_property in document.frame_properties
+    ] == pytest.approx(
+        [
+            -10.297398913536,
+            -10.308447045699,
+            -10.30845207658,
+            -10.308452237199,
+            -10.308452289174,
+        ]
+    )
+    assert document.frame_properties[-1]["is_optimized_structure"] is True
+
+    final_frame = document.frames[-1]
+    assert [atom.element for atom in final_frame.atoms] == ["O", "O", "C"]
+    assert len(final_frame.vibrational_modes) == 4
+    first_mode = final_frame.vibrational_modes[0]
+    assert first_mode.frequency_cm_minus_1 == pytest.approx(600.3117)
+    assert first_mode.reduced_mass_amu == pytest.approx(13.0986)
+    assert first_mode.force_constant_mdyne_per_angstrom == pytest.approx(0.0)
+    assert first_mode.ir_intensity_km_per_mol == pytest.approx(68.6947)
+    assert first_mode.symmetry == "a"
+    assert len(first_mode.displacements) == 3
 
 
 def test_preview_molecule_export_returns_xyz_text() -> None:

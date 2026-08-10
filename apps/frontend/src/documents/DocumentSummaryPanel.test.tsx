@@ -70,6 +70,20 @@ const INCOMPLETE_OUTPUT_DOCUMENT: MoleculeDocument = {
   },
 };
 
+const XTB_OUTPUT_DOCUMENT: MoleculeDocument = {
+  ...GAUSSIAN_OUTPUT_DOCUMENT,
+  id: 'xtb-co2-output',
+  source: {
+    path: 'sample-data/xtb/co2_ohess/co2_ohess.out',
+    filename: 'co2_ohess.out',
+    filetype: 'out',
+  },
+  calculation: {
+    program: 'xtb',
+    normal_termination: true,
+  },
+};
+
 describe('DocumentSummaryPanel', () => {
   afterEach(() => {
     cleanup();
@@ -179,6 +193,14 @@ describe('DocumentSummaryPanel', () => {
       .not.toBeInTheDocument();
     expect(within(panel).queryByText('Vibrational frequency unit'))
       .not.toBeInTheDocument();
+  });
+
+  it('formats xTB calculation metadata', () => {
+    render(<DocumentSummaryPanel document={XTB_OUTPUT_DOCUMENT} />);
+
+    const panel = screen.getByRole('region', { name: 'Current Document' });
+    expect(within(panel).getByText('xTB')).toBeInTheDocument();
+    expect(within(panel).getByText('Normal termination')).toBeInTheDocument();
   });
 
   it('shows incomplete or failed state for non-normal termination', () => {

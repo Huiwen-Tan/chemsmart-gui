@@ -53,7 +53,7 @@ export interface DocumentSource {
   modified_time_ns?: number | null;
 }
 
-export type CalculationProgram = 'gaussian' | 'orca';
+export type CalculationProgram = 'gaussian' | 'orca' | 'xtb';
 
 export interface CalculationMetadata {
   program: CalculationProgram;

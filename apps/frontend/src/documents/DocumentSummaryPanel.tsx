@@ -53,7 +53,10 @@ function formatDocumentKind(kind: MoleculeDocument['document_kind']): string {
 function formatProgram(
   program: NonNullable<MoleculeDocument['calculation']>['program'],
 ): string {
-  return program === 'orca' ? 'ORCA' : 'Gaussian';
+  if (program === 'orca') {
+    return 'ORCA';
+  }
+  return program === 'xtb' ? 'xTB' : 'Gaussian';
 }
 
 export function DocumentSummaryPanel({

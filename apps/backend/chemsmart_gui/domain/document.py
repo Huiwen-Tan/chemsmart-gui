@@ -12,7 +12,7 @@ DocumentKind = (
     | TrajectoryDocumentKind
     | CalculationResultDocumentKind
 )
-CalculationProgram = Literal["gaussian", "orca"]
+CalculationProgram = Literal["gaussian", "orca", "xtb"]
 JsonScalar = str | int | float | bool | None
 JsonValue = JsonScalar | list[JsonScalar] | dict[str, JsonScalar]
 JsonObject = dict[str, JsonValue]

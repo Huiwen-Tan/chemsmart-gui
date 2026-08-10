@@ -64,7 +64,8 @@ export function DocumentOpenPanel({
         <h3 id="supported-documents-heading">Supported Documents</h3>
         <p>
           Structures: .xyz. Inputs: Gaussian .com/.gjf and ORCA .inp. Outputs:
-          Gaussian .log and ORCA .out.
+          Gaussian .log, ORCA .out, and xTB .out. In the desktop app, open the
+          main xTB .out from its result folder so companion files are included.
         </p>
       </section>
     </section>

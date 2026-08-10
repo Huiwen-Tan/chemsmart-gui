@@ -3,6 +3,7 @@ import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const isDev = process.env.NODE_ENV === 'development';
+const CHOOSE_DOCUMENT_FILE_CHANNEL = 'chemsmart:choose-document-file';
 const SAVE_TEXT_FILE_CHANNEL = 'chemsmart:save-text-file';
 const EXPORT_FILETYPES = ['xyz', 'com', 'gjf', 'inp'] as const;
 
@@ -20,6 +21,27 @@ const EXPORT_FILTER_NAMES: Record<ExportFiletype, string> = {
   gjf: 'Gaussian Input',
   inp: 'ORCA Input',
 };
+
+ipcMain.handle(CHOOSE_DOCUMENT_FILE_CHANNEL, async (event) => {
+  const ownerWindow = BrowserWindow.fromWebContents(event.sender);
+  const openDialogOptions = {
+    title: 'Open Molecular Document',
+    buttonLabel: 'Open',
+    filters: [{
+      name: 'Molecules, Inputs, and Calculation Outputs',
+      extensions: ['xyz', 'com', 'gjf', 'inp', 'log', 'out'],
+    }],
+    properties: ['openFile'],
+  } satisfies Electron.OpenDialogOptions;
+  const result = ownerWindow
+    ? await dialog.showOpenDialog(ownerWindow, openDialogOptions)
+    : await dialog.showOpenDialog(openDialogOptions);
+
+  if (result.canceled || result.filePaths.length === 0) {
+    return null;
+  }
+  return result.filePaths[0];
+});
 
 function isSaveTextFileRequest(value: unknown): value is SaveTextFileRequest {
   if (!value || typeof value !== 'object') {

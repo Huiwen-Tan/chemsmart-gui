@@ -4,7 +4,7 @@
 
 - Node.js 22.12+
 - Python 3.10
-- CHEMSMART 2.0.0 or newer
+- CHEMSMART 3.2.0 or newer
 
 ## Install frontend + desktop dependencies
 

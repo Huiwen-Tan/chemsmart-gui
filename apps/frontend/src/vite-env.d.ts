@@ -15,6 +15,7 @@ declare global {
   interface Window {
     chemsmartDesktop?: {
       backendBaseUrl: string;
+      chooseDocumentPath?: () => Promise<string | null>;
       saveTextFile: (
         request: DesktopSaveTextFileRequest,
       ) => Promise<MoleculeExportWriteResponse | null>;

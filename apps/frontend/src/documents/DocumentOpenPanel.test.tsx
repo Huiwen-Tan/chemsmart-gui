@@ -29,6 +29,7 @@ describe('DocumentOpenPanel', () => {
     expect(
       within(panel).getByRole('heading', { name: 'Supported Documents' }),
     ).toBeInTheDocument();
+    expect(within(panel).getByText(/xTB \.out/)).toBeInTheDocument();
     expect(within(panel).queryByRole('textbox')).not.toBeInTheDocument();
   });
 

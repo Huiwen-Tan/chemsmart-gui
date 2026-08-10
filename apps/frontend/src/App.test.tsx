@@ -434,6 +434,45 @@ const ORCA_OUTPUT_TRAJECTORY_DOCUMENT = {
   ],
 } satisfies TrajectoryDocument;
 
+const XTB_OUTPUT_TRAJECTORY_DOCUMENT = {
+  ...ORCA_OUTPUT_TRAJECTORY_DOCUMENT,
+  id: 'xtb-output-trajectory-document',
+  name: 'xtb-co2-optimization',
+  source: {
+    path: '/Users/example/co2_ohess/co2_ohess.out',
+    filename: 'co2_ohess.out',
+    filetype: 'out',
+  },
+  calculation: {
+    program: 'xtb',
+    normal_termination: true,
+  },
+  frames: ORCA_OUTPUT_TRAJECTORY_DOCUMENT.frames.map((frame) => ({
+    ...frame,
+    source: {
+      path: '/Users/example/co2_ohess/co2_ohess.out',
+      filename: 'co2_ohess.out',
+      filetype: 'out',
+    },
+    calculation: {
+      program: 'xtb' as const,
+      normal_termination: true,
+    },
+  })),
+  frame_properties: [
+    {
+      energy_hartree: -10.30,
+      is_optimized_structure: false,
+      normal_termination: true,
+    },
+    {
+      energy_hartree: -10.31,
+      is_optimized_structure: true,
+      normal_termination: true,
+    },
+  ],
+} satisfies TrajectoryDocument;
+
 const BROADENED_IR_SPECTRUM_RESPONSE = {
   broadening: 'gaussian',
   width_cm_minus_1: 20,
@@ -681,6 +720,60 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Choose File...' }));
 
     expect(clickFileInput).toHaveBeenCalledOnce();
+  });
+
+  it('opens a desktop-selected xTB output by its local path', async () => {
+    const xTBOutputPath = '/Users/example/co2_ohess/co2_ohess.out';
+    const chooseDocumentPath = vi.fn().mockResolvedValue(xTBOutputPath);
+    Object.defineProperty(window, 'chemsmartDesktop', {
+      configurable: true,
+      value: {
+        backendBaseUrl: 'http://127.0.0.1:8000',
+        chooseDocumentPath,
+        saveTextFile: vi.fn(),
+      },
+    });
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ status: 'ok' }))
+      .mockResolvedValueOnce(jsonResponse(XTB_OUTPUT_TRAJECTORY_DOCUMENT));
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'Choose File...' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(XTB_OUTPUT_TRAJECTORY_DOCUMENT.frames[0]),
+      );
+    });
+    expect(chooseDocumentPath).toHaveBeenCalledOnce();
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'http://127.0.0.1:8000/api/documents/open',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ path: xTBOutputPath }),
+      }),
+    );
+    expect(screen.getByText(
+      'Opened co2_ohess.out · 3 atoms · 2 frames',
+    )).toBeInTheDocument();
+
+    const playback = screen.getByRole('region', {
+      name: 'Viewer playback controls',
+    });
+    fireEvent.click(within(playback).getByRole('button', {
+      name: 'Next Frame',
+    }));
+    await waitFor(() => {
+      expect(screen.getByTestId('viewer-document')).toHaveTextContent(
+        JSON.stringify(XTB_OUTPUT_TRAJECTORY_DOCUMENT.frames[1]),
+      );
+    });
+
+    const summaryDialog = openResultsDialog('Summary');
+    expect(within(summaryDialog).getByText('xTB')).toBeInTheDocument();
   });
 
   it('passes the normalized sample XYZ response to the viewer', async () => {
