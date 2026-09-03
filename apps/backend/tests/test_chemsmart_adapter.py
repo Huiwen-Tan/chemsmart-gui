@@ -320,6 +320,60 @@ def test_preview_molecule_export_returns_xyz_text() -> None:
     ]
 
 
+@pytest.mark.parametrize(
+    "source_path",
+    [
+        WATER_PATH,
+        WATER_COM_PATH,
+        WATER_GJF_PATH,
+        WATER_INP_PATH,
+        WATER_LOG_PATH,
+        WATER_OUT_PATH,
+        XTB_CO2_OUTPUT_PATH,
+    ],
+    ids=[
+        "xyz",
+        "com",
+        "gjf",
+        "inp",
+        "gaussian-log",
+        "orca-out",
+        "xtb-out",
+    ],
+)
+def test_required_sources_round_trip_through_xyz_export(
+    source_path: Path,
+    tmp_path: Path,
+) -> None:
+    adapter = ChemsmartAdapter()
+    source_document = adapter.open_molecule_from_path(str(source_path))
+
+    filename, content = adapter.preview_molecule_export(
+        source_document,
+        "xyz",
+    )
+    exported_path = tmp_path / filename
+    exported_path.write_text(content, encoding="utf-8")
+    reopened_document = adapter.open_molecule_from_path(str(exported_path))
+
+    assert [atom.index for atom in reopened_document.atoms] == [
+        atom.index for atom in source_document.atoms
+    ]
+    assert [atom.element for atom in reopened_document.atoms] == [
+        atom.element for atom in source_document.atoms
+    ]
+    for reopened_atom, source_atom in zip(
+        reopened_document.atoms,
+        source_document.atoms,
+        strict=True,
+    ):
+        assert (reopened_atom.x, reopened_atom.y, reopened_atom.z) == (
+            pytest.approx(source_atom.x, abs=1e-6),
+            pytest.approx(source_atom.y, abs=1e-6),
+            pytest.approx(source_atom.z, abs=1e-6),
+        )
+
+
 def test_preview_molecule_export_does_not_overwrite_source_file(
     tmp_path: Path,
 ) -> None:
